@@ -1,0 +1,9 @@
+{
+  "appId": "com.jakedbirch.windchimes",
+  "appName": "Wind Chimes",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#0b0c0e"
+  }
+}
