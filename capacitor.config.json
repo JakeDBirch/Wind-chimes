@@ -1,6 +1,6 @@
 {
   "appId": "com.jakedbirch.windchimes",
-  "appName": "Wind Chimes",
+  "appName": "Pocket Chimes",
   "webDir": "www",
   "ios": {
     "contentInset": "never",

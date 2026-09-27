@@ -1,6 +1,6 @@
-# Wind Chimes
+# Pocket Chimes
 
-Chimes Physics Sandbox: a top-down 2D pendulum simulation of wind chimes with sound, wind and phone-motion input.
+A wind chime simulator. It plays the sound of wind chimes, and if you hang your phone up outside, it becomes a real wind chime that moves with the wind. Under the hood it's a top-down 2D pendulum simulation driven by wind, sound and the phone's motion sensors.
 
 The whole app is `index.html`. It runs as-is in a browser, and is packaged as an iOS app with [Capacitor](https://capacitorjs.com) for TestFlight.
 

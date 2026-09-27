@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>Wind Chimes</string>
+        <string>Pocket Chimes</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -69,6 +69,6 @@
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSMotionUsageDescription</key>
-	<string>Wind Chimes uses your phone's motion so tilting and shaking it moves the chimes.</string>
+	<string>Pocket Chimes uses your phone's motion so tilting and shaking it moves the chimes.</string>
 </dict>
 </plist>

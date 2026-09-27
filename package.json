@@ -2,7 +2,7 @@
   "name": "wind-chimes",
   "version": "1.0.0",
   "private": true,
-  "description": "Chimes Physics Sandbox, packaged as an iOS app with Capacitor",
+  "description": "Pocket Chimes, a wind chime simulator packaged as an iOS app with Capacitor",
   "scripts": {
     "build": "rm -rf www && mkdir -p www && cp index.html www/",
     "sync": "npm run build && cap sync ios",
