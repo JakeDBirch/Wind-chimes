@@ -2,15 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#0b0c0e">
-<title>Chimes Physics</title>
+<title>Pocket Chimes</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { background: #0b0c0e; color: #c8d0c8; font-family: 'Courier New', monospace; font-size: 12px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
-.app { padding: 18px; max-width: 480px; margin: 0 auto; padding-bottom: 100px; }
+.app { padding: 18px; padding-top: calc(18px + env(safe-area-inset-top)); padding-left: calc(18px + env(safe-area-inset-left)); padding-right: calc(18px + env(safe-area-inset-right)); padding-bottom: calc(100px + env(safe-area-inset-bottom)); max-width: 480px; margin: 0 auto; }
 h1 { font-size: 11px; letter-spacing: 0.28em; color: #7ac89a; margin-bottom: 3px; text-transform: uppercase; }
 .sub { font-size: 9px; color: #304838; letter-spacing: 0.15em; margin-bottom: 14px; }
 canvas { display: block; width: 100%; height: 340px; background: #0e1210; border: 1px solid #1a2a1e; border-radius: 6px; margin-bottom: 14px; }
@@ -23,7 +23,7 @@ input[type=range] { flex: 1; -webkit-appearance: none; height: 2px; background: 
 input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #0b0c0e; border: 1.5px solid #7ac89a; }
 .schip { padding: 4px 9px; border-radius: 4px; border: 1px solid #1e2e22; background: none; color: #4a7060; font-family: 'Courier New', monospace; font-size: 9px; cursor: pointer; outline: none; transition: all 0.15s; letter-spacing: 0.05em; }
 .schip.active { border-color: #7ac89a; color: #7ac89a; background: rgba(122,200,154,0.08); }
-.float-bar { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; background: rgba(11,12,14,0.96); border: 1px solid #1a2a1e; border-radius: 10px; padding: 10px 14px; z-index: 100; }
+.float-bar { position: fixed; bottom: calc(16px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); display: flex; gap: 8px; background: rgba(11,12,14,0.96); border: 1px solid #1a2a1e; border-radius: 10px; padding: 10px 14px; z-index: 100; }
 .fbtn { padding: 9px 16px; border-radius: 6px; border: 1px solid #7ac89a; background: rgba(122,200,154,0.07); color: #7ac89a; font-family: 'Courier New', monospace; font-size: 9px; letter-spacing: 0.16em; cursor: pointer; outline: none; text-transform: uppercase; }
 .fbtn:active { opacity: 0.6; }
 .fbtn.off { border-color: #c87a7a; color: #c87a7a; background: rgba(200,122,122,0.07); }
@@ -39,7 +39,7 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px;
 </head>
 <body>
 <div class="app">
-  <h1>Chimes Physics Sandbox</h1>
+  <h1>Pocket Chimes</h1>
   <div class="sub">2D pendulum system — top-down view</div>
 
   <canvas id="viz" width="680" height="680"></canvas>
