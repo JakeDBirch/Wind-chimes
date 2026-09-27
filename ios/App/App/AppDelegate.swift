@@ -8,8 +8,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Play chime audio even when the ring/silent switch is on, mixing with other apps' audio.
-        try? AVAudioSession.sharedInstance().setCategory(.playback, options: [.mixWithOthers])
+        // Play chime audio even when the ring/silent switch is on. The web page also asks
+        // for this via navigator.audioSession, which is what WebKit actually honors.
+        try? AVAudioSession.sharedInstance().setCategory(.playback)
+        try? AVAudioSession.sharedInstance().setActive(true)
+        // Keep the screen from auto-locking, which would stop the audio and motion sensors
+        // while the phone is hanging as a chime.
+        application.isIdleTimerDisabled = true
         return true
     }
 

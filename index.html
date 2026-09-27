@@ -744,8 +744,11 @@ function tick() {
 var audioCtx = null;
 var sbMasterOut = null;
 
-
-
+// iOS treats Web Audio as "ambient" by default, which the ring/silent switch mutes.
+// Declaring this page as media playback makes it sound with the switch on (iOS 16.4+).
+if (navigator.audioSession) {
+  try { navigator.audioSession.type = 'playback'; } catch (e) {}
+}
 
 function getAudio() {
   if (audioCtx) return audioCtx;
@@ -757,8 +760,56 @@ function getAudio() {
 
   // Dry only — no reverb
 
+  // iOS suspends or "interrupts" the context for calls, Siri, alarms and backgrounding.
+  audioCtx.onstatechange = function() {
+    if (audioCtx.state !== 'running' && document.visibilityState === 'visible') resumeAudio();
+  };
+
   return audioCtx;
 }
+
+// Strikes come from the physics loop, not a user gesture, so iOS won't let them
+// start audio. Create and resume the context on real touches instead.
+function resumeAudio() {
+  var ctx = getAudio();
+  if (ctx.state !== 'running') {
+    var p = ctx.resume();
+    if (p && p.catch) p.catch(function() {});
+  }
+}
+
+function unlockAudio() {
+  resumeAudio();
+  // Playing a silent buffer inside the gesture fully unlocks output on older iOS.
+  var ctx = audioCtx;
+  var buf = ctx.createBuffer(1, 1, 22050);
+  var src = ctx.createBufferSource();
+  src.buffer = buf;
+  src.connect(ctx.destination);
+  src.start(0);
+}
+
+['pointerdown', 'touchend', 'click', 'keydown'].forEach(function(type) {
+  document.addEventListener(type, unlockAudio, { capture: true, passive: true });
+});
+
+// Keep the screen awake so a hanging phone keeps chiming (browser version; the iOS app does this natively).
+var _wakeLock = null;
+function requestWakeLock() {
+  if (!('wakeLock' in navigator) || _wakeLock || document.visibilityState !== 'visible') return;
+  navigator.wakeLock.request('screen').then(function(lock) {
+    _wakeLock = lock;
+    lock.addEventListener('release', function() { _wakeLock = null; });
+  }).catch(function() {});
+}
+
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState !== 'visible') return;
+  if (audioCtx) resumeAudio();
+  requestWakeLock();
+});
+window.addEventListener('pageshow', function() { if (audioCtx) resumeAudio(); });
+document.addEventListener('pointerdown', requestWakeLock, { capture: true, passive: true });
 
 // Tube frequencies — pentatonic scale rooted at A4
 // Length-derived: lower tubes = lower pitch
