@@ -126,9 +126,22 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px;
 </div>
 
 <script>
+// Pocket Chimes runs its physics and sound natively (the ChimeEngine plugin), so it keeps
+// chiming in the background and with the screen locked. This page is the controls and view.
+var Engine = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.ChimeEngine;
+
+var TUBE_R = 0.035; // tube radius in meters — matches ChimePhysics.tubeR
+var SCALE_NAMES = ['Pentatonic', 'Chord Seq'];
+var currentScale = 'Chord Seq';
+var currentMaterial = 'Metal';
+var physicsOn = false;
+var source = 'wind'; // 'wind' | 'phone'
+var S = null;        // latest engine state
+var _userChangedAt = 0; // ignore engine state briefly after a tap, so an in-flight poll can't undo it
+
 // ── Helpers ───────────────────────────────────────────────
 function gv(id) { return parseFloat(document.getElementById(id).value); }
-// Logarithmic damping map: slider 1-100 → 0.0005-0.035
+// Logarithmic damping map: slider 1-100 → 0.0015-0.01 (display only; the engine does the same)
 function getDamping() {
   var v = parseFloat(document.getElementById('damping').value) || 18;
   return 0.0015 * Math.pow(6.667, (v - 1) / 99);
@@ -136,1041 +149,126 @@ function getDamping() {
 function sv(id) {
   var n = gv(id), el = document.getElementById('v-' + id);
   if (!el) return;
-  if (n < 0.01) el.textContent = n.toFixed(4);
-  else if (n < 1) el.textContent = n.toFixed(2);
+  if (id === 'damping') el.textContent = getDamping().toFixed(4);
+  else if (n < 0.01) el.textContent = n.toFixed(4);
   else el.textContent = n.toFixed(2);
 }
+
+function sendParams() {
+  if (!Engine) return;
+  Engine.setParams({
+    cordLength: gv('cordLength'),
+    damping: gv('damping'),
+    gap: gv('gap'),
+    tubeCount: Math.round(gv('tubeCount')),
+    windStrength: gv('windStrength'),
+    windSusc: gv('windSusc'),
+    windSteady: gv('windSteady'),
+    windTurb: gv('windTurb'),
+    register: gv('register'),
+    scale: currentScale,
+    material: currentMaterial
+  });
+}
+
+function makeChips(containerId, names, getCurrent, setCurrent) {
+  var el = document.getElementById(containerId);
+  names.forEach(function(name) {
+    var b = document.createElement('button');
+    b.className = 'schip' + (name === getCurrent() ? ' active' : '');
+    b.textContent = name;
+    b.addEventListener('click', function() {
+      setCurrent(name);
+      el.querySelectorAll('.schip').forEach(function(c) { c.classList.remove('active'); });
+      b.classList.add('active');
+      sendParams();
+    });
+    el.appendChild(b);
+  });
+}
+
 window.addEventListener('load', function() {
-  document.getElementById('gap').addEventListener('input', function() {
-    var gapM = parseFloat(this.value) / 1000;
-    var n = Math.round(gv('tubeCount'));
-    ringRadius = (gapM + 2 * TUBE_R) / (2 * Math.sin(Math.PI / n));
-    document.getElementById('v-gap').textContent = Math.round(this.value);
-  });
-
   document.querySelectorAll('input[type=range]').forEach(function(el) {
-    if (el.id === 'damping') { document.getElementById('v-damping').textContent = getDamping().toFixed(4); } else { sv(el.id); }
+    sv(el.id);
     el.addEventListener('input', function() {
-      if (el.id === 'damping') { document.getElementById('v-damping').textContent = getDamping().toFixed(4); } else { sv(el.id); }
-      // Only fully rebuild when tube count changes — that requires new objects
-      // Everything else (damping, lengths, wind, gaps) is read live by tick() each frame
-      if (el.id === 'tubeCount') {
-        rebuild();
-        if (running) { clearInterval(physTimer); physTimer = setInterval(tick, Math.round(DT*1000)); }
-      }
-      // chimeSpacing changes ring geometry but we can update ringRadius without resetting state
-      if (el.id === 'gap') {
-        var gapM = (gv('gap') * 0.5) / 1000;
-        var n = Math.round(gv('tubeCount'));
-        ringRadius = (gapM + 2 * TUBE_R) / (2 * Math.sin(Math.PI / n));
-      }
+      sv(el.id);
+      sendParams();
       draw();
     });
-  });
-  // Build scale chips
-  var scaleNames = Object.keys(SCALES);
-  var chipsEl = document.getElementById('scale-chips');
-  scaleNames.forEach(function(name) {
-    var b = document.createElement('button');
-    b.className = 'schip' + (name === currentScale ? ' active' : '');
-    b.textContent = name;
-    b.addEventListener('click', function() {
-      currentScale = name;
-      chipsEl.querySelectorAll('.schip').forEach(function(c) { c.classList.remove('active'); });
-      b.classList.add('active');
-      draw();
-    });
-    chipsEl.appendChild(b);
   });
 
-  // Material chips
-  var matChipsEl = document.getElementById('material-chips');
-  ['Metal', 'Wood'].forEach(function(name) {
-    var b = document.createElement('button');
-    b.className = 'schip' + (name === currentMaterial ? ' active' : '');
-    b.textContent = name;
-    b.addEventListener('click', function() {
-      currentMaterial = name;
-      matChipsEl.querySelectorAll('.schip').forEach(function(c) { c.classList.remove('active'); });
-      b.classList.add('active');
-    });
-    matChipsEl.appendChild(b);
-  });
+  makeChips('scale-chips', SCALE_NAMES,
+    function() { return currentScale; }, function(n) { currentScale = n; });
+  makeChips('material-chips', ['Metal', 'Wood'],
+    function() { return currentMaterial; }, function(n) { currentMaterial = n; });
+
   document.getElementById('btn-gust').addEventListener('click', function() {
-    fireGust();
-    if (!physicsOn) setPhysics(true);
+    _userChangedAt = Date.now();
+    if (Engine) Engine.gust();
+    showPhysics(true);
   });
-
-  // ── Physics master toggle ──
   document.getElementById('btn-physics').addEventListener('click', function() {
-    setPhysics(!physicsOn);
+    _userChangedAt = Date.now();
+    showPhysics(!physicsOn);
+    if (Engine) Engine.setPhysics({ on: physicsOn });
   });
+  document.getElementById('src-wind').addEventListener('click', function() { chooseSource('wind'); });
+  document.getElementById('src-phone').addEventListener('click', function() { chooseSource('phone'); });
 
-  // ── Source segmented toggle: Wind / Phone ──
-  document.getElementById('src-wind').addEventListener('click', function() {
-    setSource('wind');
-  });
-  document.getElementById('src-phone').addEventListener('click', function() {
-    setSource('phone'); // triggers permission request
-  });
-
-  rebuild();
-  requestAnimationFrame(function() { draw(); });
+  if (!Engine) {
+    document.getElementById('motion-status').textContent = 'Open Pocket Chimes on your phone to play.';
+  }
+  sendParams();
+  requestAnimationFrame(loop);
 });
 
-// ── Master physics control ────────────────────────────────
-function setPhysics(on) {
+// ── Controls ──────────────────────────────────────────────
+function showPhysics(on) {
   physicsOn = on;
   var btn = document.getElementById('btn-physics');
   btn.textContent = on ? 'Physics on' : 'Physics off';
   btn.classList.toggle('off', !on);
   btn.classList.toggle('on', on);
-  if (on) {
-    // Activate whichever source is selected
-    if (source === 'wind') {
-      windOn = true;
-      _windAngle = Math.random() * Math.PI * 2;
-      _windSpeed = 0; _turbX = 0; _turbY = 0; _noiseX = 0; _noiseY = 0;
-      _calmDamp = 1.0;
-      _scheduleNextEvent();
-    }
-    if (!running) start();
-  } else {
-    windOn = false;
-    stop();
-  }
 }
 
-// ── Source selection ──────────────────────────────────────
-function setSource(src) {
-  var wBtn = document.getElementById('src-wind');
-  var pBtn = document.getElementById('src-phone');
+function showSource(src) {
+  source = src;
+  document.getElementById('src-wind').classList.toggle('active', src === 'wind');
+  document.getElementById('src-phone').classList.toggle('active', src === 'phone');
   var status = document.getElementById('motion-status');
-
-  if (src === 'wind') {
-    // Disable motion
-    if (motionOn) {
-      window.removeEventListener('devicemotion', onDeviceMotion);
-      motionOn = false;
-      _motionX = _motionY = _motionRawX = _motionRawY = 0;
-    }
-    source = 'wind';
-    wBtn.classList.add('active'); pBtn.classList.remove('active');
-    status.textContent = '';
-    if (physicsOn) {
-      windOn = true;
-      _windAngle = Math.random() * Math.PI * 2;
-      _scheduleNextEvent();
-    }
-  } else {
-    // Phone — request motion permission
-    function enable() {
-      window.addEventListener('devicemotion', onDeviceMotion);
-      window._motionEventCount = 0;
-      setTimeout(function() {
-        if (motionOn && window._motionEventCount === 0)
-          status.textContent = 'No data — open in Safari over HTTPS, not embedded.';
-      }, 1200);
-      motionOn = true;
-      windOn = false;
-      source = 'phone';
-      wBtn.classList.remove('active'); pBtn.classList.add('active');
-      status.textContent = 'Active — shake or sway to chime.';
-      if (physicsOn && !running) start();
-      if (!physicsOn) setPhysics(true);
-    }
-    if (typeof DeviceMotionEvent !== 'undefined' &&
-        typeof DeviceMotionEvent.requestPermission === 'function') {
-      status.textContent = 'Requesting permission…';
-      DeviceMotionEvent.requestPermission().then(function(state) {
-        if (state === 'granted') enable();
-        else status.textContent = 'Denied. Settings > Safari > Motion Access.';
-      }).catch(function() {
-        status.textContent = 'Failed — needs HTTPS in Safari, not embedded.';
-      });
-    } else if (typeof DeviceMotionEvent !== 'undefined') {
-      enable();
-    } else {
-      status.textContent = 'Motion not supported here.';
-    }
-  }
+  if (src === 'wind') status.textContent = '';
+  else if (S && S.motionAvailable === false) status.textContent = 'Motion sensors not available on this device.';
+  else status.textContent = 'Active — shake or sway to chime.';
 }
 
-// ── Accelerometer handler ─────────────────────────────────
-function onDeviceMotion(e) {
-  window._motionEventCount = (window._motionEventCount || 0) + 1;
-  var acc = e.accelerationIncludingGravity || e.acceleration;
-  if (!acc) return;
-  _motionRawX = (acc.x || 0);
-  _motionRawY = (acc.y || 0);
+function chooseSource(src) {
+  _userChangedAt = Date.now();
+  showSource(src);
+  if (src === 'phone') showPhysics(true); // the engine turns physics on with the phone
+  if (Engine) Engine.setSource({ source: src });
 }
 
-// ── Physics constants ─────────────────────────────────────
-var G = 9.81; // m/s²
-var DT = 1/120; // physics timestep
-
-// ── State ─────────────────────────────────────────────────
-// Ring: 2D pendulum hanging from fixed point
-// State: [angX, velX, angY, velY] — X and Y angles from vertical
-var ring    = { ax: 0, vx: 0, ay: 0, vy: 0 };
-// Striker: separate pendulum from same fixed mount, shorter cord
-// Hangs freely — decoupled from ring, has its own inertia
-var striker = { ax: 0, vx: 0, ay: 0, vy: 0 };
-
-// Tubes: each is a 2D pendulum hanging from its mount on the ring
-// Mount points are evenly spaced around the ring at radius ringRadius
-// State per tube: { ax, vx, ay, vy }
-var tubes = [];
-var ringRadius = 0.187; // gap=150mm, n=5: (0.150+2*0.035)/(2*sin(π/5))
-var TUBE_R = 0.035; // tube radius in meters
-
-// Wind state
-var windX = 0, windY = 0;
-// Master run state and force source
-var physicsOn = false;
-var source    = 'wind'; // 'wind' | 'phone'
-// Accelerometer motion mode
-var motionOn   = false;
-var _motionX   = 0, _motionY = 0;   // smoothed acceleration → force
-var _motionRawX = 0, _motionRawY = 0;
-var _motionGain = 1.0;
-var windOn = false;
-var windTimer = null;
-// Wind event model
-// Wind is a sequence of discrete events separated by lulls.
-// Each event has: intensity (0-1), duration, rise time, fall time, angle.
-// Between events: silence with decaying residual.
-var _windAngle  = 0;
-var _windSpeed  = 0;
-var _windMeanX  = 0, _windMeanY = 0;
-var _turbX = 0, _turbY = 0;
-var _noiseX = 0, _noiseY = 0;
-var _calmDamp   = 1.0;
-
-// Current event state
-var _evtPhase    = 'lull';  // 'lull' | 'rise' | 'hold' | 'fall'
-var _evtT        = 0;       // time in current phase
-var _evtLullDur  = 35.0;    // initial lull
-var _evtRiseDur  = 0;
-var _evtHoldDur  = 0;
-var _evtFallDur  = 0;
-var _evtPeak     = 0;       // target intensity for this event
-var _evtAngle    = 0;
-
-function _scheduleNextEvent() {
-  // Lull: 20–80s
-  _evtLullDur = 20 + Math.random() * 60;
-  // Event intensity: weighted toward lighter events
-  _evtPeak    = 0.2 + Math.pow(Math.random(), 1.8) * 0.8;
-  // Rise: 1–6s (stronger events rise faster)
-  _evtRiseDur = 0.8 + (1 - _evtPeak) * 5 + Math.random() * 2;
-  // Hold: 2–12s
-  _evtHoldDur = 2 + Math.random() * 10;
-  // Fall: 2–10s (can be abrupt or gradual)
-  _evtFallDur = 1.5 + Math.random() * 8.5;
-  // New angle each event — random drift from previous
-  _evtAngle   = _windAngle + (Math.random() - 0.5) * Math.PI * 0.6;
-  _evtPhase   = 'lull';
-  _evtT       = 0;
-}
-_scheduleNextEvent();
-
-// Strike tracking
-var strikeCount = 0;
-var strikeFlash = []; // per tube
-
-var running = false;
-var physTimer = null;
-
-function rebuild() {
-  var n = Math.round(gv('tubeCount'));
-  var gapM = (gv('gap') * 0.5) / 1000;
-  ringRadius = (gapM + 2 * TUBE_R) / (2 * Math.sin(Math.PI / n));
-  tubes = [];
-  strikeFlash = [];
-  for (var i = 0; i < n; i++) {
-    // Physical tube length derived from pitch: f = K/L^2 => L ∝ 1/sqrt(f)
-    // Longer (lower) tubes are heavier — mass ∝ length ∝ 1/sqrt(f)
-    var freq = getTubeFreq(i, n);
-    var freqRef = getTubeFreq(Math.floor(n/2), n); // middle tube = reference
-    var lenVariation = Math.sqrt(freqRef / freq); // longer for lower pitch
-    var massVariation = lenVariation;             // mass ∝ length (same diameter)
-    tubes.push({ ta: 0, tv: 0, tt: 0, tv_t: 0, lenFactor: lenVariation, mass: massVariation, lastStrike: 0 });
-    strikeFlash.push(0);
-  }
-  ring    = { ax: 0, vx: 0, ay: 0, vy: 0 };
-  striker = { ax: 0, vx: 0, ay: 0, vy: 0 };
-}
-
-// ── Physics tick ──────────────────────────────────────────
-function tick() {
-  var ringL  = (gv('cordLength') * 0.30);
-  var ringD  = getDamping();
-  var tubeL  = gv('cordLength');
-  var tubeD  = (getDamping() * 0.67);
-  var n      = tubes.length;
-
-  // ── Ring (housing) pendulum — top-down 2D ────────────────
-  // Ring only feels wind variation, not mean — prevents DC drift
-  var wSusc = gv('windSusc');
-  var ringWindX = ((windX - _windMeanX) * 0.75 + _windMeanX * 0.08) * wSusc;
-  var ringWindY = ((windY - _windMeanY) * 0.75 + _windMeanY * 0.08) * wSusc;
-  var ringAx = -(G / ringL) * Math.sin(ring.ax) + ringWindX / ringL;
-  var ringAy = -(G / ringL) * Math.sin(ring.ay) + ringWindY / ringL;
-  ring.vx += ringAx * DT; ring.vy += ringAy * DT;
-  ring.vx *= (1 - ringD * _calmDamp); ring.vy *= (1 - ringD * _calmDamp);
-  ring.ax += ring.vx * DT; ring.ay += ring.vy * DT;
-  ring.ax = Math.max(-Math.PI/2, Math.min(Math.PI/2, ring.ax));
-  ring.ay = Math.max(-Math.PI/2, Math.min(Math.PI/2, ring.ay));
-  var rcx = Math.sin(ring.ax) * ringL;
-  var rcy = Math.sin(ring.ay) * ringL;
-
-  // ── Clapper disc — longer cord than tubes, strikes at tube midpoint ──
-  // Disc is heavier/larger than tubes so has more wind exposure.
-  // Cord longer than tubes so disc hangs below tube midpoints — strikes there.
-  // In top-down view: clapper swings in 2D from ring center.
-  var strikerL = (gv('cordLength') * 0.76);
-  var clapperD = (getDamping() * 1.67);
-  var sEnergy  = striker.vx*striker.vx + striker.vy*striker.vy
-               + (striker.ax*striker.ax + striker.ay*striker.ay) * 0.15;
-  var sDamp    = clapperD * (1 + sEnergy * 25);
-  sDamp = Math.min(0.10, sDamp);
-
-  // Clapper hangs inside the ring — sheltered from steady wind.
-  // Only catches gusts/turbulence, not the mean flow.
-  // Wind coupling is low so gravity always wins at equilibrium — clapper returns to center.
-  // Clapper is sheltered — only feels turbulent variation, not mean flow
-  var clapperWindX = (windX - _windMeanX) * 0.55 * wSusc;
-  var clapperWindY = (windY - _windMeanY) * 0.55 * wSusc;
-  var sAccX = -(G / strikerL) * Math.sin(striker.ax) + clapperWindX / strikerL;
-  var sAccY = -(G / strikerL) * Math.sin(striker.ay) + clapperWindY / strikerL;
-  striker.vx += sAccX * DT; striker.vy += sAccY * DT;
-  striker.vx *= (1 - sDamp * _calmDamp); striker.vy *= (1 - sDamp * _calmDamp);
-  striker.ax += striker.vx * DT; striker.ay += striker.vy * DT;
-  striker.ax = Math.max(-Math.PI/2, Math.min(Math.PI/2, striker.ax));
-  striker.ay = Math.max(-Math.PI/2, Math.min(Math.PI/2, striker.ay));
-  // Clapper disc world position — hangs from ring center
-  var scx = rcx + Math.sin(striker.ax) * strikerL;
-  var scy = rcy + Math.sin(striker.ay) * strikerL;
-  var CLAPPER_R = Math.max(0.005, ringRadius - TUBE_R - (gv('gap') / 1000));
-
-  // ── Tubes — top-down ring, each swings radially (inward/outward) ──
-  var now = Date.now();
-  for (var i = 0; i < n; i++) {
-    var t    = tubes[i];
-    var tLen = tubeL * t.lenFactor;
-    var tubeMass = t.mass || 1.0;
-
-    var mountAngle = (i / n) * Math.PI * 2;
-    var mx = rcx + Math.cos(mountAngle) * ringRadius;
-    var my = rcy + Math.sin(mountAngle) * ringRadius;
-
-    // Radial and tangential axes for this mount point
-    var radX = -Math.cos(mountAngle), radY = -Math.sin(mountAngle);
-    var tanX = -Math.sin(mountAngle), tanY =  Math.cos(mountAngle);
-
-    // Tubes sheltered similarly — AC component only
-    var tubeWindX = ((windX - _windMeanX) * 0.85 + _windMeanX * 0.06) * wSusc;
-    var tubeWindY = ((windY - _windMeanY) * 0.85 + _windMeanY * 0.06) * wSusc;
-    var windR = tubeWindX * radX + tubeWindY * radY;
-    var windT = tubeWindX * tanX + tubeWindY * tanY;
-
-    var ringAccX = ring.vx * 35, ringAccY = ring.vy * 35;
-    var ringCoupR = (ringAccX * radX + ringAccY * radY) * 0.15;
-    var ringCoupT = (ringAccX * tanX + ringAccY * tanY) * 0.15;
-
-    // Radial DOF
-    var taccR = -(G / tLen) * Math.sin(t.ta) + windR * 0.24 / (tLen * tubeMass) - ringCoupR / tLen;
-    t.tv += taccR * DT;
-    var eR = t.tv*t.tv + t.ta*t.ta*0.15;
-    t.tv   *= (1 - Math.min(0.18, tubeD * _calmDamp * (1 + eR * 25)));
-    t.ta   += t.tv * DT;
-    t.ta    = Math.max(-Math.PI/2, Math.min(Math.PI/2, t.ta));
-
-    // Tangential DOF — side-to-side along ring circumference
-    var taccT = -(G / tLen) * Math.sin(t.tt) + windT * 0.24 / (tLen * tubeMass) - ringCoupT / tLen;
-    t.tv_t += taccT * DT;
-    var eT = t.tv_t*t.tv_t + t.tt*t.tt*0.15;
-    t.tv_t *= (1 - Math.min(0.18, tubeD * _calmDamp * (1 + eT * 25)));
-    t.tt   += t.tv_t * DT;
-    t.tt    = Math.max(-Math.PI/2, Math.min(Math.PI/2, t.tt));
-
-    // Tip and midpoint
-    var tx   = mx + Math.sin(t.ta) * tLen * radX + Math.sin(t.tt) * tLen * tanX;
-    var ty   = my + Math.sin(t.ta) * tLen * radY + Math.sin(t.tt) * tLen * tanY;
-    var midX = mx + Math.sin(t.ta)*(tLen*0.5)*radX + Math.sin(t.tt)*(tLen*0.5)*tanX;
-    var midY = my + Math.sin(t.ta)*(tLen*0.5)*radY + Math.sin(t.tt)*(tLen*0.5)*tanY;
-    // Store midpoint so draw() can render collision circle at the correct position
-    t._midX = midX; t._midY = midY; t._tx = tx; t._ty = ty;
-
-    // ── Clapper vs tube: check disc center vs tube midpoint ──
-    var cdx = midX - scx, cdy = midY - scy;
-    var cDist = Math.sqrt(cdx*cdx + cdy*cdy);
-    var cStrikeDist = CLAPPER_R + TUBE_R;
-    var timeSince = now - (t.lastStrike || 0);
-
-    if (cDist < cStrikeDist && cDist > 0.0001 && timeSince > 150) {
-      // Normal from clapper toward tube midpoint
-      var cnx = cdx / cDist, cny = cdy / cDist;
-
-      // Linear velocities at contact
-      var tvx = t.tv*(tLen*0.5)*radX + t.tv_t*(tLen*0.5)*tanX;
-      var tvy = t.tv*(tLen*0.5)*radY + t.tv_t*(tLen*0.5)*tanY;
-      var cvx = striker.vx * strikerL;
-      var cvy = striker.vy * strikerL;
-
-      // Relative velocity along normal — positive means approaching
-      var relVn = (cvx - tvx)*cnx + (cvy - tvy)*cny;
-
-      if (relVn > 0) {
-        var clapperMass = tubeMass * 2.5; // disc heavier than tube
-        var restitution = 0.65;
-        var impulse = (1 + restitution) * relVn / (1/clapperMass + 1/tubeMass);
-
-        // Bounce clapper back
-        striker.vx -= (impulse * cnx) / (clapperMass * strikerL);
-        striker.vy -= (impulse * cny) / (clapperMass * strikerL);
-
-        // Impulse projected onto both swing axes
-        t.tv   += (impulse*cnx*radX + impulse*cny*radY) / (tubeMass * tLen*0.5);
-        t.tv_t += (impulse*cnx*tanX + impulse*cny*tanY) / (tubeMass * tLen*0.5);
-
-        // Positional correction
-        var cOverlap = (cStrikeDist - cDist) * 0.5;
-        striker.ax -= (cOverlap * cnx) / strikerL;
-        striker.ay -= (cOverlap * cny) / strikerL;
-        t.ta  += (cOverlap*cnx*radX + cOverlap*cny*radY) / (tLen*0.5);
-        t.tt  += (cOverlap*cnx*tanX + cOverlap*cny*tanY) / (tLen*0.5);
-
-        var strikeVel = Math.abs(relVn);
-        strikeCount++;
-        strikeFlash[i] = Math.min(1, strikeVel * 5);
-        t.lastStrike = now;
-        document.getElementById('r-strikes').textContent = strikeCount;
-        playTubeStrike(i, strikeVel * 2.5, true);
+// ── State polling + readouts ──────────────────────────────
+var _polling = false;
+function loop() {
+  if (Engine && !_polling && document.visibilityState === 'visible') {
+    _polling = true;
+    Engine.getState().then(function(state) {
+      _polling = false;
+      S = state;
+      if (Date.now() - _userChangedAt > 500) {
+        if (S.physicsOn !== physicsOn) showPhysics(S.physicsOn);
+        if (S.source !== source) showSource(S.source);
       }
-    }
-
-    // Decay flash — positive (clapper) and negative (collision) both decay toward 0
-    var sf = strikeFlash[i] || 0;
-    strikeFlash[i] = sf > 0 ? Math.max(0, sf - 0.04) : Math.min(0, sf + 0.04);
+      var cord = gv('cordLength');
+      document.getElementById('r-rx').textContent = (Math.sin(S.ring[0]) * cord * 0.30).toFixed(3);
+      document.getElementById('r-ry').textContent = (Math.sin(S.ring[1]) * cord * 0.30).toFixed(3);
+      document.getElementById('r-wind').textContent = Math.sqrt(S.wind[0]*S.wind[0] + S.wind[1]*S.wind[1]).toFixed(3);
+      document.getElementById('r-strikes').textContent = S.strikes;
+      draw();
+    }, function() { _polling = false; });
   }
-
-  // ── Tube-tube collision detection ────────────────────────
-  // Recompute tip positions and linear velocities fresh each frame
-  var tips = [];
-  var tubeLen = gv('cordLength');
-  var collisionDist = TUBE_R * 2;
-
-  for (var ii = 0; ii < n; ii++) {
-    var tt = tubes[ii];
-    var tL = tubeLen * tt.lenFactor;
-    var mAng = (ii / n) * Math.PI * 2;
-    var mAng2 = (ii / n) * Math.PI * 2;
-    var mx2   = rcx + Math.cos(mAng2) * ringRadius;
-    var my2   = rcy + Math.sin(mAng2) * ringRadius;
-    var rX2   = -Math.cos(mAng2), rY2   = -Math.sin(mAng2);
-    var tX2   = -Math.sin(mAng2), tY2   =  Math.cos(mAng2);
-    tips.push({
-      x:   mx2 + Math.sin(tt.ta)*tL*rX2 + Math.sin(tt.tt)*tL*tX2,
-      y:   my2 + Math.sin(tt.ta)*tL*rY2 + Math.sin(tt.tt)*tL*tY2,
-      vx:  tt.tv*tL*rX2 + tt.tv_t*tL*tX2,
-      vy:  tt.tv*tL*rY2 + tt.tv_t*tL*tY2,
-      len: tL, rX: rX2, rY: rY2, tX: tX2, tY: tY2
-    });
-  }
-
-  for (var a = 0; a < n; a++) {
-    for (var b = a + 1; b < n; b++) {
-      var pa = tips[a], pb = tips[b];
-      var dx = pb.x - pa.x, dy = pb.y - pa.y;
-      var dist2 = dx*dx + dy*dy;
-      if (dist2 >= collisionDist * collisionDist || dist2 < 0.000001) continue;
-
-      var dist = Math.sqrt(dist2);
-      // Normal pointing from a to b
-      var nx = dx / dist, ny = dy / dist;
-
-      // Relative velocity of b minus a, projected onto normal
-      // Positive = separating, negative = approaching
-      var dvx = pb.vx - pa.vx, dvy = pb.vy - pa.vy;
-      var relVn = dvx*nx + dvy*ny;
-
-      // Only apply impulse if approaching
-      if (relVn < 0) {
-        var restitution = 0.72;
-        var mA = tubes[a].mass || 1.0;
-        var mB = tubes[b].mass || 1.0;
-        // Mass-weighted impulse: heavier tube deflects less
-        var impulse = -(1 + restitution) * relVn / (1/mA + 1/mB);
-
-        // Project impulse back onto each tube's tangent to get Δtv (tangential angular vel)
-        // Project impulse onto both DOF for each tube
-        tubes[a].tv   -= (impulse*nx*pa.rX + impulse*ny*pa.rY) / (mA * pa.len);
-        tubes[a].tv_t -= (impulse*nx*pa.tX + impulse*ny*pa.tY) / (mA * pa.len);
-        tubes[b].tv   += (impulse*nx*pb.rX + impulse*ny*pb.rY) / (mB * pb.len);
-        tubes[b].tv_t += (impulse*nx*pb.tX + impulse*ny*pb.tY) / (mB * pb.len);
-        pa.vx = tubes[a].tv*pa.len*pa.rX + tubes[a].tv_t*pa.len*pa.tX;
-        pa.vy = tubes[a].tv*pa.len*pa.rY + tubes[a].tv_t*pa.len*pa.tY;
-        pb.vx = tubes[b].tv*pb.len*pb.rX + tubes[b].tv_t*pb.len*pb.tX;
-        pb.vy = tubes[b].tv*pb.len*pb.rY + tubes[b].tv_t*pb.len*pb.tY;
-
-        // Visual + strike
-        if (impulse > 0.002) {
-          strikeFlash[a] = -Math.min(1, impulse * 5);
-          strikeFlash[b] = -Math.min(1, impulse * 5);
-          strikeCount++;
-          document.getElementById('r-strikes').textContent = strikeCount;
-          tubes[a].lastStrike = now;
-          tubes[b].lastStrike = now;
-          playTubeStrike(a, impulse * 2, false);
-          playTubeStrike(b, impulse * 2, false);
-        }
-      }
-
-      // Positional correction — push ta apart along each tube's tangent
-      var overlap = (collisionDist - dist) * 0.5;
-      tubes[a].ta   -= (overlap*nx*pa.rX + overlap*ny*pa.rY) / pa.len;
-      tubes[a].tt   -= (overlap*nx*pa.tX + overlap*ny*pa.tY) / pa.len;
-      tubes[b].ta   += (overlap*nx*pb.rX + overlap*ny*pb.rY) / pb.len;
-      tubes[b].tt   += (overlap*nx*pb.tX + overlap*ny*pb.tY) / pb.len;
-    }
-  }
-
-  // ── Wind model ──
-  if (windOn) {
-    var wStr  = gv('windStrength');
-    var wSteady = gv('windSteady');
-    var wTurb = gv('windTurb');
-
-    // Advance event phase
-    _evtT += DT;
-    var targetSpeed = 0;
-
-    if (_evtPhase === 'lull') {
-      // Silence — drain residual wind and apply extra physics damping
-      _windSpeed *= 0.92;
-      _calmDamp   = 3.0;
-      if (_evtT >= _evtLullDur) {
-        _evtPhase = 'rise'; _evtT = 0;
-        _windAngle = _evtAngle;
-      }
-    } else if (_evtPhase === 'rise') {
-      _calmDamp = 1.0;
-      var p = Math.min(1, _evtT / _evtRiseDur);
-      targetSpeed = _evtPeak * p * p; // ease in
-      _windSpeed += (targetSpeed - _windSpeed) * 0.08;
-      if (_evtT >= _evtRiseDur) { _evtPhase = 'hold'; _evtT = 0; }
-    } else if (_evtPhase === 'hold') {
-      _calmDamp = 1.0;
-      // Hold with small internal variation — wind is never perfectly steady
-      targetSpeed = _evtPeak * (0.75 + Math.sin(_evtT * 1.3) * 0.15 + Math.sin(_evtT * 2.7) * 0.10);
-      if (Math.random() < 0.005) targetSpeed *= 1.4 + Math.random() * 0.6; // occasional spike
-      _windSpeed += (targetSpeed - _windSpeed) * 0.05;
-      // Slow angle drift during hold
-      _windAngle += (Math.random() - 0.5) * (1 - wSteady) * 0.04;
-      if (_evtT >= _evtHoldDur) { _evtPhase = 'fall'; _evtT = 0; }
-    } else if (_evtPhase === 'fall') {
-      _calmDamp = 1.0;
-      var p = Math.max(0, 1 - _evtT / _evtFallDur);
-      targetSpeed = _evtPeak * p;
-      _windSpeed += (targetSpeed - _windSpeed) * 0.06;
-      if (_evtT >= _evtFallDur) {
-        _windSpeed = 0;
-        _scheduleNextEvent(); // schedules next lull + event
-      }
-    }
-
-    _windSpeed = Math.max(0, Math.min(1.5, _windSpeed));
-    var surge = _windSpeed * wStr;
-
-    var meanX = Math.cos(_windAngle) * surge;
-    var meanY = Math.sin(_windAngle) * surge;
-
-    // Turbulence on top
-    var turbSmooth = 0.05 + wTurb * 0.25;
-    _noiseX += (Math.random() - 0.5) * 2;
-    _noiseY += (Math.random() - 0.5) * 2;
-    _turbX += (_noiseX - _turbX) * turbSmooth;
-    _turbY += (_noiseY - _turbY) * turbSmooth;
-
-    windX = meanX + _turbX * wTurb * wStr * 0.4;
-    windY = meanY + _turbY * wTurb * wStr * 0.4;
-    _windMeanX += (windX - _windMeanX) * 0.003;
-    _windMeanY += (windY - _windMeanY) * 0.003;
-  } else if (motionOn) {
-    // ── Accelerometer mode ──
-    // Smooth the raw acceleration into a force; track a slow baseline
-    // so the device's resting orientation reads as zero
-    _motionX += (_motionRawX - _motionX) * 0.4;
-    _motionY += (_motionRawY - _motionY) * 0.4;
-    // Slow baseline removal — steady tilt fades, motion/shake spikes through
-    var baseX = (window._mBaseX || 0), baseY = (window._mBaseY || 0);
-    window._mBaseX = baseX + (_motionX - baseX) * 0.02;
-    window._mBaseY = baseY + (_motionY - baseY) * 0.02;
-    var fx = (_motionX - window._mBaseX) * _motionGain;
-    var fy = (_motionY - window._mBaseY) * _motionGain;
-    // Map to wind force vector the rest of the system already uses
-    windX = -fx * 0.5;
-    windY =  fy * 0.5;
-    _windMeanX *= 0.9;
-    _windMeanY *= 0.9;
-  } else {
-    windX *= 0.97;
-    windY *= 0.97;
-    _windMeanX *= 0.97;
-    _windMeanY *= 0.97;
-  }
-
-  // Update readouts
-  // Advance chord progression
-  if (currentScale === 'Chord Seq' && running) {
-    _chordTimer += DT;
-    if (_chordTimer >= CHORD_DUR) {
-      _chordTimer = 0;
-      _chordIdx = (_chordIdx + 1) % CHORD_PROG.length;
-    }
-  }
-
-  document.getElementById('r-rx').textContent = rcx.toFixed(3);
-  document.getElementById('r-ry').textContent = rcy.toFixed(3);
-  document.getElementById('r-wind').textContent = Math.sqrt(windX*windX+windY*windY).toFixed(3);
-
-  draw();
-}
-
-
-// ── Audio ──────────────────────────────────────────────────
-var audioCtx = null;
-var sbMasterOut = null;
-
-// iOS treats Web Audio as "ambient" by default, which the ring/silent switch mutes.
-// Declaring this page as media playback makes it sound with the switch on (iOS 16.4+).
-if (navigator.audioSession) {
-  try { navigator.audioSession.type = 'playback'; } catch (e) {}
-}
-
-function getAudio() {
-  if (audioCtx) return audioCtx;
-  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-  sbMasterOut = audioCtx.createGain();
-  sbMasterOut.gain.value = 0.9;
-  sbMasterOut.connect(audioCtx.destination);
-
-  // Dry only — no reverb
-
-  // iOS suspends or "interrupts" the context for calls, Siri, alarms and backgrounding.
-  audioCtx.onstatechange = function() {
-    if (audioCtx.state !== 'running' && document.visibilityState === 'visible') resumeAudio();
-  };
-
-  return audioCtx;
-}
-
-// Strikes come from the physics loop, not a user gesture, so iOS won't let them
-// start audio. Create and resume the context on real touches instead.
-function resumeAudio() {
-  var ctx = getAudio();
-  if (ctx.state !== 'running') {
-    var p = ctx.resume();
-    if (p && p.catch) p.catch(function() {});
-  }
-}
-
-function unlockAudio() {
-  resumeAudio();
-  // Playing a silent buffer inside the gesture fully unlocks output on older iOS.
-  var ctx = audioCtx;
-  var buf = ctx.createBuffer(1, 1, 22050);
-  var src = ctx.createBufferSource();
-  src.buffer = buf;
-  src.connect(ctx.destination);
-  src.start(0);
-}
-
-['pointerdown', 'touchend', 'click', 'keydown'].forEach(function(type) {
-  document.addEventListener(type, unlockAudio, { capture: true, passive: true });
-});
-
-// Keep the screen awake so a hanging phone keeps chiming (browser version; the iOS app does this natively).
-var _wakeLock = null;
-function requestWakeLock() {
-  if (!('wakeLock' in navigator) || _wakeLock || document.visibilityState !== 'visible') return;
-  navigator.wakeLock.request('screen').then(function(lock) {
-    _wakeLock = lock;
-    lock.addEventListener('release', function() { _wakeLock = null; });
-  }).catch(function() {});
-}
-
-document.addEventListener('visibilitychange', function() {
-  if (document.visibilityState !== 'visible') return;
-  if (audioCtx) resumeAudio();
-  requestWakeLock();
-});
-window.addEventListener('pageshow', function() { if (audioCtx) resumeAudio(); });
-document.addEventListener('pointerdown', requestWakeLock, { capture: true, passive: true });
-
-// Tube frequencies — pentatonic scale rooted at A4
-// Length-derived: lower tubes = lower pitch
-var SCALES = {
-  'Pentatonic':  [0, 3, 5, 7, 10],
-  'Chord Seq':   [0, 3, 5, 7, 10],  // placeholder — sequenced in getTubeFreq
-};
-var currentScale = 'Chord Seq';
-var currentMaterial = 'Metal';
-
-// Chord progression for 'Chord Seq' mode
-// Each chord is a set of semitone offsets from root
-var CHORD_PROG = [
-  [0, 3, 7, 10, 14, 17],    // im9add11 — tonic, open and floating
-  [5, 8, 12, 15, 19, 22],   // iv9 — subdominant with ninth and eleventh
-  [2, 5, 9, 12, 16, 21],    // II maj9 — bright borrowed chord
-  [7, 10, 14, 17, 21, 24],  // v11 — dominant suspended, unresolved
-  [3, 7, 10, 14, 17, 22],   // IIImaj9 — warm mediant
-  [8, 12, 15, 19, 22, 26],  // VI9 — relative major with extensions
-];
-var _chordIdx   = 0;
-var _chordTimer = 0;
-var CHORD_DUR   = 20.0; // seconds per chord
-
-function getTubeFreq(idx, n) {
-  var reg = parseFloat(document.getElementById('register').value) || 0;
-  var semitone;
-  if (currentScale === 'Chord Seq') {
-    var chord = CHORD_PROG[_chordIdx % CHORD_PROG.length];
-    semitone = chord[idx % chord.length] + Math.floor(idx / chord.length) * 12;
-  } else {
-    var sc = SCALES[currentScale] || SCALES['Pentatonic'];
-    semitone = sc[idx % sc.length] + Math.floor(idx / sc.length) * 12;
-  }
-  return 440 * Math.pow(2, (semitone + reg * 12) / 12);
-}
-
-// Metal tube partials — inharmonic series characteristic of hollow metal cylinders
-var METAL_PARTIAL_RATIOS = [1, 2.756, 5.404, 8.933];
-var METAL_PARTIAL_GAINS  = [1.0, 0.55, 0.28, 0.10];
-var METAL_PARTIAL_DECAYS = [1.0, 0.55, 0.30, 0.15];
-
-// Wood chime partials — shorter, darker, clustered inharmonics
-// Based on free-free bar modes: 1, 2.757 compressed, 5.4 compressed, 8.9 compressed
-// Wood damps upper partials very fast — mostly fundamental with a brief overtone shimmer
-// Wood partials — free bar modes with a near-fundamental doublet for beating
-// Ratio 1.015 creates a beat tone against fundamental (~1.5% sharp clone)
-var WOOD_PARTIAL_RATIOS  = [1, 1.015, 1.67, 2.76, 4.47];
-var WOOD_PARTIAL_GAINS   = [1.0, 0.45, 0.55, 0.28, 0.10];
-var WOOD_PARTIAL_DECAYS  = [1.0, 0.80, 0.58, 0.26, 0.10];
-
-function playTubeStrike(idx, velocity, isClapper) {
-  var ctx = getAudio();
-  if (ctx.state === 'suspended') ctx.resume();
-
-  var n      = tubes.length;
-  var freq   = getTubeFreq(idx, n);
-  var velNorm = Math.min(1.0, velocity);
-  var isWood  = (currentMaterial === 'Wood');
-
-  // Select partial tables by material
-  var PARTIAL_RATIOS = isWood ? WOOD_PARTIAL_RATIOS : METAL_PARTIAL_RATIOS;
-  var PARTIAL_GAINS  = isWood ? WOOD_PARTIAL_GAINS  : METAL_PARTIAL_GAINS;
-  var PARTIAL_DECAYS = isWood ? WOOD_PARTIAL_DECAYS : METAL_PARTIAL_DECAYS;
-
-  // ── Timbre by strike type + material ──
-  var bright, gainScale, partialRolloff, attackMult, decayMult;
-  if (isWood) {
-    // Wood: short, dark, thunk character — clapper vs tube-on-tube still differs
-    bright         = isClapper ? 0.30 : 0.18;
-    gainScale      = isClapper ? 1.80 : 1.25;
-    partialRolloff = isClapper ? 0.80 : 0.50;
-    attackMult     = isClapper ? 1.0  : 1.8;
-    decayMult      = isClapper ? 0.55 : 0.35;
-  } else {
-    // Metal
-    bright         = isClapper ? 0.55 : 0.30;
-    gainScale      = isClapper ? 1.0  : 0.75;
-    partialRolloff = isClapper ? 1.0  : 0.55;
-    attackMult     = isClapper ? 1.0  : 2.2;
-    decayMult      = isClapper ? 1.0  : 0.75;
-  }
-
-  var vel = gainScale * (0.05 + Math.pow(velNorm, 2.2) * 0.95);
-
-  var freqNorm  = Math.max(0, Math.min(1, Math.log2(freq / 220) / 3));
-  var baseDecay, velBright, startCutoffMult, endCutoffMult;
-
-  if (isWood) {
-    // Much shorter decay, narrower filter sweep — wood doesn't ring
-    baseDecay       = decayMult * (0.14 + Math.pow(velNorm, 1.5) * 2.2) * (1 - freqNorm * 0.3);
-    velBright       = bright * (0.30 + velNorm * 0.70);
-    startCutoffMult = 3.0 + velBright * 5.5;
-    endCutoffMult   = 0.80 + velBright * 0.20; // gentler sweep
-  } else {
-    baseDecay       = decayMult * (1.2 + Math.pow(velNorm, 0.7) * 24.0) * (1 - freqNorm * 0.4);
-    velBright       = bright * (0.20 + velNorm * velNorm * 0.80);
-    startCutoffMult = 3.0 + velBright * 7.0;
-    endCutoffMult   = 0.85 + velBright * 0.4;
-  }
-
-  // Wood attack — branched by strike type
-  if (isWood) {
-    var noiseNow = ctx.currentTime;
-
-    if (isClapper) {
-      // ── Hard rubber on wood ──
-      // Rubber has almost no high-frequency noise — smooth, focused impact
-      // Strong mid-frequency thud, pronounced fundamental knock, very little scrape
-
-      // Single focused bandpass knock — rubber compresses on impact, narrows spectrum
-      var rubberLen = 0.018 + velNorm * 0.022;
-      var rubberBuf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * rubberLen), ctx.sampleRate);
-      var rd = rubberBuf.getChannelData(0);
-      for (var ri = 0; ri < rd.length; ri++) rd[ri] = Math.random() * 2 - 1;
-      var rubberSrc  = ctx.createBufferSource();
-      rubberSrc.buffer = rubberBuf;
-      var rubberFilt = ctx.createBiquadFilter();
-      rubberFilt.type = 'bandpass';
-      rubberFilt.frequency.value = freq * 1.05; // very close to fundamental — focused
-      rubberFilt.Q.value = 4.0; // tight — rubber doesn't scatter energy
-      var rubberEnv = ctx.createGain();
-      rubberEnv.gain.setValueAtTime(vel * (0.20 + velNorm * 0.55), noiseNow);
-      rubberEnv.gain.exponentialRampToValueAtTime(0.0001, noiseNow + rubberLen);
-      rubberSrc.connect(rubberFilt); rubberFilt.connect(rubberEnv); rubberEnv.connect(sbMasterOut);
-      rubberSrc.start(noiseNow);
-
-      // Strong sub thud — rubber transfers energy well to low modes
-      var rSubOsc = ctx.createOscillator();
-      rSubOsc.type = 'sine';
-      rSubOsc.frequency.value = freq * 0.50;
-      var rSubEnv = ctx.createGain();
-      rSubEnv.gain.setValueAtTime(vel * (0.45 + velNorm * 1.10), noiseNow);
-      rSubEnv.gain.exponentialRampToValueAtTime(0.0001, noiseNow + 0.05 + velNorm * 0.06);
-      rSubOsc.connect(rSubEnv); rSubEnv.connect(sbMasterOut);
-      rSubOsc.start(noiseNow); rSubOsc.stop(noiseNow + 0.15);
-
-      // Mid thud — the body impact
-      var rMidOsc = ctx.createOscillator();
-      rMidOsc.type = 'sine';
-      rMidOsc.frequency.value = freq * (0.80 + (Math.random() - 0.5) * 0.04);
-      var rMidEnv = ctx.createGain();
-      rMidEnv.gain.setValueAtTime(vel * (0.35 + velNorm * 0.80), noiseNow);
-      rMidEnv.gain.exponentialRampToValueAtTime(0.0001, noiseNow + 0.030 + velNorm * 0.025);
-      rMidOsc.connect(rMidEnv); rMidEnv.connect(sbMasterOut);
-      rMidOsc.start(noiseNow); rMidOsc.stop(noiseNow + 0.10);
-
-      // FM burst — lower index than wood-on-wood, rubber is smoother
-      var rfmC = ctx.createOscillator(); var rfmM = ctx.createOscillator();
-      var rfmD = ctx.createGain(); var rfmE = ctx.createGain();
-      rfmC.type = 'sine'; rfmM.type = 'sine';
-      rfmC.frequency.value = freq * (1 + (Math.random() - 0.5) * 0.015);
-      rfmM.frequency.value = freq * (1.52 + (Math.random() - 0.5) * 0.05);
-      rfmD.gain.setValueAtTime(vel * velNorm * freq * 2.0, noiseNow);
-      rfmD.gain.exponentialRampToValueAtTime(0.0001, noiseNow + 0.020);
-      rfmE.gain.setValueAtTime(vel * 0.22 * velNorm, noiseNow);
-      rfmE.gain.exponentialRampToValueAtTime(0.0001, noiseNow + 0.035);
-      rfmM.connect(rfmD); rfmD.connect(rfmC.frequency);
-      rfmC.connect(rfmE); rfmE.connect(sbMasterOut);
-      rfmM.start(noiseNow); rfmM.stop(noiseNow + 0.05);
-      rfmC.start(noiseNow); rfmC.stop(noiseNow + 0.05);
-
-    } else {
-      // ── Wood on wood ──
-      // Scrappy, noisy, spread across inharmonic frequencies
-      var noiseLen = 0.035 + velNorm * 0.04;
-
-      // Multi-band filtered noise — the scrape and scatter of wood grain
-      var noiseBands = [
-        { ratio: 1.15, Q: 2.0, gain: 0.45, decay: noiseLen * 0.6 },
-        { ratio: 1.83, Q: 2.5, gain: 0.32, decay: noiseLen * 0.4 },
-        { ratio: 3.10, Q: 3.0, gain: 0.20, decay: noiseLen * 0.25 },
-      ];
-      var noiseBufSize = Math.ceil(ctx.sampleRate * noiseLen);
-      var noiseBuf = ctx.createBuffer(1, noiseBufSize, ctx.sampleRate);
-      var nd = noiseBuf.getChannelData(0);
-      for (var ni = 0; ni < noiseBufSize; ni++) nd[ni] = (Math.random() * 2 - 1);
-
-      noiseBands.forEach(function(band) {
-        var src = ctx.createBufferSource();
-        src.buffer = noiseBuf;
-        var bf = ctx.createBiquadFilter();
-        bf.type = 'bandpass';
-        bf.frequency.value = freq * band.ratio * (0.97 + Math.random() * 0.06);
-        bf.Q.value = band.Q;
-        var bEnv = ctx.createGain();
-        bEnv.gain.setValueAtTime(vel * band.gain * (0.18 + velNorm * 0.75), noiseNow);
-        bEnv.gain.exponentialRampToValueAtTime(0.0001, noiseNow + band.decay);
-        src.connect(bf); bf.connect(bEnv); bEnv.connect(sbMasterOut);
-        src.start(noiseNow);
-      });
-
-      // FM burst — higher index, more chaotic than rubber
-      var fmCarrier = ctx.createOscillator();
-      var fmMod     = ctx.createOscillator();
-      var fmDepth   = ctx.createGain();
-      fmCarrier.type = 'sine'; fmMod.type = 'sine';
-      fmCarrier.frequency.value = freq * (1 + (Math.random() - 0.5) * 0.02);
-      fmMod.frequency.value     = freq * (1.67 + (Math.random() - 0.5) * 0.08);
-      var fmIdx = vel * velNorm * freq * 4.0;
-      fmDepth.gain.setValueAtTime(fmIdx, noiseNow);
-      fmDepth.gain.exponentialRampToValueAtTime(0.0001, noiseNow + 0.025 + velNorm * 0.02);
-      var fmEnv = ctx.createGain();
-      fmEnv.gain.setValueAtTime(vel * 0.30 * velNorm, noiseNow);
-      fmEnv.gain.exponentialRampToValueAtTime(0.0001, noiseNow + 0.04 + velNorm * 0.03);
-      fmMod.connect(fmDepth); fmDepth.connect(fmCarrier.frequency);
-      fmCarrier.connect(fmEnv); fmEnv.connect(sbMasterOut);
-      fmMod.start(noiseNow); fmMod.stop(noiseNow + 0.06);
-      fmCarrier.start(noiseNow); fmCarrier.stop(noiseNow + 0.06);
-
-      // Sub knock
-      var subOsc = ctx.createOscillator();
-      subOsc.type = 'sine';
-      subOsc.frequency.value = freq * 0.52;
-      var subEnv = ctx.createGain();
-      subEnv.gain.setValueAtTime(vel * (0.22 + velNorm * 0.90), noiseNow);
-      subEnv.gain.exponentialRampToValueAtTime(0.0001, noiseNow + 0.04 + velNorm * 0.06);
-      subOsc.connect(subEnv); subEnv.connect(sbMasterOut);
-      subOsc.start(noiseNow); subOsc.stop(noiseNow + 0.12);
-
-      // Mid-body knock
-      var midOsc = ctx.createOscillator();
-      midOsc.type = 'sine';
-      midOsc.frequency.value = freq * (0.83 + (Math.random() - 0.5) * 0.06);
-      var midEnv = ctx.createGain();
-      midEnv.gain.setValueAtTime(vel * (0.18 + velNorm * 0.60), noiseNow);
-      midEnv.gain.exponentialRampToValueAtTime(0.0001, noiseNow + 0.025 + velNorm * 0.03);
-      midOsc.connect(midEnv); midEnv.connect(sbMasterOut);
-      midOsc.start(noiseNow); midOsc.stop(noiseNow + 0.08);
-    }
-
-  }
-
-  var pitchWobble = 1 + (Math.random() - 0.5) * (isWood ? 0.012 : 0.001) * (1 - velNorm * 0.5);
-  var now = ctx.currentTime + 0.006;
-
-  PARTIAL_RATIOS.forEach(function(ratio, i) {
-    // Wood: scatter upper partial ratios per strike — anharmonic character
-    var scatteredRatio = ratio;
-    if (isWood && i > 0) {
-      // i=1 (doublet): small scatter keeps beating natural
-      // i=2+: wider scatter for genuine inharmonic character
-      var scatterAmt = i === 1 ? 0.008 : 0.10 * i;
-      scatteredRatio = ratio * (1 + (Math.random() - 0.5) * scatterAmt);
-    }
-    var pFreq = freq * scatteredRatio * pitchWobble;
-    if (pFreq > 16000) return;
-
-    // Higher partials only emerge on harder strikes
-    var partialVelThresh = isWood ? i * 0.30 : i * 0.12;
-    if (velNorm < partialVelThresh) return;
-    var partialVel = Math.max(0, (velNorm - partialVelThresh) / (1 - partialVelThresh));
-
-    var detuneCents = (Math.random() - 0.5) * (isWood ? (i === 0 ? 8 : 20) : 4);
-    var pFreqD = pFreq * Math.pow(2, detuneCents / 1200);
-
-    var osc = ctx.createOscillator();
-    osc.type = 'sine';
-    osc.frequency.value = pFreqD;
-
-    var decayVar = isWood ? (0.80 + Math.random() * 0.40) : 1.0;
-    var pDecay = baseDecay * PARTIAL_DECAYS[i] * decayVar;
-    // partialRolloff dims upper partials for tube-on-tube (warmer tone)
-    var gainVar = isWood ? (0.75 + Math.random() * 0.50) : (0.90 + Math.random() * 0.20);
-    var pGain  = vel * PARTIAL_GAINS[i] * gainVar * Math.pow(partialRolloff, i) * Math.pow(partialVel, 0.6) * 0.65;
-
-    // attackMult slows the transient for glancing tube-on-tube strikes
-    // Low vel = rounder attack; high vel = sharp transient
-    var velAttack = isWood ? (0.018 - velNorm * 0.014) : 0.006; // 18ms→4ms as vel rises
-    var attack = attackMult * (velAttack + i * (0.006 + velNorm * 0.008));
-
-    // Filter: static cutoff for wood (sweep reads as pitch bend), sweep for metal
-    var filt = ctx.createBiquadFilter();
-    filt.type = 'lowpass'; filt.Q.value = 0.5;
-    if (isWood) {
-      // Static cutoff — velocity sets brightness but no time-based movement
-      filt.frequency.value = pFreq * (endCutoffMult + velNorm * (startCutoffMult - endCutoffMult) * 0.4);
-    } else {
-      var startCutoff = pFreq * startCutoffMult;
-      var endCutoff   = pFreq * endCutoffMult;
-      filt.frequency.setValueAtTime(startCutoff, now + attack);
-      filt.frequency.exponentialRampToValueAtTime(endCutoff, now + attack + pDecay);
-    }
-
-    var env = ctx.createGain();
-    env.gain.setValueAtTime(0, now);
-    env.gain.linearRampToValueAtTime(pGain, now + attack);
-
-    if (isWood) {
-      // Two-stage release:
-      // Stage 1 — fast dump to tail level
-      // Stage 2 — RC-curve tail (setTargetAtTime): steepest drop early, gentle approach to silence
-      var dumpFrac  = 0.32 + velNorm * 0.38;
-      var dumpTime  = pDecay * (0.12 + velNorm * 0.08);
-      var tailLevel = pGain * (1 - dumpFrac);
-      var tailTime  = pDecay * (0.90 - velNorm * 0.48 + Math.random() * 0.12);
-      // timeConstant = tailTime/3 so we reach ~95% silence in tailTime
-      var tailTC    = tailTime / 5.5;
-      env.gain.exponentialRampToValueAtTime(Math.max(0.0001, tailLevel), now + attack + dumpTime);
-      env.gain.setTargetAtTime(0.0001, now + attack + dumpTime, tailTC);
-      osc.start(now); osc.stop(now + attack + dumpTime + tailTime + 0.1);
-    } else {
-      env.gain.exponentialRampToValueAtTime(0.0001, now + attack + pDecay);
-      osc.start(now); osc.stop(now + attack + pDecay + 0.1);
-    }
-
-    if (isWood) {
-      // A. Detuned ghost — subtle beating against fundamental
-      //    Different detune per partial so each mode beats at its own rate
-      var ghostOsc = ctx.createOscillator();
-      ghostOsc.type = 'sine';
-      var ghostDetune = (Math.random() - 0.5) * 0.022 * (1 + i * 0.5);
-      ghostOsc.frequency.value = pFreqD * (1 + ghostDetune);
-      var ghostEnv = ctx.createGain();
-      ghostEnv.gain.setValueAtTime(0, now);
-      ghostEnv.gain.linearRampToValueAtTime(pGain * 0.22, now + attack);
-      ghostEnv.gain.setTargetAtTime(0.0001, now + attack, (tailTime || pDecay) / 4);
-      ghostOsc.connect(filt); filt.connect(ghostEnv); ghostEnv.connect(sbMasterOut);
-      ghostOsc.start(now); ghostOsc.stop(now + attack + (tailTime || pDecay) + 0.1);
-
-      // B. Per-partial frequency drift in tail — material settling
-      //    Tiny slow glide away from start frequency, different per partial
-      var driftAmt  = pFreqD * (Math.random() - 0.5) * 0.003;
-      var driftTime = (tailTime || pDecay) * (0.3 + Math.random() * 0.5);
-      osc.frequency.setValueAtTime(pFreqD, now + attack);
-      osc.frequency.linearRampToValueAtTime(pFreqD + driftAmt, now + attack + driftTime);
-
-      // C. Mode coupling — partial 1 amplitude flutter keyed to partial 0 decay
-      //    Simulates energy exchange between modes
-      if (i === 1) {
-        var flutterRate = 2.5 + Math.random() * 4.0; // 2.5–6.5 Hz flutter
-        var flutterOsc  = ctx.createOscillator();
-        flutterOsc.type = 'sine';
-        flutterOsc.frequency.value = flutterRate;
-        var flutterDepth = ctx.createGain();
-        flutterDepth.gain.value = pGain * 0.08;
-        var flutterEnv = ctx.createGain();
-        flutterEnv.gain.setValueAtTime(1.0, now + attack);
-        flutterEnv.gain.setTargetAtTime(0.0001, now + attack, (tailTime || pDecay) / 3.5);
-        flutterOsc.connect(flutterDepth);
-        flutterDepth.connect(flutterEnv);
-        flutterEnv.connect(env.gain); // modulates the partial's amplitude
-        flutterOsc.start(now); flutterOsc.stop(now + attack + (tailTime || pDecay) + 0.1);
-      }
-    }
-    osc.connect(filt); filt.connect(env);
-    env.connect(sbMasterOut);
-  });
-
-  // Strike noise removed — click came from here
-}
-
-// ── Wind ──────────────────────────────────────────────────
-function fireGust() {
-  // Single gust: a burst in current wind direction or random if wind off
-  var str = gv('windStrength') || 1.0;
-  var ang = windOn ? _windAngle : Math.random() * Math.PI * 2;
-  var gustStr = str * (1.5 + Math.random());
-  windX = Math.cos(ang) * gustStr;
-  windY = Math.sin(ang) * gustStr;
-  if (!windOn && !running) start();
+  requestAnimationFrame(loop);
 }
 
 // ── Drawing ───────────────────────────────────────────────
@@ -1185,22 +283,20 @@ function draw() {
   c.fillStyle = '#0e1210';
   c.fillRect(0, 0, W, H);
 
-  var n = tubes.length;
+  if (!S) return;
+  var n = S.ta.length;
   if (n === 0) return;
 
-  // Dynamic scale — fit the scene to fill ~85% of canvas
-  // Scene radius = ring radius + max tube length + small margin
-  var tubeL  = gv('cordLength');
+  var cord   = gv('cordLength');
   var scale  = Math.min(W, H) * 1.1; // fixed scale — 1m = 110% of canvas short side
-
   var cx = W / 2;
   var cy = H / 2;
+  var ringRadius = S.ringRadius;
 
   // Ring center world position
-  var rcx = Math.sin(ring.ax) * (gv('cordLength') * 0.30);
-  var rcy = Math.sin(ring.ay) * (gv('cordLength') * 0.30);
+  var rcx = Math.sin(S.ring[0]) * (cord * 0.30);
+  var rcy = Math.sin(S.ring[1]) * (cord * 0.30);
 
-  // To screen
   function wx(x) { return cx + x * scale; }
   function wy(y) { return cy + y * scale; }
 
@@ -1218,17 +314,16 @@ function draw() {
   c.stroke();
 
   // Ring
-  var rPx = ringRadius * scale;
   c.beginPath();
-  c.arc(wx(rcx), wy(rcy), rPx, 0, Math.PI*2);
+  c.arc(wx(rcx), wy(rcy), ringRadius * scale, 0, Math.PI*2);
   c.strokeStyle = 'rgba(180,162,140,0.5)';
   c.lineWidth = 2;
   c.stroke();
 
-  // Clapper disc — compute position from physics state
-  var dStrikerL = (gv('cordLength') * 0.76);
-  var dScx = Math.sin(ring.ax) * (gv('cordLength') * 0.30) + Math.sin(striker.ax) * dStrikerL;
-  var dScy = Math.sin(ring.ay) * (gv('cordLength') * 0.30) + Math.sin(striker.ay) * dStrikerL;
+  // Clapper disc
+  var strikerL = cord * 0.76;
+  var dScx = rcx + Math.sin(S.striker[0]) * strikerL;
+  var dScy = rcy + Math.sin(S.striker[1]) * strikerL;
   c.beginPath();
   c.strokeStyle = 'rgba(160,148,130,0.4)';
   c.lineWidth = 0.8;
@@ -1246,26 +341,21 @@ function draw() {
   c.arc(wx(dScx)-clapperR*0.3, wy(dScy)-clapperR*0.3, clapperR*0.35, 0, Math.PI*2);
   c.fillStyle = 'rgba(255,252,240,0.25)'; c.fill();
 
-
-
   // Tubes
   for (var i = 0; i < n; i++) {
-    var t = tubes[i];
-    var tLen = gv('cordLength') * t.lenFactor;
-    var mountAngle = (i / n) * Math.PI * 2; // kept for compat
-    var mx = t._mx !== undefined ? t._mx : rcx + (i/Math.max(1,n-1)-0.5)*ringRadius*2;
-    var my = rcy;
+    var ta = S.ta[i], tt = S.tt[i];
+    var tLen = cord * S.lenFactor[i];
     var mountAngle = (i / n) * Math.PI * 2;
     var mx = rcx + Math.cos(mountAngle) * ringRadius;
     var my = rcy + Math.sin(mountAngle) * ringRadius;
     var radX = -Math.cos(mountAngle), radY = -Math.sin(mountAngle);
-    var tanXd = -Math.sin(mountAngle), tanYd = Math.cos(mountAngle);
-    var tx   = t._tx   !== undefined ? t._tx   : mx + Math.sin(t.ta)*tLen*radX + Math.sin(t.tt)*tLen*tanXd;
-    var ty   = t._ty   !== undefined ? t._ty   : my + Math.sin(t.ta)*tLen*radY + Math.sin(t.tt)*tLen*tanYd;
-    var midX = t._midX !== undefined ? t._midX : mx + Math.sin(t.ta)*(tLen*0.5)*radX + Math.sin(t.tt)*(tLen*0.5)*tanXd;
-    var midY = t._midY !== undefined ? t._midY : my + Math.sin(t.ta)*(tLen*0.5)*radY + Math.sin(t.tt)*(tLen*0.5)*tanYd;
+    var tanX = -Math.sin(mountAngle), tanY = Math.cos(mountAngle);
+    var tx   = mx + Math.sin(ta)*tLen*radX + Math.sin(tt)*tLen*tanX;
+    var ty   = my + Math.sin(ta)*tLen*radY + Math.sin(tt)*tLen*tanY;
+    var midX = mx + Math.sin(ta)*(tLen*0.5)*radX + Math.sin(tt)*(tLen*0.5)*tanX;
+    var midY = my + Math.sin(ta)*(tLen*0.5)*radY + Math.sin(tt)*(tLen*0.5)*tanY;
 
-    var flash = strikeFlash[i] || 0;
+    var flash = S.flash[i] || 0;
 
     // Cord from mount to tube
     c.beginPath();
@@ -1285,12 +375,10 @@ function draw() {
     c.beginPath();
     c.arc(wx(midX), wy(midY), r, 0, Math.PI*2);
     var absFlash = Math.abs(flash);
-    var isCollision = flash < -0.01;
-    var isClapperHit = flash > 0.01;
-    if (isCollision) {
+    if (flash < -0.01) {
       // Red — tube hit another tube
       c.fillStyle = 'rgba(' + Math.round(180+absFlash*70) + ',80,80,0.95)';
-    } else if (isClapperHit) {
+    } else if (flash > 0.01) {
       // Green — tube hit clapper
       c.fillStyle = 'rgba(' + Math.round(80+absFlash*150) + ',' + Math.round(160+absFlash*80) + ',80,0.95)';
     } else {
@@ -1304,6 +392,7 @@ function draw() {
   }
 
   // Wind arrow
+  var windX = S.wind[0], windY = S.wind[1];
   var wMag = Math.sqrt(windX*windX + windY*windY);
   if (wMag > 0.01) {
     var wScale = 30 * Math.min(1, wMag / Math.max(0.1, gv('windStrength')));
@@ -1314,23 +403,6 @@ function draw() {
     c.lineTo(20 + (windX/wMag)*wScale, 20 + (windY/wMag)*wScale);
     c.stroke();
   }
-}
-
-// ── Playback ──────────────────────────────────────────────
-function start() {
-  if (running) return;
-  running = true;
-  physTimer = setInterval(tick, Math.round(DT * 1000));
-}
-
-function stop() {
-  running = false;
-  clearInterval(physTimer);
-  clearTimeout(windTimer); windTimer = null;
-  windOn = false; windX = 0; windY = 0;
-  // Leave source selection, ring state, and motion listener intact.
-  // The ring settles naturally via damping; no hard reset.
-  draw();
 }
 </script>
 </body>

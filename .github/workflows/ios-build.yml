@@ -1,0 +1,33 @@
+name: iOS build
+
+# Compiles the app for the simulator on every push, without signing, so build
+# errors show up before a TestFlight run.
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies and copy web assets into the iOS project
+        run: |
+          npm ci
+          npm run sync
+
+      - name: Build
+        run: |
+          xcodebuild build \
+            -project ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Release \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO
