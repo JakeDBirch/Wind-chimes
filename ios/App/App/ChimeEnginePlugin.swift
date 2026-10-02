@@ -17,30 +17,24 @@ public class ChimeEnginePlugin: CAPPlugin, CAPBridgedPlugin {
     private let engine = ChimeEngine.shared
 
     @objc func setParams(_ call: CAPPluginCall) {
-        let cordLength = number(call, "cordLength")
-        let damping = number(call, "damping")
-        let gap = number(call, "gap")
-        let tubeCount = number(call, "tubeCount").map { Int($0.rounded()) }
         let windStrength = number(call, "windStrength")
-        let windSusc = number(call, "windSusc")
-        let windSteady = number(call, "windSteady")
-        let windTurb = number(call, "windTurb")
+        let windConsistency = number(call, "windConsistency")
+        let sensitivity = number(call, "sensitivity")
+        let swing = number(call, "swing")
+        let tubeCount = number(call, "tubeCount").map { Int($0.rounded()) }
         let register = number(call, "register")
         let scale = call.getString("scale")
-        let material = call.getString("material")
+        let customScale = (call.options["customScale"] as? [NSNumber])?.map { $0.intValue }
 
         engine.updateParams { p in
-            if let cordLength { p.cordLength = cordLength }
-            if let damping { p.dampingSlider = damping }
-            if let gap { p.gap = gap }
-            if let tubeCount { p.tubeCount = max(1, tubeCount) }
             if let windStrength { p.windStrength = windStrength }
-            if let windSusc { p.windSusc = windSusc }
-            if let windSteady { p.windSteady = windSteady }
-            if let windTurb { p.windTurb = windTurb }
+            if let windConsistency { p.windConsistency = min(1, max(0, windConsistency)) }
+            if let sensitivity { p.sensitivity = sensitivity }
+            if let swing { p.swing = min(1, max(0, swing)) }
+            if let tubeCount { p.tubeCount = min(12, max(1, tubeCount)) }
             if let register { p.register = register }
             if let scale { p.scale = scale }
-            if let material { p.material = material }
+            if let customScale { p.customScale = customScale }
         }
         call.resolve()
     }

@@ -4,13 +4,27 @@ A wind chime simulator. It plays the sound of wind chimes, and if you hang your 
 
 Pocket Chimes is an iOS app built with [Capacitor](https://capacitorjs.com). The chime itself (physics, motion input and sound) runs natively in Swift so it keeps playing in the background and with the screen locked. The controls and the top-down view are a web page (`index.html`) shown inside the app. It no longer runs in a desktop or mobile browser.
 
+## Controls
+
+| Control | What it does |
+| --- | --- |
+| **Wind / Phone** | Drive the chimes with simulated wind, or with the phone's motion sensors (hang the phone up outside) |
+| **Strength** | How hard the wind blows |
+| **Consistency** | Low: gusty, shifting, long calms. High: a steady breeze with short lulls |
+| **Sensitivity** | How much of the wind's force reaches the chimes |
+| **Swing** | How freely the chimes keep swinging once pushed |
+| **Chimes** | Number of tubes, 3–12 |
+| **Register** | Pitch, ±1 octave |
+| **Scale** | Which notes the tubes are tuned to. *Chord Seq* cycles through a chord progression; *Custom* shows an octave of keys to pick notes from |
+| **Gust** | A two-second push of wind |
+
 ## Project layout
 
 | Path | What it is |
 | --- | --- |
 | `index.html` | Controls and visualization. Sends settings to the native engine and draws its state. |
-| `ios/App/App/ChimePhysics.swift` | Pendulum physics, wind model and phone-motion input |
-| `ios/App/App/ChimeVoices.swift` | Turns each strike into synth voices (metal and wood timbres) |
+| `ios/App/App/ChimePhysics.swift` | Pendulum physics, wind model, gusts, scales and phone-motion input |
+| `ios/App/App/ChimeVoices.swift` | Turns each strike into synth voices (inharmonic metal partials) |
 | `ios/App/App/ChimeSynth.swift` | Real-time synthesizer: envelopes, filters and mixing on the audio thread |
 | `ios/App/App/ChimeEngine.swift` | Runs it all: physics clock, CoreMotion, audio session and AVAudioEngine, interruption recovery |
 | `ios/App/App/ChimeEnginePlugin.swift` | Capacitor plugin the page calls (`setParams`, `setPhysics`, `setSource`, `gust`, `getState`) |

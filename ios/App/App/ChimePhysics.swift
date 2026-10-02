@@ -2,27 +2,30 @@ import Foundation
 
 /// Settings the web controls send down. Defaults match the slider defaults in index.html.
 struct ChimeParams {
-    var cordLength = 0.53
-    var dampingSlider = 43.0
-    var gap = 15.25
-    var tubeCount = 6
     var windStrength = 0.3
-    var windSusc = 0.5
-    var windSteady = 0.10
-    var windTurb = 0.28
+    var windConsistency = 0.4 // 0 = gusty and shifting with long calms, 1 = a steady breeze
+    var sensitivity = 0.5     // how much wind force reaches the chimes
+    var swing = 0.58          // how freely the chimes keep swinging once pushed
+    var tubeCount = 6
     var register = 0.0
     var scale = "Chord Seq"
-    var material = "Metal"
+    var customScale = [0, 3, 5, 7, 10] // semitones above A, used when scale == "Custom"
 
-    /// Logarithmic damping map: slider 1-100 → 0.0015-0.01
-    var damping: Double { 0.0015 * pow(6.667, (dampingSlider - 1) / 99) }
+    let cordLength = 0.53
+    let gap = 15.25 // mm between tubes
+
+    /// Logarithmic damping map, as the old 1-100 slider: swing 1 → 0.01, swing 0 → 0.0015
+    var damping: Double { 0.0015 * pow(6.667, 1 - swing) }
+    var windSteady: Double { windConsistency * 0.35 }
+    var windTurb: Double { 0.5 - windConsistency * 0.4 }
+    /// Scales the lulls between wind events: 1.5× at consistency 0, 0.5× at 1
+    var lullScale: Double { 1.5 - windConsistency }
 }
 
 struct ChimeStrike {
     let frequency: Double
     let velocity: Double
     let isClapper: Bool
-    let isWood: Bool
 }
 
 /// Top-down 2D pendulum model of the chime: a ring hanging from a fixed point, tubes
@@ -33,9 +36,20 @@ final class ChimePhysics {
     static let dt = 1.0 / 120.0
     static let tubeR = 0.035 // tube radius in meters
 
+    /// Semitone offsets above A4. "Chord Seq" cycles through chordProgression instead,
+    /// and "Custom" uses params.customScale.
     static let scales: [String: [Int]] = [
         "Pentatonic": [0, 3, 5, 7, 10],
-        "Chord Seq": [0, 3, 5, 7, 10], // placeholder — sequenced in tubeFrequency
+        "Major Pent": [0, 2, 4, 7, 9],
+        "Major": [0, 2, 4, 5, 7, 9, 11],
+        "Minor": [0, 2, 3, 5, 7, 8, 10],
+        "Dorian": [0, 2, 3, 5, 7, 9, 10],
+        "Lydian": [0, 2, 4, 6, 7, 9, 11],
+        "Mixolydian": [0, 2, 4, 5, 7, 9, 10],
+        "Whole Tone": [0, 2, 4, 6, 8, 10],
+        "Blues": [0, 3, 5, 6, 7, 10],
+        "Hirajoshi": [0, 2, 3, 7, 8],
+        "In Sen": [0, 1, 5, 7, 10],
     ]
     // Each chord is a set of semitone offsets from root
     static let chordProgression: [[Int]] = [
@@ -47,6 +61,7 @@ final class ChimePhysics {
         [8, 12, 15, 19, 22, 26], // VI9 — relative major with extensions
     ]
     static let chordDuration = 20.0 // seconds per chord
+    static let gustDuration = 2.0   // seconds a Gust button push lasts
 
     struct Pendulum { var ax = 0.0, vx = 0.0, ay = 0.0, vy = 0.0 }
 
@@ -95,6 +110,8 @@ final class ChimePhysics {
 
     private var chordIndex = 0
     private var chordTimer = 0.0
+    private var gustX = 0.0, gustY = 0.0
+    private var gustT = Self.gustDuration
     private var simTime = 0.0
 
     init() {
@@ -109,8 +126,6 @@ final class ChimePhysics {
         params = newParams
         if newParams.tubeCount != old.tubeCount {
             rebuild()
-        } else if newParams.gap != old.gap {
-            updateRingRadius()
         }
     }
 
@@ -143,13 +158,15 @@ final class ChimePhysics {
         if physicsOn { startWind(resetState: false) }
     }
 
-    /// Single gust: a burst in the current wind direction, or a random one if wind is off.
+    /// Single gust: a push in the current wind direction (random if wind is off) that
+    /// rises quickly and dies away over gustDuration.
     func gust() {
         let strength = params.windStrength != 0 ? params.windStrength : 1.0
         let angle = windOn ? windAngle : rand() * .pi * 2
         let gustStrength = strength * (1.5 + rand())
-        windX = cos(angle) * gustStrength
-        windY = sin(angle) * gustStrength
+        gustX = cos(angle) * gustStrength
+        gustY = sin(angle) * gustStrength
+        gustT = 0
     }
 
     func tubeFrequency(_ index: Int) -> Double {
@@ -158,7 +175,13 @@ final class ChimePhysics {
             let chord = Self.chordProgression[chordIndex % Self.chordProgression.count]
             semitone = chord[index % chord.count] + (index / chord.count) * 12
         } else {
-            let scale = Self.scales[params.scale] ?? Self.scales["Pentatonic"]!
+            let scale: [Int]
+            if params.scale == "Custom" {
+                let custom = params.customScale.filter { (0..<12).contains($0) }.sorted()
+                scale = custom.isEmpty ? [0] : custom
+            } else {
+                scale = Self.scales[params.scale] ?? Self.scales["Pentatonic"]!
+            }
             semitone = scale[index % scale.count] + (index / scale.count) * 12
         }
         return 440 * pow(2, (Double(semitone) + params.register * 12) / 12)
@@ -183,7 +206,7 @@ final class ChimePhysics {
     private func rand() -> Double { Double.random(in: 0..<1) }
 
     private func scheduleNextEvent() {
-        evtLullDur = 20 + rand() * 60                        // lull: 20–80s
+        evtLullDur = (20 + rand() * 60) * params.lullScale   // lull: 20–80s at mid consistency
         evtPeak = 0.2 + pow(rand(), 1.8) * 0.8               // weighted toward lighter events
         evtRiseDur = 0.8 + (1 - evtPeak) * 5 + rand() * 2    // stronger events rise faster
         evtHoldDur = 2 + rand() * 10
@@ -218,8 +241,7 @@ final class ChimePhysics {
     private func clampAngle(_ a: Double) -> Double { max(-.pi / 2, min(.pi / 2, a)) }
 
     private func emitStrike(_ index: Int, velocity: Double, isClapper: Bool) {
-        onStrike?(ChimeStrike(frequency: tubeFrequency(index), velocity: velocity,
-                              isClapper: isClapper, isWood: params.material == "Wood"))
+        onStrike?(ChimeStrike(frequency: tubeFrequency(index), velocity: velocity, isClapper: isClapper))
     }
 
     // MARK: - Tick
@@ -236,7 +258,7 @@ final class ChimePhysics {
         simTime += DT
 
         // ── Ring (housing) pendulum — only feels wind variation, not mean (prevents DC drift)
-        let wSusc = p.windSusc
+        let wSusc = p.sensitivity
         let ringWindX = ((windX - windMeanX) * 0.75 + windMeanX * 0.08) * wSusc
         let ringWindY = ((windY - windMeanY) * 0.75 + windMeanY * 0.08) * wSusc
         let ringAx = -(G / ringL) * sin(ring.ax) + ringWindX / ringL
@@ -504,6 +526,17 @@ final class ChimePhysics {
             windY *= 0.97
             windMeanX *= 0.97
             windMeanY *= 0.97
+        }
+
+        // ── Gust button: a push on top of whatever is driving the chimes
+        if gustT < Self.gustDuration {
+            gustT += DT
+            let rise = 0.25
+            let envelope = gustT < rise
+                ? gustT / rise
+                : max(0, 1 - (gustT - rise) / (Self.gustDuration - rise))
+            windX += gustX * envelope
+            windY += gustY * envelope
         }
 
         // Advance chord progression

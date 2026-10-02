@@ -35,6 +35,12 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px;
 .motion-status { font-size: 8px; letter-spacing: 0.08em; color: #556; margin-bottom: 4px; min-height: 11px; }
 .readouts { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; font-size: 9px; color: #304838; }
 .readouts span { color: #7ac89a; }
+/* Custom scale — one octave of keys, A to G# */
+.keys { display: flex; gap: 3px; margin-top: 8px; margin-bottom: 4px; align-items: flex-start; }
+.key { flex: 1; height: 38px; border-radius: 4px; border: 1px solid #1e2e22; background: none; color: #4a7060; font-family: 'Courier New', monospace; font-size: 8px; cursor: pointer; outline: none; padding: 0; }
+.key.black { height: 28px; background: #0e1210; border-color: #15201a; color: #3a5044; }
+.key.active { border-color: #7ac89a; color: #7ac89a; background: rgba(122,200,154,0.14); }
+.hint { font-size: 8px; color: #304838; margin-top: 4px; letter-spacing: 0.05em; }
 </style>
 </head>
 <body>
@@ -45,51 +51,10 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px;
   <canvas id="viz" width="680" height="680"></canvas>
 
   <div class="readouts">
-    <div>ring x <span id="r-rx">0.00</span></div>
-    <div>ring y <span id="r-ry">0.00</span></div>
     <div>wind <span id="r-wind">0.00</span></div>
     <div>strikes <span id="r-strikes">0</span></div>
   </div>
 
-  <div class="section">
-    <div class="stitle">Physical parameters</div>
-    <div class="row">
-      <span class="label">Cord length</span>
-      <input type="range" id="cordLength" min="0.3" max="0.8" step="0.005" value="0.53">
-      <span class="val" id="v-cordLength">0.53</span>
-    </div>
-    <div class="row">
-      <span class="label">Damping</span>
-      <input type="range" id="damping" min="1" max="100" step="1" value="43">
-      <span class="val" id="v-damping">0.0038</span>
-    </div>
-    <div class="row">
-      <span class="label">Gap</span>
-      <input type="range" id="gap" min="10" max="22" step="0.1" value="15.25">
-      <span class="val" id="v-gap">15.3</span>
-    </div>
-<div class="row">
-      <span class="label">Tubes</span>
-      <input type="range" id="tubeCount" min="3" max="8" step="1" value="6">
-      <span class="val" id="v-tubeCount">6</span>
-    </div>
-  </div>
-  <div class="section">
-    <div class="stitle">Sound</div>
-    <div class="row">
-      <span class="label">Material</span>
-    </div>
-    <div id="material-chips" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px;"></div>
-    <div class="row">
-      <span class="label">Scale</span>
-    </div>
-    <div id="scale-chips" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px;"></div>
-    <div class="row">
-      <span class="label">Register</span>
-      <input type="range" id="register" min="-1" max="1" step="0.1" value="0">
-      <span class="val" id="v-register">0</span>
-    </div>
-  </div>
   <div class="section">
     <div class="stitle">Drive</div>
     <div class="seg">
@@ -97,25 +62,52 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px;
       <button id="src-phone">Phone</button>
     </div>
     <div class="motion-status" id="motion-status"></div>
+  </div>
+
+  <div class="section" id="wind-section">
+    <div class="stitle">Wind</div>
     <div class="row">
       <span class="label">Strength</span>
-      <input type="range" id="windStrength" min="0.10" max="0.50" step="0.005" value="0.3">
-      <span class="val" id="v-windStrength">0.30</span>
+      <input type="range" id="windStrength" min="0" max="100" step="1" value="50">
+      <span class="val" id="v-windStrength">50</span>
     </div>
     <div class="row">
-      <span class="label">Susceptibility</span>
-      <input type="range" id="windSusc" min="0.1" max="2.0" step="0.05" value="0.5">
-      <span class="val" id="v-windSusc">0.50</span>
+      <span class="label">Consistency</span>
+      <input type="range" id="windConsistency" min="0" max="100" step="1" value="40">
+      <span class="val" id="v-windConsistency">40</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="stitle">Chimes</div>
+    <div class="row">
+      <span class="label">Sensitivity</span>
+      <input type="range" id="sensitivity" min="0" max="100" step="1" value="21">
+      <span class="val" id="v-sensitivity">21</span>
     </div>
     <div class="row">
-      <span class="label">Steadiness</span>
-      <input type="range" id="windSteady" min="0" max="0.35" step="0.005" value="0.10">
-      <span class="val" id="v-windSteady">0.50</span>
+      <span class="label">Swing</span>
+      <input type="range" id="swing" min="0" max="100" step="1" value="58">
+      <span class="val" id="v-swing">58</span>
     </div>
     <div class="row">
-      <span class="label">Turbulence</span>
-      <input type="range" id="windTurb" min="0.10" max="0.50" step="0.005" value="0.28">
-      <span class="val" id="v-windTurb">0.20</span>
+      <span class="label">Chimes</span>
+      <input type="range" id="tubeCount" min="3" max="12" step="1" value="6">
+      <span class="val" id="v-tubeCount">6</span>
+    </div>
+    <div class="row">
+      <span class="label">Register</span>
+      <input type="range" id="register" min="-1" max="1" step="0.1" value="0">
+      <span class="val" id="v-register">0</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="stitle">Scale</div>
+    <div id="scale-chips" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
+    <div id="custom-keys" style="display:none;">
+      <div class="keys" id="keys"></div>
+      <div class="hint">Tap keys to choose the notes. Chimes take them low to high, then repeat an octave up.</div>
     </div>
   </div>
 </div>
@@ -130,10 +122,15 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px;
 // chiming in the background and with the screen locked. This page is the controls and view.
 var Engine = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.ChimeEngine;
 
-var TUBE_R = 0.035; // tube radius in meters — matches ChimePhysics.tubeR
-var SCALE_NAMES = ['Pentatonic', 'Chord Seq'];
+var TUBE_R = 0.035;       // tube radius in meters — matches ChimePhysics.tubeR
+var CORD_LENGTH = 0.53;   // fixed, matches ChimeParams.cordLength
+var GAP_MM = 15.25;       // fixed, matches ChimeParams.gap
+var SCALE_NAMES = ['Pentatonic', 'Major Pent', 'Major', 'Minor', 'Dorian', 'Lydian', 'Mixolydian',
+                   'Whole Tone', 'Blues', 'Hirajoshi', 'In Sen', 'Chord Seq', 'Custom'];
+// Semitones above A, as the engine counts them
+var KEY_NAMES = ['A', 'A#', 'B', 'C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#'];
 var currentScale = 'Chord Seq';
-var currentMaterial = 'Metal';
+var customScale = [0, 3, 5, 7, 10];
 var physicsOn = false;
 var source = 'wind'; // 'wind' | 'phone'
 var S = null;        // latest engine state
@@ -141,33 +138,25 @@ var _userChangedAt = 0; // ignore engine state briefly after a tap, so an in-fli
 
 // ── Helpers ───────────────────────────────────────────────
 function gv(id) { return parseFloat(document.getElementById(id).value); }
-// Logarithmic damping map: slider 1-100 → 0.0015-0.01 (display only; the engine does the same)
-function getDamping() {
-  var v = parseFloat(document.getElementById('damping').value) || 18;
-  return 0.0015 * Math.pow(6.667, (v - 1) / 99);
-}
 function sv(id) {
   var n = gv(id), el = document.getElementById('v-' + id);
   if (!el) return;
-  if (id === 'damping') el.textContent = getDamping().toFixed(4);
-  else if (n < 0.01) el.textContent = n.toFixed(4);
-  else el.textContent = n.toFixed(2);
+  if (id === 'register') el.textContent = (n > 0 ? '+' : '') + n.toFixed(1);
+  else el.textContent = Math.round(n);
 }
 
+// Sliders are 0–100 on screen; map them onto the engine's ranges here
 function sendParams() {
   if (!Engine) return;
   Engine.setParams({
-    cordLength: gv('cordLength'),
-    damping: gv('damping'),
-    gap: gv('gap'),
+    windStrength: 0.10 + gv('windStrength') / 100 * 0.40,
+    windConsistency: gv('windConsistency') / 100,
+    sensitivity: 0.1 + gv('sensitivity') / 100 * 1.9,
+    swing: gv('swing') / 100,
     tubeCount: Math.round(gv('tubeCount')),
-    windStrength: gv('windStrength'),
-    windSusc: gv('windSusc'),
-    windSteady: gv('windSteady'),
-    windTurb: gv('windTurb'),
     register: gv('register'),
     scale: currentScale,
-    material: currentMaterial
+    customScale: customScale
   });
 }
 
@@ -187,6 +176,23 @@ function makeChips(containerId, names, getCurrent, setCurrent) {
   });
 }
 
+function buildKeyboard() {
+  var el = document.getElementById('keys');
+  KEY_NAMES.forEach(function(name, semitone) {
+    var b = document.createElement('button');
+    b.className = 'key' + (name.length > 1 ? ' black' : '') + (customScale.indexOf(semitone) >= 0 ? ' active' : '');
+    b.textContent = name;
+    b.addEventListener('click', function() {
+      var i = customScale.indexOf(semitone);
+      if (i >= 0) customScale.splice(i, 1); else customScale.push(semitone);
+      customScale.sort(function(a, b) { return a - b; });
+      b.classList.toggle('active', i < 0);
+      sendParams();
+    });
+    el.appendChild(b);
+  });
+}
+
 window.addEventListener('load', function() {
   document.querySelectorAll('input[type=range]').forEach(function(el) {
     sv(el.id);
@@ -198,9 +204,12 @@ window.addEventListener('load', function() {
   });
 
   makeChips('scale-chips', SCALE_NAMES,
-    function() { return currentScale; }, function(n) { currentScale = n; });
-  makeChips('material-chips', ['Metal', 'Wood'],
-    function() { return currentMaterial; }, function(n) { currentMaterial = n; });
+    function() { return currentScale; },
+    function(n) {
+      currentScale = n;
+      document.getElementById('custom-keys').style.display = n === 'Custom' ? 'block' : 'none';
+    });
+  buildKeyboard();
 
   document.getElementById('btn-gust').addEventListener('click', function() {
     _userChangedAt = Date.now();
@@ -260,9 +269,6 @@ function loop() {
         if (S.physicsOn !== physicsOn) showPhysics(S.physicsOn);
         if (S.source !== source) showSource(S.source);
       }
-      var cord = gv('cordLength');
-      document.getElementById('r-rx').textContent = (Math.sin(S.ring[0]) * cord * 0.30).toFixed(3);
-      document.getElementById('r-ry').textContent = (Math.sin(S.ring[1]) * cord * 0.30).toFixed(3);
       document.getElementById('r-wind').textContent = Math.sqrt(S.wind[0]*S.wind[0] + S.wind[1]*S.wind[1]).toFixed(3);
       document.getElementById('r-strikes').textContent = S.strikes;
       draw();
@@ -287,7 +293,7 @@ function draw() {
   var n = S.ta.length;
   if (n === 0) return;
 
-  var cord   = gv('cordLength');
+  var cord   = CORD_LENGTH;
   var scale  = Math.min(W, H) * 1.1; // fixed scale — 1m = 110% of canvas short side
   var cx = W / 2;
   var cy = H / 2;
@@ -330,7 +336,7 @@ function draw() {
   c.moveTo(wx(rcx), wy(rcy));
   c.lineTo(wx(dScx), wy(dScy));
   c.stroke();
-  var clapperR = Math.max(4, (ringRadius - TUBE_R - (gv('gap') / 1000)) * scale);
+  var clapperR = Math.max(4, (ringRadius - TUBE_R - (GAP_MM / 1000)) * scale);
   c.beginPath();
   c.arc(wx(dScx), wy(dScy), clapperR, 0, Math.PI*2);
   c.fillStyle = '#c8b8a4';
@@ -395,7 +401,7 @@ function draw() {
   var windX = S.wind[0], windY = S.wind[1];
   var wMag = Math.sqrt(windX*windX + windY*windY);
   if (wMag > 0.01) {
-    var wScale = 30 * Math.min(1, wMag / Math.max(0.1, gv('windStrength')));
+    var wScale = 30 * Math.min(1, wMag / (0.10 + gv('windStrength') / 100 * 0.40));
     c.beginPath();
     c.strokeStyle = 'rgba(122,200,154,0.4)';
     c.lineWidth = 1.5;

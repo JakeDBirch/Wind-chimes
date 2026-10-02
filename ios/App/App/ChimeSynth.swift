@@ -133,48 +133,28 @@ struct Biquad {
     }
 }
 
-/// One sounding component of a strike: a sine (optionally FM-modulated, with an
-/// optional detuned "ghost") or a one-shot noise burst, through an optional filter
-/// and a gain envelope. Built on the engine queue, then rendered on the audio thread.
+/// One partial of a strike: a sine through a lowpass sweep and a gain envelope.
+/// Built on the engine queue, then rendered on the audio thread.
 final class SynthVoice {
     static let blockSize = 32 // envelopes and filter sweeps update every 32 samples
 
     var startTime = 0.0
     var stopTime = 0.0
-
     var frequency = Automation(440)
-    var noise: [Float]?
-    var fmFrequency = 0.0
-    var fmDepth: Automation?
-    var ghostFrequency = 0.0
-    var ghostStopTime = 0.0
-    var ghostGain: Automation?
-
     var filter: Biquad?
     var filterFrequency: Automation? // nil = cutoff fixed when the voice was built
     var gain = Automation(1)
-    var flutterRate = 0.0
-    var flutterDepth = 0.0
-    var flutterStopTime = 0.0
-    var flutterEnvelope: Automation?
 
     private var time = 0.0
-    private var phase = 0.0, fmPhase = 0.0, ghostPhase = 0.0, flutterPhase = 0.0
-    private var noiseIndex = 0
+    private var phase = 0.0
 
     /// Adds this voice into `out`. Returns false once the voice has finished.
     func render(into out: UnsafeMutablePointer<Float>, frames: Int, sampleRate: Double) -> Bool {
         let invSr = 1.0 / sampleRate
         let w = 2.0 * Double.pi * invSr
-        let hasFM = fmDepth != nil
-        let hasGhost = ghostGain != nil
-        let hasFlutter = flutterEnvelope != nil
         let hasFilter = filter != nil
         let sweepsFilter = filterFrequency != nil
         var flt = filter ?? Biquad(.lowpass, q: 0)
-        let isNoise = noise != nil
-        let noiseBuf = noise ?? []
-        let noiseCount = noiseBuf.count
 
         var offset = 0
         while offset < frames {
@@ -190,12 +170,6 @@ final class SynthVoice {
             let invSpan = t1 > ta ? 1.0 / (t1 - ta) : 0
             let g0 = gain.value(at: ta), gD = gain.value(at: t1) - g0
             let f0 = frequency.value(at: ta), fD = frequency.value(at: t1) - f0
-            var d0 = 0.0, dD = 0.0
-            if hasFM { d0 = fmDepth!.value(at: ta); dD = fmDepth!.value(at: t1) - d0 }
-            var h0 = 0.0, hD = 0.0
-            if hasGhost { h0 = ghostGain!.value(at: ta); hD = ghostGain!.value(at: t1) - h0 }
-            var e0 = 0.0, eD = 0.0
-            if hasFlutter { e0 = flutterEnvelope!.value(at: ta); eD = flutterEnvelope!.value(at: t1) - e0 }
             if sweepsFilter { flt.setFrequency(filterFrequency!.value(at: ta), sampleRate: sampleRate) }
 
             for k in 0..<n {
@@ -203,44 +177,16 @@ final class SynthVoice {
                 if ts < startTime { continue }
                 if ts >= stopTime { break }
                 let frac = (ts - ta) * invSpan
-
-                var x: Double
-                if isNoise {
-                    x = noiseIndex < noiseCount ? Double(noiseBuf[noiseIndex]) : 0
-                    noiseIndex += 1
-                } else {
-                    var f = f0 + fD * frac
-                    if hasFM {
-                        f += (d0 + dD * frac) * sin(fmPhase)
-                        fmPhase += w * fmFrequency
-                    }
-                    x = sin(phase)
-                    phase += w * f
-                    if hasGhost && ts < ghostStopTime {
-                        x += sin(ghostPhase)
-                        ghostPhase += w * ghostFrequency
-                    }
-                }
-
+                let x = sin(phase)
+                phase += w * (f0 + fD * frac)
                 let y = hasFilter ? flt.process(x) : x
-                var g = g0 + gD * frac
-                if hasFlutter && ts < flutterStopTime {
-                    g += flutterDepth * (e0 + eD * frac) * sin(flutterPhase)
-                    flutterPhase += w * flutterRate
-                }
-                var s = y * g
-                if hasGhost { s += y * (h0 + hD * frac) }
-                out[offset + k] += Float(s)
+                out[offset + k] += Float(y * (g0 + gD * frac))
             }
             offset += n
         }
 
         if hasFilter { filter = flt }
-        let twoPi = 2.0 * Double.pi
-        phase = phase.truncatingRemainder(dividingBy: twoPi)
-        fmPhase = fmPhase.truncatingRemainder(dividingBy: twoPi)
-        ghostPhase = ghostPhase.truncatingRemainder(dividingBy: twoPi)
-        flutterPhase = flutterPhase.truncatingRemainder(dividingBy: twoPi)
+        phase = phase.truncatingRemainder(dividingBy: 2.0 * Double.pi)
         return time < stopTime
     }
 }
