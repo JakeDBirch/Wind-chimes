@@ -12,7 +12,12 @@ public class ChimeEnginePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "setSource", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "gust", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setSound", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "record", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "startStandby", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setTriggerLevel", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "arm", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "disarm", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "stopRecording", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "cancelRecording", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getState", returnType: CAPPluginReturnPromise),
     ]
 
@@ -66,23 +71,61 @@ public class ChimeEnginePlugin: CAPPlugin, CAPBridgedPlugin {
         call.resolve()
     }
 
-    @objc func record(_ call: CAPPluginCall) {
-        let seconds = number(call, "seconds") ?? 2.0
-        engine.record(seconds: seconds) { result in
+    public override func load() {
+        engine.onRecordingEvent = { [weak self] name, data in
+            self?.notifyListeners(name, data: data)
+        }
+    }
+
+    @objc func startStandby(_ call: CAPPluginCall) {
+        engine.startStandby { error in
+            if let error {
+                call.reject("Microphone unavailable", Self.code(for: error))
+            } else {
+                call.resolve()
+            }
+        }
+    }
+
+    @objc func setTriggerLevel(_ call: CAPPluginCall) {
+        engine.setTriggerLevel(number(call, "dB") ?? -30)
+        call.resolve()
+    }
+
+    @objc func arm(_ call: CAPPluginCall) {
+        engine.arm()
+        call.resolve()
+    }
+
+    @objc func disarm(_ call: CAPPluginCall) {
+        engine.disarm()
+        call.resolve()
+    }
+
+    @objc func stopRecording(_ call: CAPPluginCall) {
+        engine.stopRecording { result in
             switch result {
             case .success(let sample):
                 call.resolve(["pitch": sample.pitch, "duration": sample.duration])
             case .failure(let error):
-                let code: String
-                switch error as? ChimeEngine.RecordError {
-                case .permissionDenied: code = "permission"
-                case .noInput: code = "noInput"
-                case .busy: code = "busy"
-                case .tooQuiet: code = "tooQuiet"
-                case nil: code = "failed"
-                }
-                call.reject("Recording failed", code)
+                call.reject("Recording failed", Self.code(for: error))
             }
+        }
+    }
+
+    @objc func cancelRecording(_ call: CAPPluginCall) {
+        engine.cancelRecording()
+        call.resolve()
+    }
+
+    private static func code(for error: Error) -> String {
+        switch error as? ChimeEngine.RecordError {
+        case .permissionDenied: return "permission"
+        case .noInput: return "noInput"
+        case .busy: return "busy"
+        case .tooQuiet: return "tooQuiet"
+        case .notRecording: return "notRecording"
+        case nil: return "failed"
         }
     }
 

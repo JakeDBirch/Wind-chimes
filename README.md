@@ -16,7 +16,8 @@ Pocket Chimes is an iOS app built with [Capacitor](https://capacitorjs.com). The
 | **Chimes** | Number of tubes, 3–12 |
 | **Register** | Pitch, ±1 octave |
 | **Scale** | Which notes the tubes are tuned to. *Chord Seq* cycles through a chord progression; *Custom* shows an octave of keys to pick notes from |
-| **Sound** | *Metal* is the synthesized tube. *Recorded* uses a sound you record with the mic: tap **Record**, sing or play a steady note for two seconds, and each chime plays it at its own pitch, shaped with the same decay and filter sweep as a struck tube |
+| **Sound** | *Metal* is the synthesized tube. *Recorded* uses a sound you record with the mic. Each chime plays it at its own pitch, shaped with the same decay and filter sweep as a struck tube, so even a sustained note rings and dies away |
+| **Record** | Opens the mic in standby with a level meter. Set **Trigger** just below your sound's level, tap **Arm**, and recording starts the moment the level crosses it (with 150 ms of pre-roll). Tap **Stop** when done; it caps at 10 s |
 | **Gust** | A two-second push of wind |
 
 ## Project layout
@@ -29,7 +30,7 @@ Pocket Chimes is an iOS app built with [Capacitor](https://capacitorjs.com). The
 | `ios/App/App/UserSample.swift` | Prepares a mic recording for playback: trim, normalize, seamless loop, pitch estimate; saved between launches |
 | `ios/App/App/ChimeSynth.swift` | Real-time synthesizer: envelopes, filters and mixing on the audio thread |
 | `ios/App/App/ChimeEngine.swift` | Runs it all: physics clock, CoreMotion, audio session and AVAudioEngine, interruption recovery |
-| `ios/App/App/ChimeEnginePlugin.swift` | Capacitor plugin the page calls (`setParams`, `setPhysics`, `setSource`, `setSound`, `record`, `gust`, `getState`) |
+| `ios/App/App/ChimeEnginePlugin.swift` | Capacitor plugin the page calls (`setParams`, `setPhysics`, `setSource`, `setSound`, `startStandby`, `setTriggerLevel`, `arm`, `disarm`, `stopRecording`, `cancelRecording`, `gust`, `getState`) |
 | `ios/App/App/MainViewController.swift` | Registers the plugin with Capacitor |
 | `ios/App/App/Info.plist` | Background audio mode, microphone and motion usage strings, portrait-only on iPhone, light status bar, no-encryption declaration |
 | `ios/App/App/Assets.xcassets` | App icon (1024×1024, placeholder) and launch screen |

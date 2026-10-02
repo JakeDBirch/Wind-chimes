@@ -35,9 +35,16 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px;
 .motion-status { font-size: 8px; letter-spacing: 0.08em; color: #556; margin-bottom: 4px; min-height: 11px; }
 .rec-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
 .rec-btn { white-space: nowrap; padding: 7px 14px; border-radius: 6px; border: 1px solid #c87a7a; background: rgba(200,122,122,0.07); color: #c87a7a; font-family: 'Courier New', monospace; font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; cursor: pointer; outline: none; }
-.rec-btn:disabled { opacity: 0.5; }
+.rec-btn.quiet { border-color: #2a3a2e; color: #5a6a5e; background: none; }
 .rec-btn.live { background: rgba(200,122,122,0.3); }
 .rec-status { font-size: 8px; letter-spacing: 0.08em; color: #556; }
+/* Level meter with the trigger threshold marked on it */
+.meter { position: relative; height: 10px; background: #0e1210; border: 1px solid #1a2a1e; border-radius: 3px; margin-top: 10px; overflow: hidden; }
+.meter-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: #4a7058; transition: width 0.05s linear; }
+.meter-fill.hot { background: #c87a7a; }
+.meter-mark { position: absolute; top: -1px; bottom: -1px; width: 2px; background: #7ac89a; }
+.rec-panel { display: none; }
+.rec-panel.open { display: block; }
 /* Custom scale — one octave of keys, A to G# */
 .keys { display: flex; gap: 3px; margin-top: 8px; margin-bottom: 4px; align-items: flex-start; }
 .key { flex: 1; height: 38px; border-radius: 4px; border: 1px solid #1e2e22; background: none; color: #4a7060; font-family: 'Courier New', monospace; font-size: 8px; cursor: pointer; outline: none; padding: 0; }
@@ -112,9 +119,22 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px;
   <div class="section">
     <div class="stitle">Sound</div>
     <div id="sound-chips" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
-    <div class="rec-row">
+    <div class="rec-row" id="rec-idle">
       <button class="rec-btn" id="btn-record">Record</button>
       <span class="rec-status" id="rec-status">Record a sound to use as the voice of the chimes.</span>
+    </div>
+    <div class="rec-panel" id="rec-panel">
+      <div class="meter"><div class="meter-fill" id="meter-fill"></div><div class="meter-mark" id="meter-mark"></div></div>
+      <div class="row" style="margin-top:8px;">
+        <span class="label">Trigger</span>
+        <input type="range" id="trigger" min="-60" max="0" step="1" value="-30">
+        <span class="val" id="v-trigger">-30</span>
+      </div>
+      <div class="rec-status" id="rec-live"></div>
+      <div class="rec-row">
+        <button class="rec-btn" id="btn-arm">Arm</button>
+        <button class="rec-btn quiet" id="btn-cancel">Cancel</button>
+      </div>
     </div>
   </div>
 </div>
@@ -205,6 +225,7 @@ function buildKeyboard() {
 window.addEventListener('load', function() {
   document.querySelectorAll('input[type=range]').forEach(function(el) {
     sv(el.id);
+    if (el.id === 'trigger') return; // wired separately below
     el.addEventListener('input', function() {
       sv(el.id);
       sendParams();
@@ -224,6 +245,16 @@ window.addEventListener('load', function() {
     function() { return currentSound === 'recorded' ? 'Recorded' : 'Metal'; },
     function(n) { chooseSound(n === 'Recorded' ? 'recorded' : 'metal'); });
   document.getElementById('btn-record').addEventListener('click', startRecording);
+  document.getElementById('btn-arm').addEventListener('click', armButton);
+  document.getElementById('btn-cancel').addEventListener('click', cancelRecording);
+  document.getElementById('trigger').addEventListener('input', function() {
+    sv('trigger');
+    if (Engine) Engine.setTriggerLevel({ dB: gv('trigger') });
+  });
+  if (Engine) {
+    Engine.addListener('recordingFinished', recordingFinished);
+    Engine.addListener('recordingFailed', recordingFailed);
+  }
 
   document.getElementById('btn-gust').addEventListener('click', function() {
     _userChangedAt = Date.now();
@@ -289,35 +320,108 @@ function chooseSound(mode) {
   if (Engine) Engine.setSound({ mode: mode });
 }
 
-var REC_SECONDS = 2;
+// Recording: Record opens the mic (standby, with a level meter and a trigger level),
+// Arm waits for the level to cross the trigger, then Stop (or the 10 s cap) keeps it.
+var REC_MAX = 10;
+var recState = 'idle';
+var _meterShown = -60;
+
+function showRecordState(state) {
+  recState = state;
+  document.getElementById('rec-idle').style.display = state === 'idle' ? 'flex' : 'none';
+  document.getElementById('rec-panel').classList.toggle('open', state !== 'idle');
+  var arm = document.getElementById('btn-arm');
+  var live = document.getElementById('rec-live');
+  if (state === 'standby') {
+    arm.textContent = 'Arm';
+    arm.classList.remove('live');
+    live.textContent = 'Make your sound and set the trigger just below its level.';
+  } else if (state === 'armed') {
+    arm.textContent = 'Disarm';
+    arm.classList.remove('live');
+    live.textContent = 'Armed — recording starts when the level crosses the trigger.';
+  } else if (state === 'recording') {
+    arm.textContent = 'Stop';
+    arm.classList.add('live');
+  }
+}
+
 function startRecording() {
-  var btn = document.getElementById('btn-record');
   var status = document.getElementById('rec-status');
-  if (!Engine || btn.disabled) return;
-  btn.disabled = true;
-  btn.classList.add('live');
-  btn.textContent = 'Listening';
-  status.textContent = 'Sing or play a steady note now…';
-  Engine.record({ seconds: REC_SECONDS }).then(function(r) {
-    hasRecording = true;
-    status.textContent = describeSample(r);
+  if (!Engine) return;
+  status.textContent = 'Opening microphone…';
+  Engine.startStandby().then(function() {
+    Engine.setTriggerLevel({ dB: gv('trigger') });
     _userChangedAt = Date.now();
-    showSound('recorded');
+    showRecordState('standby');
   }, function(err) {
     var code = err && err.code;
     status.textContent =
       code === 'permission' ? 'Microphone access denied. Settings > Pocket Chimes > Microphone.' :
-      code === 'tooQuiet'   ? 'Too quiet — try again closer to the mic.' :
       code === 'noInput'    ? 'No microphone available.' :
-                              'Recording failed. Try again.';
-  }).then(function() {
-    btn.disabled = false;
-    btn.classList.remove('live');
-    btn.textContent = hasRecording ? 'Re-record' : 'Record';
+                              'Could not open the microphone.';
   });
 }
 
+function armButton() {
+  if (!Engine) return;
+  _userChangedAt = Date.now();
+  if (recState === 'standby') {
+    Engine.arm();
+    showRecordState('armed');
+  } else if (recState === 'armed') {
+    Engine.disarm();
+    showRecordState('standby');
+  } else if (recState === 'recording') {
+    Engine.stopRecording().then(recordingFinished, recordingFailed);
+    showRecordState('idle');
+  }
+}
+
+function cancelRecording() {
+  if (Engine) Engine.cancelRecording();
+  _userChangedAt = Date.now();
+  showRecordState('idle');
+  document.getElementById('rec-status').textContent = hasRecording ? describeSample(S && S.sample) : 'Record a sound to use as the voice of the chimes.';
+}
+
+function recordingFinished(sample) {
+  hasRecording = true;
+  _userChangedAt = Date.now();
+  showRecordState('idle');
+  document.getElementById('rec-status').textContent = describeSample(sample);
+  document.getElementById('btn-record').textContent = 'Re-record';
+  showSound('recorded');
+}
+
+function recordingFailed(err) {
+  var code = err && err.code;
+  _userChangedAt = Date.now();
+  showRecordState('idle');
+  document.getElementById('rec-status').textContent =
+    code === 'tooQuiet'    ? 'Too quiet or too short — try again closer to the mic.' :
+    code === 'interrupted' ? 'Recording was interrupted. Try again.' :
+                             'Recording failed. Try again.';
+}
+
+function updateMeter() {
+  if (!S || recState === 'idle') return;
+  // Fast rise, slow fall so the meter is readable
+  var level = S.micLevel;
+  _meterShown = level > _meterShown ? level : Math.max(level, _meterShown - 1.5);
+  var pct = function(dB) { return Math.max(0, Math.min(100, (dB + 60) / 60 * 100)); };
+  var fill = document.getElementById('meter-fill');
+  fill.style.width = pct(_meterShown) + '%';
+  fill.classList.toggle('hot', _meterShown >= gv('trigger'));
+  document.getElementById('meter-mark').style.left = 'calc(' + pct(gv('trigger')) + '% - 1px)';
+  if (S.recordState === 'recording') {
+    if (recState !== 'recording') showRecordState('recording');
+    document.getElementById('rec-live').textContent = 'Recording ' + S.recordSeconds.toFixed(1) + 's of ' + REC_MAX + 's. Tap Stop when done.';
+  }
+}
+
 function describeSample(sample) {
+  if (!sample) return 'Record a sound to use as the voice of the chimes.';
   var s = 'Recorded ' + sample.duration.toFixed(1) + 's';
   if (sample.pitch > 0) s += ', ~' + Math.round(sample.pitch) + ' Hz (' + noteName(sample.pitch) + ')';
   else s += ', no clear pitch';
@@ -343,6 +447,7 @@ function loop() {
         if (S.source !== source) showSource(S.source);
         if (S.sound !== currentSound) showSound(S.sound);
       }
+      updateMeter();
       if (S.sample && !hasRecording) {
         hasRecording = true;
         document.getElementById('rec-status').textContent = describeSample(S.sample);
