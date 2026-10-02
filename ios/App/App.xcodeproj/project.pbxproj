@@ -22,6 +22,7 @@
 		C41E00000000000000000B04 /* ChimeEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = C41E00000000000000000A04 /* ChimeEngine.swift */; };
 		C41E00000000000000000B05 /* ChimeEnginePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = C41E00000000000000000A05 /* ChimeEnginePlugin.swift */; };
 		C41E00000000000000000B06 /* MainViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C41E00000000000000000A06 /* MainViewController.swift */; };
+		C41E00000000000000000B07 /* UserSample.swift in Sources */ = {isa = PBXBuildFile; fileRef = C41E00000000000000000A07 /* UserSample.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -42,6 +43,7 @@
 		C41E00000000000000000A04 /* ChimeEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChimeEngine.swift; sourceTree = "<group>"; };
 		C41E00000000000000000A05 /* ChimeEnginePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChimeEnginePlugin.swift; sourceTree = "<group>"; };
 		C41E00000000000000000A06 /* MainViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewController.swift; sourceTree = "<group>"; };
+		C41E00000000000000000A07 /* UserSample.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserSample.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -85,6 +87,7 @@
 				C41E00000000000000000A04 /* ChimeEngine.swift */,
 				C41E00000000000000000A05 /* ChimeEnginePlugin.swift */,
 				C41E00000000000000000A06 /* MainViewController.swift */,
+				C41E00000000000000000A07 /* UserSample.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
 				504EC30E1FED79650016851F /* Assets.xcassets */,
 				504EC3101FED79650016851F /* LaunchScreen.storyboard */,
@@ -184,6 +187,7 @@
 				C41E00000000000000000B04 /* ChimeEngine.swift in Sources */,
 				C41E00000000000000000B05 /* ChimeEnginePlugin.swift in Sources */,
 				C41E00000000000000000B06 /* MainViewController.swift in Sources */,
+				C41E00000000000000000B07 /* UserSample.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
