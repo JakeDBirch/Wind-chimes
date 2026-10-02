@@ -11,6 +11,8 @@ public class ChimeEnginePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "setPhysics", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setSource", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "gust", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setSound", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "record", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getState", returnType: CAPPluginReturnPromise),
     ]
 
@@ -57,6 +59,31 @@ public class ChimeEnginePlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func gust(_ call: CAPPluginCall) {
         engine.gust()
         call.resolve()
+    }
+
+    @objc func setSound(_ call: CAPPluginCall) {
+        engine.setSound(call.getString("mode") ?? "metal")
+        call.resolve()
+    }
+
+    @objc func record(_ call: CAPPluginCall) {
+        let seconds = number(call, "seconds") ?? 2.0
+        engine.record(seconds: seconds) { result in
+            switch result {
+            case .success(let sample):
+                call.resolve(["pitch": sample.pitch, "duration": sample.duration])
+            case .failure(let error):
+                let code: String
+                switch error as? ChimeEngine.RecordError {
+                case .permissionDenied: code = "permission"
+                case .noInput: code = "noInput"
+                case .busy: code = "busy"
+                case .tooQuiet: code = "tooQuiet"
+                case nil: code = "failed"
+                }
+                call.reject("Recording failed", code)
+            }
+        }
     }
 
     @objc func getState(_ call: CAPPluginCall) {

@@ -9,7 +9,7 @@ enum ChimeVoices {
     static let partialGains = [1.0, 0.55, 0.28, 0.10]
     static let partialDecays = [1.0, 0.55, 0.30, 0.15]
 
-    static func make(for strike: ChimeStrike, sampleRate sr: Double) -> [SynthVoice] {
+    static func make(for strike: ChimeStrike, sample: UserSample?, sampleRate sr: Double) -> [SynthVoice] {
         func rand() -> Double { Double.random(in: 0..<1) }
 
         var voices: [SynthVoice] = []
@@ -33,6 +33,29 @@ enum ChimeVoices {
 
         let pitchWobble = 1 + (rand() - 0.5) * 0.001 * (1 - velNorm * 0.5)
         let now = 0.006
+
+        // ── Recorded sound: loop the user's sample at the tube's pitch, shaped by the
+        // same lowpass sweep and velocity-driven decay as a struck tube
+        if let sample {
+            let decay = baseDecay * 0.6
+            let detuneCents = (rand() - 0.5) * 6
+            let ratio = sample.pitch > 0 ? freq / sample.pitch : freq / 440
+            let v = SynthVoice()
+            v.startTime = now
+            v.sample = sample.samples
+            v.sampleStep = ratio * pow(2, detuneCents / 1200) * sample.sampleRate / sr
+            var cutoff = Automation(350)
+            cutoff.setValue(freq * startCutoffMult, at: now + attackMult * 0.006)
+            cutoff.exponentialRamp(to: freq * endCutoffMult, at: now + attackMult * 0.006 + decay)
+            v.filterFrequency = cutoff
+            v.filter = Biquad(.lowpass, q: 0.5)
+            let attack = attackMult * 0.006
+            v.gain.setValue(0, at: now)
+            v.gain.linearRamp(to: vel * 0.5, at: now + attack)
+            v.gain.exponentialRamp(to: 0.0001, at: now + attack + decay)
+            v.stopTime = now + attack + decay + 0.1
+            return [v]
+        }
 
         for i in 0..<partialRatios.count {
             let di = Double(i)

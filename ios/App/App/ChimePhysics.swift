@@ -196,8 +196,6 @@ final class ChimePhysics {
             "lenFactor": tubes.map { $0.lenFactor },
             "flash": strikeFlash,
             "ringRadius": ringRadius,
-            "wind": [windX, windY],
-            "strikes": strikeCount,
         ]
     }
 

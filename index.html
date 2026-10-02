@@ -33,8 +33,11 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px;
 .seg button.active { background: rgba(122,200,154,0.14); color: #aee3c4; }
 .seg button:first-child { border-right: 1px solid #2a3a2e; }
 .motion-status { font-size: 8px; letter-spacing: 0.08em; color: #556; margin-bottom: 4px; min-height: 11px; }
-.readouts { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; font-size: 9px; color: #304838; }
-.readouts span { color: #7ac89a; }
+.rec-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.rec-btn { padding: 7px 14px; border-radius: 6px; border: 1px solid #c87a7a; background: rgba(200,122,122,0.07); color: #c87a7a; font-family: 'Courier New', monospace; font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; cursor: pointer; outline: none; }
+.rec-btn:disabled { opacity: 0.5; }
+.rec-btn.live { background: rgba(200,122,122,0.3); }
+.rec-status { font-size: 8px; letter-spacing: 0.08em; color: #556; }
 /* Custom scale — one octave of keys, A to G# */
 .keys { display: flex; gap: 3px; margin-top: 8px; margin-bottom: 4px; align-items: flex-start; }
 .key { flex: 1; height: 38px; border-radius: 4px; border: 1px solid #1e2e22; background: none; color: #4a7060; font-family: 'Courier New', monospace; font-size: 8px; cursor: pointer; outline: none; padding: 0; }
@@ -49,11 +52,6 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px;
   <div class="sub">2D pendulum system — top-down view</div>
 
   <canvas id="viz" width="680" height="680"></canvas>
-
-  <div class="readouts">
-    <div>wind <span id="r-wind">0.00</span></div>
-    <div>strikes <span id="r-strikes">0</span></div>
-  </div>
 
   <div class="section">
     <div class="stitle">Drive</div>
@@ -110,6 +108,15 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px;
       <div class="hint">Tap keys to choose the notes. Chimes take them low to high, then repeat an octave up.</div>
     </div>
   </div>
+
+  <div class="section">
+    <div class="stitle">Sound</div>
+    <div id="sound-chips" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
+    <div class="rec-row">
+      <button class="rec-btn" id="btn-record">Record</button>
+      <span class="rec-status" id="rec-status">Record a sound to use as the voice of the chimes.</span>
+    </div>
+  </div>
 </div>
 
 <div class="float-bar">
@@ -131,6 +138,8 @@ var SCALE_NAMES = ['Pentatonic', 'Major Pent', 'Major', 'Minor', 'Dorian', 'Lydi
 var KEY_NAMES = ['A', 'A#', 'B', 'C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#'];
 var currentScale = 'Chord Seq';
 var customScale = [0, 3, 5, 7, 10];
+var currentSound = 'metal';   // 'metal' | 'recorded'
+var hasRecording = false;
 var physicsOn = false;
 var source = 'wind'; // 'wind' | 'phone'
 var S = null;        // latest engine state
@@ -211,6 +220,11 @@ window.addEventListener('load', function() {
     });
   buildKeyboard();
 
+  makeChips('sound-chips', ['Metal', 'Recorded'],
+    function() { return currentSound === 'recorded' ? 'Recorded' : 'Metal'; },
+    function(n) { chooseSound(n === 'Recorded' ? 'recorded' : 'metal'); });
+  document.getElementById('btn-record').addEventListener('click', startRecording);
+
   document.getElementById('btn-gust').addEventListener('click', function() {
     _userChangedAt = Date.now();
     if (Engine) Engine.gust();
@@ -257,7 +271,66 @@ function chooseSource(src) {
   if (Engine) Engine.setSource({ source: src });
 }
 
-// ── State polling + readouts ──────────────────────────────
+// ── Sound ─────────────────────────────────────────────────
+function showSound(mode) {
+  currentSound = mode;
+  var chips = document.querySelectorAll('#sound-chips .schip');
+  chips.forEach(function(c) { c.classList.toggle('active', (c.textContent === 'Recorded') === (mode === 'recorded')); });
+}
+
+function chooseSound(mode) {
+  _userChangedAt = Date.now();
+  if (mode === 'recorded' && !hasRecording) {
+    document.getElementById('rec-status').textContent = 'Record a sound first.';
+    showSound('metal');
+    return;
+  }
+  showSound(mode);
+  if (Engine) Engine.setSound({ mode: mode });
+}
+
+var REC_SECONDS = 2;
+function startRecording() {
+  var btn = document.getElementById('btn-record');
+  var status = document.getElementById('rec-status');
+  if (!Engine || btn.disabled) return;
+  btn.disabled = true;
+  btn.classList.add('live');
+  btn.textContent = 'Listening';
+  status.textContent = 'Sing or play a steady note now…';
+  Engine.record({ seconds: REC_SECONDS }).then(function(r) {
+    hasRecording = true;
+    status.textContent = describeSample(r);
+    _userChangedAt = Date.now();
+    showSound('recorded');
+  }, function(err) {
+    var code = err && err.code;
+    status.textContent =
+      code === 'permission' ? 'Microphone access denied. Settings > Pocket Chimes > Microphone.' :
+      code === 'tooQuiet'   ? 'Too quiet — try again closer to the mic.' :
+      code === 'noInput'    ? 'No microphone available.' :
+                              'Recording failed. Try again.';
+  }).then(function() {
+    btn.disabled = false;
+    btn.classList.remove('live');
+    btn.textContent = hasRecording ? 'Re-record' : 'Record';
+  });
+}
+
+function describeSample(sample) {
+  var s = 'Recorded ' + sample.duration.toFixed(1) + 's';
+  if (sample.pitch > 0) s += ', ~' + Math.round(sample.pitch) + ' Hz (' + noteName(sample.pitch) + ')';
+  else s += ', no clear pitch';
+  return s + '. Each chime plays it at its own note.';
+}
+
+function noteName(hz) {
+  var names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  var n = Math.round(12 * Math.log2(hz / 440)) + 69; // MIDI number
+  return names[((n % 12) + 12) % 12] + (Math.floor(n / 12) - 1);
+}
+
+// ── State polling ──────────────────────────────
 var _polling = false;
 function loop() {
   if (Engine && !_polling && document.visibilityState === 'visible') {
@@ -268,9 +341,13 @@ function loop() {
       if (Date.now() - _userChangedAt > 500) {
         if (S.physicsOn !== physicsOn) showPhysics(S.physicsOn);
         if (S.source !== source) showSource(S.source);
+        if (S.sound !== currentSound) showSound(S.sound);
       }
-      document.getElementById('r-wind').textContent = Math.sqrt(S.wind[0]*S.wind[0] + S.wind[1]*S.wind[1]).toFixed(3);
-      document.getElementById('r-strikes').textContent = S.strikes;
+      if (S.sample && !hasRecording) {
+        hasRecording = true;
+        document.getElementById('rec-status').textContent = describeSample(S.sample);
+        document.getElementById('btn-record').textContent = 'Re-record';
+      }
       draw();
     }, function() { _polling = false; });
   }
@@ -395,19 +472,6 @@ function draw() {
     c.arc(wx(midX)-r*0.3, wy(midY)-r*0.3, r*0.4, 0, Math.PI*2);
     c.fillStyle = 'rgba(255,252,240,' + (0.08 + absFlash*0.25) + ')';
     c.fill();
-  }
-
-  // Wind arrow
-  var windX = S.wind[0], windY = S.wind[1];
-  var wMag = Math.sqrt(windX*windX + windY*windY);
-  if (wMag > 0.01) {
-    var wScale = 30 * Math.min(1, wMag / (0.10 + gv('windStrength') / 100 * 0.40));
-    c.beginPath();
-    c.strokeStyle = 'rgba(122,200,154,0.4)';
-    c.lineWidth = 1.5;
-    c.moveTo(20, 20);
-    c.lineTo(20 + (windX/wMag)*wScale, 20 + (windY/wMag)*wScale);
-    c.stroke();
   }
 }
 </script>

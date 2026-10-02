@@ -133,20 +133,23 @@ struct Biquad {
     }
 }
 
-/// One partial of a strike: a sine through a lowpass sweep and a gain envelope.
-/// Built on the engine queue, then rendered on the audio thread.
+/// One component of a strike: a sine, or a looped recorded sample, through a lowpass
+/// sweep and a gain envelope. Built on the engine queue, then rendered on the audio thread.
 final class SynthVoice {
     static let blockSize = 32 // envelopes and filter sweeps update every 32 samples
 
     var startTime = 0.0
     var stopTime = 0.0
     var frequency = Automation(440)
+    var sample: [Float]?     // when set, replaces the sine
+    var sampleStep = 1.0     // source samples advanced per output sample (pitch shift)
     var filter: Biquad?
     var filterFrequency: Automation? // nil = cutoff fixed when the voice was built
     var gain = Automation(1)
 
     private var time = 0.0
     private var phase = 0.0
+    private var samplePos = 0.0
 
     /// Adds this voice into `out`. Returns false once the voice has finished.
     func render(into out: UnsafeMutablePointer<Float>, frames: Int, sampleRate: Double) -> Bool {
@@ -155,6 +158,9 @@ final class SynthVoice {
         let hasFilter = filter != nil
         let sweepsFilter = filterFrequency != nil
         var flt = filter ?? Biquad(.lowpass, q: 0)
+        let sampleBuf = sample ?? []
+        let sampleCount = sampleBuf.count
+        let isSample = sampleCount > 1
 
         var offset = 0
         while offset < frames {
@@ -177,8 +183,19 @@ final class SynthVoice {
                 if ts < startTime { continue }
                 if ts >= stopTime { break }
                 let frac = (ts - ta) * invSpan
-                let x = sin(phase)
-                phase += w * (f0 + fD * frac)
+                let x: Double
+                if isSample {
+                    // Linear interpolation through the loop
+                    let i0 = Int(samplePos)
+                    let i1 = i0 + 1 < sampleCount ? i0 + 1 : 0
+                    let t = samplePos - Double(i0)
+                    x = Double(sampleBuf[i0]) * (1 - t) + Double(sampleBuf[i1]) * t
+                    samplePos += sampleStep
+                    if samplePos >= Double(sampleCount) { samplePos -= Double(sampleCount) }
+                } else {
+                    x = sin(phase)
+                    phase += w * (f0 + fD * frac)
+                }
                 let y = hasFilter ? flt.process(x) : x
                 out[offset + k] += Float(y * (g0 + gD * frac))
             }

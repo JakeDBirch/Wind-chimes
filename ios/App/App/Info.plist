@@ -72,6 +72,8 @@
 	<false/>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Pocket Chimes records a short sound from the microphone to use as the voice of the chimes.</string>
 	<key>NSMotionUsageDescription</key>
 	<string>Pocket Chimes uses your phone's motion so tilting and shaking it moves the chimes.</string>
 </dict>

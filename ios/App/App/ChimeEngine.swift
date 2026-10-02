@@ -21,11 +21,18 @@ final class ChimeEngine {
     private var accumulator = 0.0
     private var physicsOn = false
     private var source = "wind"
+    private var sound = "metal" // "metal" | "recorded"
+    private var userSample = UserSample.load()
+    private var recording: [Float]?
+    private var recordingSampleRate = 48_000.0
+    private var isRecording = false
+
+    enum RecordError: Error { case permissionDenied, noInput, busy, tooQuiet }
 
     private init() {
-        let synth = self.synth
-        physics.onStrike = { strike in
-            synth.enqueue(ChimeVoices.make(for: strike, sampleRate: synth.sampleRate))
+        physics.onStrike = { [unowned self] strike in
+            let sample = self.sound == "recorded" ? self.userSample : nil
+            self.synth.enqueue(ChimeVoices.make(for: strike, sample: sample, sampleRate: self.synth.sampleRate))
         }
 
         let center = NotificationCenter.default
@@ -77,13 +84,102 @@ final class ChimeEngine {
         }
     }
 
+    func setSound(_ mode: String) {
+        queue.async {
+            self.sound = (mode == "recorded" && self.userSample != nil) ? "recorded" : "metal"
+        }
+    }
+
     func snapshot() -> [String: Any] {
         queue.sync {
             var state = physics.snapshot()
             state["physicsOn"] = physicsOn
             state["source"] = source
+            state["sound"] = sound
+            state["recording"] = isRecording
             state["motionAvailable"] = motion.isDeviceMotionAvailable
+            if let sample = userSample {
+                state["sample"] = ["pitch": sample.pitch, "duration": sample.duration]
+            }
             return state
+        }
+    }
+
+    // MARK: - Recording
+
+    /// Records `seconds` from the microphone, prepares it as the chime's voice and
+    /// switches the sound to it. Completion runs on an arbitrary queue.
+    func record(seconds: Double, completion: @escaping (Result<UserSample, Error>) -> Void) {
+        requestMicrophone { [self] granted in
+            guard granted else { return completion(.failure(RecordError.permissionDenied)) }
+            queue.async {
+                guard !self.isRecording else { return completion(.failure(RecordError.busy)) }
+                do {
+                    try self.beginRecording()
+                } catch {
+                    return completion(.failure(error))
+                }
+                self.queue.asyncAfter(deadline: .now() + min(max(seconds, 0.5), 10)) {
+                    completion(self.finishRecording())
+                }
+            }
+        }
+    }
+
+    private func requestMicrophone(_ completion: @escaping (Bool) -> Void) {
+        if #available(iOS 17.0, *) {
+            AVAudioApplication.requestRecordPermission { completion($0) }
+        } else {
+            AVAudioSession.sharedInstance().requestRecordPermission { completion($0) }
+        }
+    }
+
+    private func beginRecording() throws {
+        let session = AVAudioSession.sharedInstance()
+        audioEngine.stop()
+        try session.setCategory(.playAndRecord, mode: .default, options: [.mixWithOthers, .defaultToSpeaker])
+        try session.setActive(true)
+
+        let input = audioEngine.inputNode
+        let format = input.outputFormat(forBus: 0)
+        guard format.sampleRate > 0, format.channelCount > 0 else {
+            try? session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            throw RecordError.noInput
+        }
+        recording = []
+        recording?.reserveCapacity(Int(format.sampleRate * 3))
+        recordingSampleRate = format.sampleRate
+        input.installTap(onBus: 0, bufferSize: 4096, format: format) { [weak self] buffer, _ in
+            guard let self, let channel = buffer.floatChannelData?[0] else { return }
+            let frames = Int(buffer.frameLength)
+            let chunk = Array(UnsafeBufferPointer(start: channel, count: frames))
+            self.queue.async { self.recording?.append(contentsOf: chunk) }
+        }
+        isRecording = true
+        audioEngine.prepare()
+        try audioEngine.start()
+    }
+
+    private func finishRecording() -> Result<UserSample, Error> {
+        audioEngine.inputNode.removeTap(onBus: 0)
+        audioEngine.stop()
+        isRecording = false
+        let raw = recording ?? []
+        recording = nil
+
+        // Back to playback-only so the mic indicator goes away and background audio keeps working
+        let session = AVAudioSession.sharedInstance()
+        try? session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+        restartAudioIfNeeded()
+
+        do {
+            let sample = try UserSample.prepare(raw, sampleRate: recordingSampleRate)
+            sample.save()
+            userSample = sample
+            sound = "recorded"
+            return .success(sample)
+        } catch {
+            return .failure(RecordError.tooQuiet)
         }
     }
 
@@ -156,6 +252,10 @@ final class ChimeEngine {
 
     private func startAudio() {
         let session = AVAudioSession.sharedInstance()
+        if isRecording {
+            if !audioEngine.isRunning { try? audioEngine.start() }
+            return
+        }
         do {
             // .playback ignores the silent switch and keeps playing when locked;
             // .mixWithOthers lets music or podcasts keep playing alongside.
