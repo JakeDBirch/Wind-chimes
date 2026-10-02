@@ -111,7 +111,7 @@ final class ChimePhysics {
     private var chordIndex = 0
     private var chordTimer = 0.0
     private var gustX = 0.0, gustY = 0.0
-    private var gustT = Self.gustDuration
+    private var gustT = ChimePhysics.gustDuration
     private var simTime = 0.0
 
     init() {
