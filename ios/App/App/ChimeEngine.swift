@@ -23,7 +23,8 @@ final class ChimeEngine {
     private var physicsOn = false
     private var source = "wind"
     private var sound = "metal" // "metal" | "recorded"
-    private var userSample = UserSample.load()
+    private var userSample = SampleBank.loadTake() // the sample strikes play when sound == "recorded"
+    private var takeUnsaved = SampleBank.loadTake() != nil
 
     // Recording: idle → standby (mic open, level meter) → armed (waiting for the
     // level to cross the threshold) → recording (until stopped or capped) → idle
@@ -104,6 +105,42 @@ final class ChimeEngine {
         }
     }
 
+    // MARK: - Sample bank
+
+    func listSamples() -> [[String: Any]] {
+        SampleBank.list().map { $0.info }
+    }
+
+    /// Saves the current sample (the last take, or a bank sample being renamed) under `name`.
+    func saveSample(name: String, completion: @escaping ([String: Any]?) -> Void) {
+        queue.async {
+            guard var sample = self.userSample else { return completion(nil) }
+            sample.name = name
+            let meta = SampleBank.save(sample)
+            self.userSample = sample
+            self.takeUnsaved = false
+            completion(meta.info)
+        }
+    }
+
+    func selectSample(id: String, completion: @escaping (Bool) -> Void) {
+        queue.async {
+            guard let sample = SampleBank.load(id: id) else { return completion(false) }
+            self.userSample = sample
+            self.takeUnsaved = false
+            self.sound = "recorded"
+            completion(true)
+        }
+    }
+
+    func deleteSample(id: String) {
+        queue.async {
+            SampleBank.delete(id: id)
+            // Keep playing it if it's the active one; it just isn't in the bank any more
+            if self.userSample?.id == id { self.takeUnsaved = true }
+        }
+    }
+
     func snapshot() -> [String: Any] {
         queue.sync {
             var state = physics.snapshot()
@@ -116,7 +153,8 @@ final class ChimeEngine {
             state["recordSeconds"] = recordState == .recording ? CACurrentMediaTime() - recordingStart : 0
             state["motionAvailable"] = motion.isDeviceMotionAvailable
             if let sample = userSample {
-                state["sample"] = ["pitch": sample.pitch, "duration": sample.duration]
+                state["sample"] = sample.info
+                state["takeUnsaved"] = takeUnsaved
             }
             return state
         }
@@ -224,7 +262,7 @@ final class ChimeEngine {
                     guard let self, self.recordState == .recording else { return }
                     switch self.finishRecording() {
                     case .success(let sample):
-                        self.onRecordingEvent?("recordingFinished", ["pitch": sample.pitch, "duration": sample.duration])
+                        self.onRecordingEvent?("recordingFinished", sample.info)
                     case .failure:
                         self.onRecordingEvent?("recordingFailed", ["code": "tooQuiet"])
                     }
@@ -245,8 +283,9 @@ final class ChimeEngine {
         closeMicrophone()
         do {
             let sample = try UserSample.prepare(raw, sampleRate: recordingSampleRate)
-            sample.save()
+            SampleBank.saveTake(sample)
             userSample = sample
+            takeUnsaved = true
             sound = "recorded"
             return .success(sample)
         } catch {

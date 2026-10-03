@@ -143,6 +143,7 @@ final class SynthVoice {
     var frequency = Automation(440)
     var sample: [Float]?     // when set, replaces the sine
     var sampleStep = 1.0     // source samples advanced per output sample (pitch shift)
+    var pitchBend = Automation(1) // multiplier on sampleStep, for a settling bend after the hit
     var filter: Biquad?
     var filterFrequency: Automation? // nil = cutoff fixed when the voice was built
     var gain = Automation(1)
@@ -177,6 +178,7 @@ final class SynthVoice {
             let g0 = gain.value(at: ta), gD = gain.value(at: t1) - g0
             let f0 = frequency.value(at: ta), fD = frequency.value(at: t1) - f0
             if sweepsFilter { flt.setFrequency(filterFrequency!.value(at: ta), sampleRate: sampleRate) }
+            let step = isSample ? sampleStep * pitchBend.value(at: ta) : 0
 
             for k in 0..<n {
                 let ts = t0 + Double(k) * invSr
@@ -190,7 +192,7 @@ final class SynthVoice {
                     let i1 = i0 + 1 < sampleCount ? i0 + 1 : 0
                     let t = samplePos - Double(i0)
                     x = Double(sampleBuf[i0]) * (1 - t) + Double(sampleBuf[i1]) * t
-                    samplePos += sampleStep
+                    samplePos += step
                     if samplePos >= Double(sampleCount) { samplePos -= Double(sampleCount) }
                 } else {
                     x = sin(phase)

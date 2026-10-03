@@ -18,6 +18,10 @@ public class ChimeEnginePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "disarm", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "stopRecording", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "cancelRecording", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "listSamples", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "saveSample", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "selectSample", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "deleteSample", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getState", returnType: CAPPluginReturnPromise),
     ]
 
@@ -106,7 +110,7 @@ public class ChimeEnginePlugin: CAPPlugin, CAPBridgedPlugin {
         engine.stopRecording { result in
             switch result {
             case .success(let sample):
-                call.resolve(["pitch": sample.pitch, "duration": sample.duration])
+                call.resolve(sample.info)
             case .failure(let error):
                 call.reject("Recording failed", Self.code(for: error))
             }
@@ -115,6 +119,30 @@ public class ChimeEnginePlugin: CAPPlugin, CAPBridgedPlugin {
 
     @objc func cancelRecording(_ call: CAPPluginCall) {
         engine.cancelRecording()
+        call.resolve()
+    }
+
+    @objc func listSamples(_ call: CAPPluginCall) {
+        call.resolve(["samples": engine.listSamples()])
+    }
+
+    @objc func saveSample(_ call: CAPPluginCall) {
+        let name = call.getString("name") ?? ""
+        engine.saveSample(name: name) { info in
+            if let info { call.resolve(info) } else { call.reject("Nothing to save", "noSample") }
+        }
+    }
+
+    @objc func selectSample(_ call: CAPPluginCall) {
+        guard let id = call.getString("id") else { return call.reject("Missing id", "badArgs") }
+        engine.selectSample(id: id) { ok in
+            if ok { call.resolve() } else { call.reject("Sample not found", "notFound") }
+        }
+    }
+
+    @objc func deleteSample(_ call: CAPPluginCall) {
+        guard let id = call.getString("id") else { return call.reject("Missing id", "badArgs") }
+        engine.deleteSample(id: id)
         call.resolve()
     }
 

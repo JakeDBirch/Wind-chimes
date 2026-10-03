@@ -4,10 +4,15 @@ import Foundation
 /// pitch: silence trimmed, level normalized, the end crossfaded into the start so it
 /// loops without a click, and its fundamental frequency estimated.
 struct UserSample {
+    var id = UUID().uuidString
+    var name = ""
     let samples: [Float]
     let sampleRate: Double
     let pitch: Double     // estimated fundamental in Hz, or 0 if none was found
     let duration: Double  // seconds of the prepared loop
+
+    /// What the page needs to list or describe a sample
+    var info: [String: Any] { ["id": id, "name": name, "pitch": pitch, "duration": duration] }
 
     static let minimumDuration = 0.08
 
@@ -93,33 +98,98 @@ struct UserSample {
         return 0
     }
 
-    // MARK: - Persistence
+}
+
+/// Samples on disk: the last take (so it survives a relaunch unsaved) and the bank the
+/// user has saved to. Each sample is a .pcm of Float32 plus an entry in bank.json.
+enum SampleBank {
+    struct Meta: Codable {
+        var id: String
+        var name: String
+        var sampleRate: Double
+        var pitch: Double
+        var duration: Double
+        var created: Double
+
+        var info: [String: Any] { ["id": id, "name": name, "pitch": pitch, "duration": duration] }
+    }
 
     private static var directory: URL {
-        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-    }
-    private static var pcmURL: URL { directory.appendingPathComponent("recording.pcm") }
-    private static var metaURL: URL { directory.appendingPathComponent("recording.json") }
-
-    private struct Meta: Codable { let sampleRate, pitch, duration: Double }
-
-    func save() {
-        let dir = Self.directory
+        let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("samples", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let data = samples.withUnsafeBufferPointer { Data(buffer: $0) }
-        try? data.write(to: Self.pcmURL)
-        if let meta = try? JSONEncoder().encode(Meta(sampleRate: sampleRate, pitch: pitch, duration: duration)) {
-            try? meta.write(to: Self.metaURL)
-        }
+        return dir
+    }
+    private static var indexURL: URL { directory.appendingPathComponent("bank.json") }
+    private static var takeMetaURL: URL { directory.appendingPathComponent("take.json") }
+    private static func pcmURL(_ id: String) -> URL { directory.appendingPathComponent(id + ".pcm") }
+
+    static func list() -> [Meta] {
+        guard let data = try? Data(contentsOf: indexURL),
+              let metas = try? JSONDecoder().decode([Meta].self, from: data) else { return [] }
+        return metas
     }
 
-    static func load() -> UserSample? {
-        guard let data = try? Data(contentsOf: pcmURL),
-              let metaData = try? Data(contentsOf: metaURL),
-              let meta = try? JSONDecoder().decode(Meta.self, from: metaData) else { return nil }
+    private static func writeList(_ metas: [Meta]) {
+        if let data = try? JSONEncoder().encode(metas) { try? data.write(to: indexURL) }
+    }
+
+    private static func meta(for sample: UserSample) -> Meta {
+        Meta(id: sample.id, name: sample.name, sampleRate: sample.sampleRate, pitch: sample.pitch,
+             duration: sample.duration, created: Date().timeIntervalSince1970)
+    }
+
+    private static func writePCM(_ sample: UserSample) {
+        let data = sample.samples.withUnsafeBufferPointer { Data(buffer: $0) }
+        try? data.write(to: pcmURL(sample.id))
+    }
+
+    private static func load(_ meta: Meta) -> UserSample? {
+        guard let data = try? Data(contentsOf: pcmURL(meta.id)) else { return nil }
         let count = data.count / MemoryLayout<Float>.size
         guard count > 0 else { return nil }
         let samples = data.withUnsafeBytes { Array($0.bindMemory(to: Float.self).prefix(count)) }
-        return UserSample(samples: samples, sampleRate: meta.sampleRate, pitch: meta.pitch, duration: meta.duration)
+        return UserSample(id: meta.id, name: meta.name, samples: samples, sampleRate: meta.sampleRate,
+                          pitch: meta.pitch, duration: meta.duration)
     }
+
+    /// Adds a sample to the bank, or renames it if it's already there.
+    static func save(_ sample: UserSample) -> Meta {
+        var metas = list()
+        let m = meta(for: sample)
+        if let i = metas.firstIndex(where: { $0.id == sample.id }) {
+            metas[i].name = sample.name
+        } else {
+            writePCM(sample)
+            metas.append(m)
+        }
+        writeList(metas)
+        return m
+    }
+
+    static func load(id: String) -> UserSample? {
+        list().first { $0.id == id }.flatMap(load)
+    }
+
+    static func delete(id: String) {
+        var metas = list()
+        metas.removeAll { $0.id == id }
+        writeList(metas)
+        try? FileManager.default.removeItem(at: pcmURL(id))
+    }
+
+    static func saveTake(_ sample: UserSample) {
+        if let old = loadTakeMeta(), old.id != sample.id, !list().contains(where: { $0.id == old.id }) {
+            try? FileManager.default.removeItem(at: pcmURL(old.id))
+        }
+        writePCM(sample)
+        if let data = try? JSONEncoder().encode(meta(for: sample)) { try? data.write(to: takeMetaURL) }
+    }
+
+    private static func loadTakeMeta() -> Meta? {
+        guard let data = try? Data(contentsOf: takeMetaURL) else { return nil }
+        return try? JSONDecoder().decode(Meta.self, from: data)
+    }
+
+    static func loadTake() -> UserSample? { loadTakeMeta().flatMap(load) }
 }
