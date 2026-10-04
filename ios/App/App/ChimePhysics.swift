@@ -19,8 +19,14 @@ struct ChimeParams {
     let damping = 0.0015 * pow(6.667, 0.42)
     var windSteady: Double { windConsistency * 0.35 }
     var windTurb: Double { 0.5 - windConsistency * 0.4 }
-    /// Scales the lulls between wind events: 1.5× at consistency 0, 0.5× at 1
-    var lullScale: Double { 1.5 - windConsistency }
+    /// Scales the lulls between wind events: 1.5× at consistency 0, 0.3× at 1
+    var lullScale: Double { 1.5 - windConsistency * 1.2 }
+    /// Chance a lull goes truly still rather than settling to a breeze: 50% at 0, none at 1
+    var stillLullChance: Double { (1 - windConsistency) * 0.5 }
+    /// Wind speed between gusts: a light 15% at 0, up to 60% at 1 so the wind never drops out
+    var breezeSpeed: Double { 0.15 + windConsistency * 0.45 }
+    /// Holds last up to twice as long at consistency 1
+    var holdScale: Double { 1 + windConsistency }
     /// How much the speed wanders within a gust: 0.25 at consistency 1, 0.75 at 0
     var gustVariation: Double { 0.25 + (1 - windConsistency) * 0.5 }
 }
@@ -222,12 +228,12 @@ final class ChimePhysics {
     }
 
     private func scheduleNextEvent() {
-        // Most lulls are a light breeze; about one in three goes truly still, and shorter
-        evtLullStill = rand() < 1.0 / 3.0
+        // Most lulls are a light breeze; some go truly still, and those are shorter
+        evtLullStill = rand() < params.stillLullChance
         evtLullDur = (evtLullStill ? 5 + rand() * 10 : 10 + rand() * 40) * params.lullScale
         evtPeak = 0.2 + pow(rand(), 1.8) * 0.8               // weighted toward lighter events
         evtRiseDur = 0.8 + (1 - evtPeak) * 5 + rand() * 2    // stronger events rise faster
-        evtHoldDur = 2 + rand() * 10
+        evtHoldDur = (2 + rand() * 10) * params.holdScale
         evtFallDur = 1.5 + rand() * 8.5
         evtAngle = windAngle + (rand() - 0.5) * .pi * 0.6    // drift from previous direction
         evtPhase = .lull
@@ -485,7 +491,7 @@ final class ChimePhysics {
                 } else {
                     // Light breeze: the chimes drift and strike now and then
                     calmDamp = 1.0
-                    windSpeed += (0.15 - windSpeed) * 0.03
+                    windSpeed += (p.breezeSpeed - windSpeed) * 0.03
                 }
                 if evtT >= evtLullDur {
                     evtPhase = .rise; evtT = 0
