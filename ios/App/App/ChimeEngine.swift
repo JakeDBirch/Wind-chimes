@@ -385,8 +385,11 @@ final class ChimeEngine {
         // The audible wind follows an envelope of the wind vector. Tightness sets how
         // closely: smooth (0.7 s up, 2 s down, turbulence averaged out) to almost direct
         // (50 ms up, 250 ms down, every jiggle the chimes feel).
+        // The sound follows the mean wind (gusts, sub-gusts, drops); tightness blends in
+        // the turbulence the chimes feel on top of it
         let t = physics.params.windTightness
-        let magnitude = physics.windOn ? (physics.windX * physics.windX + physics.windY * physics.windY).squareRoot() : 0
+        let vector = physics.windOn ? (physics.windX * physics.windX + physics.windY * physics.windY).squareRoot() : 0
+        let magnitude = physics.windOn ? physics.windSurge + t * max(0, vector - physics.windSurge) : 0
         let tau = magnitude > windSoundEnvelope ? 0.7 + (0.05 - 0.7) * t : 2.0 + (0.25 - 2.0) * t
         windSoundEnvelope += (magnitude - windSoundEnvelope) * (1 - exp(-ChimePhysics.dt / tau))
         synth.windLevel = windSoundEnvelope
