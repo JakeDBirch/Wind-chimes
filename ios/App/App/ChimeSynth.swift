@@ -326,7 +326,10 @@ final class ChimeSynth {
 
     /// Mixes the wind layer into `out`. Same DSP as the Node prototype used to audition it.
     private func renderWind(into out: UnsafeMutablePointer<Float>, frames: Int) {
-        let target = windSoundGain > 0 ? min(1, max(0, windLevel / 0.45)) : 0
+        var target = windSoundGain > 0 ? min(1, max(0, windLevel / 0.45)) : 0
+        // Expander: below ~0.12 the level falls away to true silence instead of idling as hiss
+        let gate = min(1, max(0, (target - 0.03) / (0.14 - 0.03)))
+        target *= gate * gate * (3 - 2 * gate)
         if target <= 0 && windSmoothed < 0.002 { windSmoothed = 0; return }
         let block = 64
         let blockD = Double(block)

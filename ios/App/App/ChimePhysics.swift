@@ -102,7 +102,6 @@ final class ChimePhysics {
     // Wind event model: discrete events separated by lulls
     private var windAngle = 0.0, windSpeed = 0.0
     private var windMeanX = 0.0, windMeanY = 0.0
-    private var turbX = 0.0, turbY = 0.0
     private var noiseX = 0.0, noiseY = 0.0
     private var calmDamp = 1.0
     private var evtPhase = WindPhase.lull
@@ -113,6 +112,7 @@ final class ChimePhysics {
     // Gusts within gusts: a wandering multiplier on the speed plus short sub-gust bursts
     private var textureOU = 0.0
     private var subGustT = 9.0, subGustDur = 1.0, subGustAmp = 0.0
+    private var dropT = 9.0, dropDur = 1.0, dropAmp = 0.0
 
     private var chordIndex = 0
     private var chordTimer = 0.0
@@ -139,7 +139,7 @@ final class ChimePhysics {
         windOn = true
         windAngle = rand() * .pi * 2
         if resetState {
-            windSpeed = 0; turbX = 0; turbY = 0; noiseX = 0; noiseY = 0
+            windSpeed = 0; noiseX = 0; noiseY = 0
             calmDamp = 1.0
         }
         scheduleNextEvent()
@@ -215,7 +215,7 @@ final class ChimePhysics {
     }
 
     private func scheduleNextEvent() {
-        evtLullDur = (20 + rand() * 60) * params.lullScale   // lull: 20–80s at mid consistency
+        evtLullDur = (10 + rand() * 40) * params.lullScale   // lull: 10–50 s at mid consistency
         evtPeak = 0.2 + pow(rand(), 1.8) * 0.8               // weighted toward lighter events
         evtRiseDur = 0.8 + (1 - evtPeak) * 5 + rand() * 2    // stronger events rise faster
         evtHoldDur = 2 + rand() * 10
@@ -514,22 +514,30 @@ final class ChimePhysics {
                 subGustAmp = (0.3 + rand() * 0.5) * variation / 0.55
             }
             let subGust = subGustT < subGustDur ? subGustAmp * sin(.pi * subGustT / subGustDur) : 0
-            let texture = max(0.2, 1 + textureOU * variation * 0.5 + subGust)
+            // Drops: the wind falls away inside a gust for 1–3 s
+            dropT += DT
+            if evtPhase != .lull && dropT > dropDur && rand() < DT / 7.0 {
+                dropT = 0
+                dropDur = 1 + rand() * 2
+                dropAmp = (0.6 + rand() * 0.2) * min(1, variation / 0.55)
+            }
+            let drop = dropT < dropDur ? dropAmp * sin(.pi * dropT / dropDur) : 0
+            let texture = max(0.1, 1 + textureOU * variation * 0.5 + subGust - drop)
 
             windSpeed = max(0, min(1.5, windSpeed))
             let surge = windSpeed * texture * wStr
             let meanX = cos(windAngle) * surge
             let meanY = sin(windAngle) * surge
 
-            // Turbulence on top
-            let turbSmooth = 0.05 + wTurb * 0.25
-            noiseX += (rand() - 0.5) * 2
-            noiseY += (rand() - 0.5) * 2
-            turbX += (noiseX - turbX) * turbSmooth
-            turbY += (noiseY - turbY) * turbSmooth
+            // Turbulence: bounded (Ornstein-Uhlenbeck, τ 0.4 s) and proportional to the
+            // wind, so a lull is calm. The original random walk never died down.
+            let turbTau = 0.4
+            noiseX += (-noiseX / turbTau) * DT + (2 * DT / turbTau).squareRoot() * gaussian()
+            noiseY += (-noiseY / turbTau) * DT + (2 * DT / turbTau).squareRoot() * gaussian()
+            let turbAmp = wTurb * (0.02 + surge) * 0.9
 
-            windX = meanX + turbX * wTurb * wStr * 0.4
-            windY = meanY + turbY * wTurb * wStr * 0.4
+            windX = meanX + noiseX * turbAmp
+            windY = meanY + noiseY * turbAmp
             windMeanX += (windX - windMeanX) * 0.003
             windMeanY += (windY - windMeanY) * 0.003
         } else if motionOn {
