@@ -78,17 +78,25 @@ final class ChimeEngine {
         queue.async { self.applyPhysics(on) }
     }
 
-    func setSource(_ newSource: String) {
-        queue.async {
-            if newSource == "phone" {
-                self.source = "phone"
-                self.physics.selectMotion()
-                if self.physicsOn { self.startMotion() } else { self.applyPhysics(true) }
-            } else {
-                self.source = "wind"
-                self.stopMotion()
-                self.physics.selectWind(physicsOn: self.physicsOn)
-            }
+    /// Wind drives the chimes unless the phone hangs upside down (top edge toward the
+    /// ground), which switches to the phone's own motion. Checked from the physics step.
+    private var invertedSince: Double?
+    private var uprightSince: Double?
+
+    private func updateSourceFromOrientation(_ data: CMDeviceMotion) {
+        let now = CACurrentMediaTime()
+        // gravity.y is -1 upright in portrait and +1 inverted
+        let inverted = data.gravity.y > 0.6
+        let upright = data.gravity.y < 0.3
+        invertedSince = inverted ? (invertedSince ?? now) : nil
+        uprightSince = upright ? (uprightSince ?? now) : nil
+
+        if source == "wind", let t = invertedSince, now - t > 1.0 {
+            source = "phone"
+            physics.selectMotion()
+        } else if source == "phone", let t = uprightSince, now - t > 2.0 {
+            source = "wind"
+            physics.selectWind(physicsOn: physicsOn)
         }
     }
 
@@ -316,12 +324,14 @@ final class ChimeEngine {
         if on {
             idleTimer?.cancel()
             idleTimer = nil
-            if source == "wind" { physics.startWind(resetState: true) } else { startMotion() }
+            if source == "wind" { physics.startWind(resetState: true) }
+            startMotion() // for motion drive and to notice the phone being flipped
             startAudio()
             startPhysicsTimer()
         } else {
             stopPhysicsTimer()
             physics.stopWind()
+            synth.windLevel = 0
             stopMotion()
             stopAudioWhenIdle()
         }
@@ -350,16 +360,21 @@ final class ChimeEngine {
         accumulator = min(accumulator + Double(now &- lastStepTime) / 1e9, 0.1)
         lastStepTime = now
 
-        if physics.motionOn, let data = motion.deviceMotion {
-            // Same units and axes as the web's accelerationIncludingGravity on iOS
-            physics.motionRawX = (data.gravity.x + data.userAcceleration.x) * ChimePhysics.g
-            physics.motionRawY = (data.gravity.y + data.userAcceleration.y) * ChimePhysics.g
+        if let data = motion.deviceMotion {
+            updateSourceFromOrientation(data)
+            if physics.motionOn {
+                // Same units and axes as the web's accelerationIncludingGravity on iOS
+                physics.motionRawX = (data.gravity.x + data.userAcceleration.x) * ChimePhysics.g
+                physics.motionRawY = (data.gravity.y + data.userAcceleration.y) * ChimePhysics.g
+            }
         }
 
         while accumulator >= ChimePhysics.dt {
             physics.tick()
             accumulator -= ChimePhysics.dt
         }
+        synth.windSoundOn = physics.params.windSound
+        synth.windLevel = physics.windOn ? (physics.windX * physics.windX + physics.windY * physics.windY).squareRoot() : 0
     }
 
     // MARK: - Motion
@@ -367,7 +382,7 @@ final class ChimeEngine {
     private func startMotion() {
         guard motion.isDeviceMotionAvailable, !motion.isDeviceMotionActive else { return }
         motion.deviceMotionUpdateInterval = 1.0 / 60.0
-        motion.startDeviceMotionUpdates()
+        motion.startDeviceMotionUpdates(using: .xArbitraryZVertical)
     }
 
     private func stopMotion() {

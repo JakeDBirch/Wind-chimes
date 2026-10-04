@@ -8,14 +8,14 @@ Pocket Chimes is an iOS app built with [Capacitor](https://capacitorjs.com). The
 
 | Control | What it does |
 | --- | --- |
-| **Wind / Phone** | Drive the chimes with simulated wind, or with the phone's motion sensors (hang the phone up outside) |
+| *(hidden)* Phone mode | Simulated wind drives the chimes. Hang the phone upside down (top edge toward the ground) for a second and its own motion takes over; turn it upright again to go back to wind |
 | **Strength** | How hard the wind blows |
 | **Consistency** | Low: gusty, shifting, long calms. High: a steady breeze with short lulls |
+| **Wind sound** | The sound of the wind itself, following the same gusts that move the chimes. On by default; silent in phone mode |
 | **Sensitivity** | How much of the wind's force reaches the chimes |
-| **Swing** | How freely the chimes keep swinging once pushed |
 | **Chimes** | Number of tubes, 3–12 |
 | **Register** | Pitch, ±1 octave |
-| **Scale** | Which notes the tubes are tuned to. *Chord Seq* cycles through a chord progression; *Custom* shows an octave of keys to pick notes from |
+| **Scale** | Which notes the tubes are tuned to (default Pentatonic). *Chord Seq* cycles through a chord progression; *Custom* shows an octave of keys to pick notes from |
 | **Sound** | *Metal* is the synthesized tube. *Recorded* uses a sound you record with the mic. Each chime plays it at its own pitch, shaped with the same decay and filter sweep as a struck tube, so even a sustained note rings and dies away |
 | **Record** | Opens the mic in standby with a level meter. Set **Trigger** just below your sound's level, tap **Arm**, and recording starts the moment the level crosses it (with 150 ms of pre-roll). Tap **Stop** when done; it caps at 10 s |
 | **Save / bank** | After a take, name it and tap **Save** to keep it. Saved sounds are listed under the recorder: **Use** switches to one, ✕ deletes it. The last take is kept between launches even if unsaved |
@@ -31,7 +31,7 @@ Pocket Chimes is an iOS app built with [Capacitor](https://capacitorjs.com). The
 | `ios/App/App/UserSample.swift` | Prepares a mic recording for playback (trim, normalize, seamless loop, pitch estimate) and the on-disk sample bank |
 | `ios/App/App/ChimeSynth.swift` | Real-time synthesizer: envelopes, filters and mixing on the audio thread |
 | `ios/App/App/ChimeEngine.swift` | Runs it all: physics clock, CoreMotion, audio session and AVAudioEngine, interruption recovery |
-| `ios/App/App/ChimeEnginePlugin.swift` | Capacitor plugin the page calls (`setParams`, `setPhysics`, `setSource`, `setSound`, `startStandby`, `setTriggerLevel`, `arm`, `disarm`, `stopRecording`, `cancelRecording`, `listSamples`, `saveSample`, `selectSample`, `deleteSample`, `gust`, `getState`) |
+| `ios/App/App/ChimeEnginePlugin.swift` | Capacitor plugin the page calls (`setParams`, `setPhysics`, `setSound`, `startStandby`, `setTriggerLevel`, `arm`, `disarm`, `stopRecording`, `cancelRecording`, `listSamples`, `saveSample`, `selectSample`, `deleteSample`, `gust`, `getState`) |
 | `ios/App/App/MainViewController.swift` | Registers the plugin with Capacitor |
 | `ios/App/App/Info.plist` | Background audio mode, microphone and motion usage strings, portrait-only on iPhone, light status bar, no-encryption declaration |
 | `ios/App/App/Assets.xcassets` | App icon (1024×1024, placeholder) and launch screen |

@@ -5,17 +5,17 @@ struct ChimeParams {
     var windStrength = 0.3
     var windConsistency = 0.4 // 0 = gusty and shifting with long calms, 1 = a steady breeze
     var sensitivity = 0.5     // how much wind force reaches the chimes
-    var swing = 0.58          // how freely the chimes keep swinging once pushed
     var tubeCount = 6
     var register = 0.0
-    var scale = "Chord Seq"
+    var scale = "Pentatonic"
+    var windSound = true
     var customScale = [0, 3, 5, 7, 10] // semitones above A, used when scale == "Custom"
 
     let cordLength = 0.53
     let gap = 15.25 // mm between tubes
 
-    /// Logarithmic damping map, as the old 1-100 slider: swing 1 → 0.01, swing 0 → 0.0015
-    var damping: Double { 0.0015 * pow(6.667, 1 - swing) }
+    /// Velocity damping per step; the old slider's default, kept fixed
+    let damping = 0.0015 * pow(6.667, 0.42)
     var windSteady: Double { windConsistency * 0.35 }
     var windTurb: Double { 0.5 - windConsistency * 0.4 }
     /// Scales the lulls between wind events: 1.5× at consistency 0, 0.5× at 1

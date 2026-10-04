@@ -215,6 +215,16 @@ final class SynthVoice {
 final class ChimeSynth {
     let sampleRate: Double
     private let masterGain: Float = 0.9
+
+    /// Wind sound: noise whose level and brightness follow the simulated wind.
+    /// `windLevel` is written from the physics step (0 = calm, ~0.5 = strong gust).
+    var windLevel = 0.0
+    var windSoundOn = true
+    private var windSmoothed = 0.0
+    private var windLow = 0.0           // one-pole lowpass state for the body of the sound
+    private var windWhistle = Biquad(.bandpass, q: 3.0)
+    private var windLastCutoff = -1.0
+    private var noiseState: UInt32 = 0x1234_5678
     private static let maxVoices = 384
 
     private var voices: [SynthVoice] = []
@@ -279,6 +289,8 @@ final class ChimeSynth {
         }
         renderedVoiceCount = voices.count
 
+        renderWind(into: out, frames: frameCount)
+
         for j in 0..<frameCount {
             out[j] = max(-1, min(1, out[j] * masterGain))
         }
@@ -286,6 +298,43 @@ final class ChimeSynth {
             if let dst = buffers[b].mData {
                 dst.copyMemory(from: raw, byteCount: frameCount * MemoryLayout<Float>.size)
             }
+        }
+    }
+
+    /// Mixes the wind layer into `out`: lowpassed noise for the rush, with a quiet
+    /// resonant whistle whose pitch and level rise with the wind.
+    private func renderWind(into out: UnsafeMutablePointer<Float>, frames: Int) {
+        let target = windSoundOn ? min(1, max(0, windLevel / 0.45)) : 0
+        if target <= 0 && windSmoothed < 0.0005 { windSmoothed = 0; return }
+        let smooth = 1 - exp(-1.0 / (0.12 * sampleRate)) // ~120 ms response
+        let lowCoef = 1 - exp(-2 * Double.pi * 420 / sampleRate)
+        var gain = 0.0, whistleGain = 0.0
+        let block = 64
+        var offset = 0
+        while offset < frames {
+            let n = min(block, frames - offset)
+            windSmoothed += (target - windSmoothed) * smooth * Double(n)
+            let w = windSmoothed
+            gain = pow(w, 1.6) * 0.22
+            whistleGain = pow(w, 2.5) * 0.10
+            let cutoff = 350 + w * 900
+            if abs(cutoff - windLastCutoff) > 2 {
+                windWhistle.setFrequency(cutoff, sampleRate: sampleRate)
+                windLastCutoff = cutoff
+            }
+            if gain < 0.0002 { offset += n; continue }
+            for k in 0..<n {
+                // xorshift white noise in [-1, 1]
+                noiseState ^= noiseState << 13
+                noiseState ^= noiseState >> 17
+                noiseState ^= noiseState << 5
+                let white = Double(noiseState) / Double(UInt32.max) * 2 - 1
+                windLow += (white - windLow) * lowCoef
+                let body = windLow * 1.8
+                let whistle = windWhistle.process(white)
+                out[offset + k] += Float(body * gain + whistle * whistleGain)
+            }
+            offset += n
         }
     }
 }

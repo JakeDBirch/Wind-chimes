@@ -32,7 +32,7 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px;
 .seg button { flex: 1; padding: 10px 0; background: none; border: none; color: #5a6a5e; font-family: 'Courier New', monospace; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; cursor: pointer; outline: none; transition: 0.18s; }
 .seg button.active { background: rgba(122,200,154,0.14); color: #aee3c4; }
 .seg button:first-child { border-right: 1px solid #2a3a2e; }
-.motion-status { font-size: 8px; letter-spacing: 0.08em; color: #556; margin-bottom: 4px; min-height: 11px; }
+.motion-status { font-size: 8px; letter-spacing: 0.12em; color: #7ac89a; text-transform: uppercase; margin: -6px 0 12px; min-height: 11px; }
 .rec-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
 .rec-btn { white-space: nowrap; padding: 7px 14px; border-radius: 6px; border: 1px solid #c87a7a; background: rgba(200,122,122,0.07); color: #c87a7a; font-family: 'Courier New', monospace; font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; cursor: pointer; outline: none; }
 .rec-btn.quiet { border-color: #2a3a2e; color: #5a6a5e; background: none; }
@@ -72,14 +72,7 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px;
 
   <canvas id="viz" width="680" height="680"></canvas>
 
-  <div class="section">
-    <div class="stitle">Drive</div>
-    <div class="seg">
-      <button id="src-wind" class="active">Wind</button>
-      <button id="src-phone">Phone</button>
-    </div>
-    <div class="motion-status" id="motion-status"></div>
-  </div>
+  <div class="motion-status" id="motion-status"></div>
 
   <div class="section" id="wind-section">
     <div class="stitle">Wind</div>
@@ -93,6 +86,10 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px;
       <input type="range" id="windConsistency" min="0" max="100" step="1" value="40">
       <span class="val" id="v-windConsistency">40</span>
     </div>
+    <div class="row">
+      <span class="label">Wind sound</span>
+      <button class="schip active" id="wind-sound">On</button>
+    </div>
   </div>
 
   <div class="section">
@@ -101,11 +98,6 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px;
       <span class="label">Sensitivity</span>
       <input type="range" id="sensitivity" min="0" max="100" step="1" value="21">
       <span class="val" id="v-sensitivity">21</span>
-    </div>
-    <div class="row">
-      <span class="label">Swing</span>
-      <input type="range" id="swing" min="0" max="100" step="1" value="58">
-      <span class="val" id="v-swing">58</span>
     </div>
     <div class="row">
       <span class="label">Chimes</span>
@@ -173,9 +165,10 @@ var SCALE_NAMES = ['Pentatonic', 'Major Pent', 'Major', 'Minor', 'Dorian', 'Lydi
                    'Whole Tone', 'Blues', 'Hirajoshi', 'In Sen', 'Chord Seq', 'Custom'];
 // Semitones above A, as the engine counts them
 var KEY_NAMES = ['A', 'A#', 'B', 'C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#'];
-var currentScale = 'Chord Seq';
+var currentScale = 'Pentatonic';
 var customScale = [0, 3, 5, 7, 10];
 var currentSound = 'metal';   // 'metal' | 'recorded'
+var windSound = true;
 var hasRecording = false;
 var physicsOn = false;
 var source = 'wind'; // 'wind' | 'phone'
@@ -198,11 +191,11 @@ function sendParams() {
     windStrength: 0.10 + gv('windStrength') / 100 * 0.40,
     windConsistency: gv('windConsistency') / 100,
     sensitivity: 0.1 + gv('sensitivity') / 100 * 1.9,
-    swing: gv('swing') / 100,
     tubeCount: Math.round(gv('tubeCount')),
     register: gv('register'),
     scale: currentScale,
-    customScale: customScale
+    customScale: customScale,
+    windSound: windSound
   });
 }
 
@@ -258,6 +251,13 @@ window.addEventListener('load', function() {
     });
   buildKeyboard();
 
+  document.getElementById('wind-sound').addEventListener('click', function() {
+    windSound = !windSound;
+    this.textContent = windSound ? 'On' : 'Off';
+    this.classList.toggle('active', windSound);
+    sendParams();
+  });
+
   makeChips('sound-chips', ['Metal', 'Recorded'],
     function() { return currentSound === 'recorded' ? 'Recorded' : 'Metal'; },
     function(n) { chooseSound(n === 'Recorded' ? 'recorded' : 'metal'); });
@@ -285,11 +285,9 @@ window.addEventListener('load', function() {
     showPhysics(!physicsOn);
     if (Engine) Engine.setPhysics({ on: physicsOn });
   });
-  document.getElementById('src-wind').addEventListener('click', function() { chooseSource('wind'); });
-  document.getElementById('src-phone').addEventListener('click', function() { chooseSource('phone'); });
 
   if (!Engine) {
-    document.getElementById('motion-status').textContent = 'Open Pocket Chimes on your phone to play.';
+    document.getElementById('motion-status').textContent = 'Open Pocket Chimes on your phone to play';
   }
   sendParams();
   requestAnimationFrame(loop);
@@ -304,21 +302,10 @@ function showPhysics(on) {
   btn.classList.toggle('on', on);
 }
 
+// The phone drives the chimes when it hangs upside down; the engine decides.
 function showSource(src) {
   source = src;
-  document.getElementById('src-wind').classList.toggle('active', src === 'wind');
-  document.getElementById('src-phone').classList.toggle('active', src === 'phone');
-  var status = document.getElementById('motion-status');
-  if (src === 'wind') status.textContent = '';
-  else if (S && S.motionAvailable === false) status.textContent = 'Motion sensors not available on this device.';
-  else status.textContent = 'Active — shake or sway to chime.';
-}
-
-function chooseSource(src) {
-  _userChangedAt = Date.now();
-  showSource(src);
-  if (src === 'phone') showPhysics(true); // the engine turns physics on with the phone
-  if (Engine) Engine.setSource({ source: src });
+  document.getElementById('motion-status').textContent = src === 'phone' ? 'Phone mode — swinging with you' : '';
 }
 
 // ── Sound ─────────────────────────────────────────────────
