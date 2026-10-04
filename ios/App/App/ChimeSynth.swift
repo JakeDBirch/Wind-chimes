@@ -222,6 +222,7 @@ final class ChimeSynth {
     /// (0 = calm, ~0.45 = strong gust); `windSoundGain` is the slider, 0 = off.
     var windLevel = 0.0
     var windSoundGain = 0.1
+    var windTightness = 0.6 // see ChimeParams.windTightness
     private var windSmoothed = 0.0
     private var windFront = 0.0
     private var noiseState: UInt32 = 0x1234_5678
@@ -328,8 +329,9 @@ final class ChimeSynth {
         if target <= 0 && windSmoothed < 0.002 { windSmoothed = 0; return }
         let block = 64
         let blockD = Double(block)
-        let smoothUp = 1 - exp(-blockD / (0.7 * sampleRate))   // the audible swell lags the gust
-        let smoothDown = 1 - exp(-blockD / (2.0 * sampleRate)) // ...and dies away slowly
+        let tight = min(1, max(0, windTightness))
+        let smoothUp = 1 - exp(-blockD / ((0.7 + (0.03 - 0.7) * tight) * sampleRate))   // the audible swell lags the gust...
+        let smoothDown = 1 - exp(-blockD / ((2.0 + (0.15 - 2.0) * tight) * sampleRate)) // ...unless tightness says otherwise
         let frontDecay = exp(-blockD / (1.5 * sampleRate))
         let walk = 1 - exp(-blockD / (2.5 * sampleRate))       // ~2.5 s wander smoothing
         let brownCoef = 1 - exp(-2 * Double.pi * 70 / sampleRate) // brown corner ~70 Hz
@@ -337,7 +339,8 @@ final class ChimeSynth {
         let master = 0.42 // pre-compressor level
         let compAttack = 1 - exp(-blockD / (0.01 * sampleRate))
         let compRelease = 1 - exp(-blockD / (0.25 * sampleRate))
-        let compThreshold = 0.055, compRatio = 5.0, makeup = 2.0 // ≈ -25 dBFS RMS, 5:1
+        let compThreshold = 0.055, makeup = 2.0 // ≈ -25 dBFS RMS
+        let compRatio = 5.0 + (1.3 - 5.0) * tight // 5:1 when smooth, nearly off when tight
 
         var offset = 0
         while offset < frames {

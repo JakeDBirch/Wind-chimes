@@ -22,8 +22,6 @@ final class ChimeEngine {
     private var accumulator = 0.0
     private var physicsOn = false
     private var windSoundEnvelope = 0.0
-    private let windEnvelopeUp = 1 - exp(-ChimePhysics.dt / 0.7)
-    private let windEnvelopeDown = 1 - exp(-ChimePhysics.dt / 2.0)
     private var source = "wind"
     private var sound = "metal" // "metal" | "recorded"
     private var voiceParams = SampleVoiceParams()
@@ -383,11 +381,14 @@ final class ChimeEngine {
             accumulator -= ChimePhysics.dt
         }
         synth.windSoundGain = physics.params.windSoundGain
-        // The audible wind follows a slow envelope of the wind vector (0.7 s up, 2 s down),
-        // not the per-tick turbulence that jiggles the chimes
+        synth.windTightness = physics.params.windTightness
+        // The audible wind follows an envelope of the wind vector. Tightness sets how
+        // closely: smooth (0.7 s up, 2 s down, turbulence averaged out) to almost direct
+        // (50 ms up, 250 ms down, every jiggle the chimes feel).
+        let t = physics.params.windTightness
         let magnitude = physics.windOn ? (physics.windX * physics.windX + physics.windY * physics.windY).squareRoot() : 0
-        let coef = magnitude > windSoundEnvelope ? windEnvelopeUp : windEnvelopeDown
-        windSoundEnvelope += (magnitude - windSoundEnvelope) * coef
+        let tau = magnitude > windSoundEnvelope ? 0.7 + (0.05 - 0.7) * t : 2.0 + (0.25 - 2.0) * t
+        windSoundEnvelope += (magnitude - windSoundEnvelope) * (1 - exp(-ChimePhysics.dt / tau))
         synth.windLevel = windSoundEnvelope
     }
 
