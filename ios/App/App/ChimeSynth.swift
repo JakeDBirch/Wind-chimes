@@ -216,16 +216,27 @@ final class ChimeSynth {
     let sampleRate: Double
     private let masterGain: Float = 0.9
 
-    /// Wind sound: noise whose level and brightness follow the simulated wind.
-    /// `windLevel` is written from the physics step (0 = calm, ~0.5 = strong gust).
+    /// Wind sound: a bed of brown-noise rumble, a pink-noise mid layer that brightens on
+    /// gust fronts, and three slowly wandering resonant "whoosh" bands, all breathing with
+    /// a slow random flutter. `windLevel` is written from the physics step
+    /// (0 = calm, ~0.45 = strong gust); `windSoundGain` is the slider, 0 = off.
     var windLevel = 0.0
-    var windSoundGain = 0.1 // linear; set from the Wind sound slider
+    var windSoundGain = 0.1
     private var windSmoothed = 0.0
-    private var windLow = 0.0           // one-pole lowpass state for the body of the sound
-    private var windWhistle = Biquad(.bandpass, q: 3.0)
-    private var windLastCutoff = -1.0
+    private var windFront = 0.0
     private var noiseState: UInt32 = 0x1234_5678
-    private static let maxVoices = 384
+    private var brown = 0.0, dcIn = 0.0, dcOut = 0.0
+    private var pink0 = 0.0, pink1 = 0.0, pink2 = 0.0
+    private var rumbleLP = Biquad(.lowpass, q: 3), rumbleLP2 = Biquad(.lowpass, q: 0)
+    private var bodyLP = Biquad(.lowpass, q: 1)
+    private struct WhooshBand {
+        var base: Double
+        var filter = Biquad(.bandpass, q: 6)
+        var wander = 1.0, wanderTarget = 1.0
+        var level = 0.7, levelTarget = 0.7
+    }
+    private var bands = [WhooshBand(base: 150), WhooshBand(base: 260), WhooshBand(base: 420)]
+    private var flutter = 1.0, flutterTarget = 1.0
 
     private var voices: [SynthVoice] = []
     private var pending: [SynthVoice] = []
@@ -301,38 +312,78 @@ final class ChimeSynth {
         }
     }
 
-    /// Mixes the wind layer into `out`: lowpassed noise for the rush, with a quiet
-    /// resonant whistle whose pitch and level rise with the wind.
+    private func whiteNoise() -> Double {
+        noiseState ^= noiseState << 13
+        noiseState ^= noiseState >> 17
+        noiseState ^= noiseState << 5
+        return Double(noiseState) / Double(UInt32.max) * 2 - 1
+    }
+
+    /// Mixes the wind layer into `out`. Same DSP as the Node prototype used to audition it.
     private func renderWind(into out: UnsafeMutablePointer<Float>, frames: Int) {
         let target = windSoundGain > 0 ? min(1, max(0, windLevel / 0.45)) : 0
-        if target <= 0 && windSmoothed < 0.0005 { windSmoothed = 0; return }
-        let smooth = 1 - exp(-1.0 / (0.12 * sampleRate)) // ~120 ms response
-        let lowCoef = 1 - exp(-2 * Double.pi * 420 / sampleRate)
-        var gain = 0.0, whistleGain = 0.0
+        if target <= 0 && windSmoothed < 0.002 { windSmoothed = 0; return }
         let block = 64
+        let blockD = Double(block)
+        let smooth = 1 - exp(-blockD / (0.25 * sampleRate))   // ~250 ms level smoothing
+        let frontDecay = exp(-blockD / (0.6 * sampleRate))
+        let walk = 1 - exp(-blockD / (1.5 * sampleRate))      // ~1.5 s wander smoothing
+        let brownCoef = 1 - exp(-2 * Double.pi * 35 / sampleRate) // brown corner ~35 Hz
+        let dcCoef = 1 - exp(-2 * Double.pi * 18 / sampleRate)    // DC block ~18 Hz
+        let master = 0.42 * windSoundGain // w≈0.9 ≈ -19 dBFS RMS at full slider
+
         var offset = 0
         while offset < frames {
             let n = min(block, frames - offset)
-            windSmoothed += (target - windSmoothed) * smooth * Double(n)
+            let before = windSmoothed
+            windSmoothed += (target - windSmoothed) * smooth
             let w = windSmoothed
-            gain = pow(w, 1.6) * 0.22 * windSoundGain
-            whistleGain = pow(w, 2.5) * 0.10 * windSoundGain
-            let cutoff = 350 + w * 900
-            if abs(cutoff - windLastCutoff) > 2 {
-                windWhistle.setFrequency(cutoff, sampleRate: sampleRate)
-                windLastCutoff = cutoff
+            // Rising wind brightens briefly: a gust front
+            let rise = max(0, w - before) * sampleRate / blockD
+            windFront = max(windFront * frontDecay, min(1, rise * 2.5))
+            if w < 0.002 && target <= 0 { windSmoothed = 0; break }
+
+            // Slow random walks, retargeted now and then
+            if (whiteNoise() + 1) / 2 < blockD / (0.8 * sampleRate) { flutterTarget = 0.7 + (whiteNoise() + 1) / 2 * 0.3 }
+            flutter += (flutterTarget - flutter) * walk
+            for i in bands.indices {
+                if (whiteNoise() + 1) / 2 < blockD / (1.2 * sampleRate) {
+                    bands[i].wanderTarget = 0.75 + (whiteNoise() + 1) / 2 * 0.5
+                    bands[i].levelTarget = 0.3 + (whiteNoise() + 1) / 2 * 0.7
+                }
+                bands[i].wander += (bands[i].wanderTarget - bands[i].wander) * walk
+                bands[i].level += (bands[i].levelTarget - bands[i].level) * walk
+                bands[i].filter.setFrequency(bands[i].base * (0.9 + w * 1.4) * bands[i].wander, sampleRate: sampleRate)
             }
-            if gain < 0.0002 { offset += n; continue }
+            rumbleLP.setFrequency(60 + w * 120, sampleRate: sampleRate)
+            rumbleLP2.setFrequency(90 + w * 160, sampleRate: sampleRate)
+            bodyLP.setFrequency(140 + w * 700 + windFront * 500, sampleRate: sampleRate)
+
+            let shape = pow(w, 1.3) * flutter
+            let gRumble = shape * 1.0
+            let gBody = shape * (0.25 + windFront * 0.45)
+            let gWhoosh = pow(w, 1.6) * 0.5
+
             for k in 0..<n {
-                // xorshift white noise in [-1, 1]
-                noiseState ^= noiseState << 13
-                noiseState ^= noiseState >> 17
-                noiseState ^= noiseState << 5
-                let white = Double(noiseState) / Double(UInt32.max) * 2 - 1
-                windLow += (white - windLow) * lowCoef
-                let body = windLow * 1.8
-                let whistle = windWhistle.process(white)
-                out[offset + k] += Float(body * gain + whistle * whistleGain)
+                let white = whiteNoise()
+                // Brown: leaky integrator, DC-blocked
+                brown += (white - brown) * brownCoef
+                let dc = brown - dcIn + (1 - dcCoef) * dcOut
+                dcIn = brown
+                dcOut = dc
+                let brownOut = dc * 9.0
+                // Pink (Kellet economy)
+                pink0 = 0.99765 * pink0 + white * 0.0990460
+                pink1 = 0.96300 * pink1 + white * 0.2965164
+                pink2 = 0.57000 * pink2 + white * 1.0526913
+                let pink = (pink0 + pink1 + pink2 + white * 0.1848) * 0.25
+
+                let rumble = rumbleLP2.process(rumbleLP.process(brownOut))
+                let body = bodyLP.process(pink)
+                var whoosh = 0.0
+                for i in bands.indices { whoosh += bands[i].filter.process(pink) * bands[i].level }
+
+                out[offset + k] += Float((rumble * gRumble + body * gBody + whoosh * gWhoosh) * master)
             }
             offset += n
         }
