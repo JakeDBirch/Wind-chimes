@@ -96,6 +96,11 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px;
       <input type="range" id="windSound" min="0" max="100" step="1" value="58">
       <span class="val" id="v-windSound">-20 dB</span>
     </div>
+    <div class="row">
+      <span class="label">Wind tightness</span>
+      <input type="range" id="windTightness" min="0" max="100" step="1" value="60">
+      <span class="val" id="v-windTightness">60</span>
+    </div>
   </div>
 
   <div class="section">
@@ -216,7 +221,8 @@ function sendParams() {
     register: gv('register'),
     scale: currentScale,
     customScale: customScale,
-    windSoundGain: windSoundGain()
+    windSoundGain: windSoundGain(),
+    windTightness: gv('windTightness') / 100
   });
 }
 
