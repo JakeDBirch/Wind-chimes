@@ -110,6 +110,7 @@ final class ChimePhysics {
     private var evtLullDur = 35.0
     private var evtRiseDur = 0.0, evtHoldDur = 0.0, evtFallDur = 0.0
     private var evtPeak = 0.0, evtAngle = 0.0
+    private var evtLullStill = false
     // Gusts within gusts: a wandering multiplier on the speed plus short sub-gust bursts
     private var textureOU = 0.0
     private var subGustT = 9.0, subGustDur = 1.0, subGustAmp = 0.0
@@ -221,7 +222,9 @@ final class ChimePhysics {
     }
 
     private func scheduleNextEvent() {
-        evtLullDur = (10 + rand() * 40) * params.lullScale   // lull: 10–50 s at mid consistency
+        // Most lulls are a light breeze; about one in three goes truly still, and shorter
+        evtLullStill = rand() < 1.0 / 3.0
+        evtLullDur = (evtLullStill ? 5 + rand() * 10 : 10 + rand() * 40) * params.lullScale
         evtPeak = 0.2 + pow(rand(), 1.8) * 0.8               // weighted toward lighter events
         evtRiseDur = 0.8 + (1 - evtPeak) * 5 + rand() * 2    // stronger events rise faster
         evtHoldDur = 2 + rand() * 10
@@ -475,9 +478,15 @@ final class ChimePhysics {
             var targetSpeed = 0.0
             switch evtPhase {
             case .lull:
-                // Silence — drain residual wind and apply extra physics damping
-                windSpeed *= 0.92
-                calmDamp = 3.0
+                if evtLullStill {
+                    // Still: drain residual wind and apply extra physics damping
+                    windSpeed *= 0.92
+                    calmDamp = 3.0
+                } else {
+                    // Light breeze: the chimes drift and strike now and then
+                    calmDamp = 1.0
+                    windSpeed += (0.15 - windSpeed) * 0.03
+                }
                 if evtT >= evtLullDur {
                     evtPhase = .rise; evtT = 0
                     windAngle = evtAngle
