@@ -237,6 +237,7 @@ final class ChimeSynth {
     }
     private var bands = [WhooshBand(base: 150), WhooshBand(base: 260), WhooshBand(base: 420)]
     private var flutter = 1.0, flutterTarget = 1.0
+    private var compEnvelope = 0.0, compGain = 1.0 // gentle compressor evens out the surges
 
     private static let maxVoices = 384
 
@@ -327,45 +328,50 @@ final class ChimeSynth {
         if target <= 0 && windSmoothed < 0.002 { windSmoothed = 0; return }
         let block = 64
         let blockD = Double(block)
-        let smooth = 1 - exp(-blockD / (0.25 * sampleRate))   // ~250 ms level smoothing
-        let frontDecay = exp(-blockD / (0.6 * sampleRate))
-        let walk = 1 - exp(-blockD / (1.5 * sampleRate))      // ~1.5 s wander smoothing
-        let brownCoef = 1 - exp(-2 * Double.pi * 35 / sampleRate) // brown corner ~35 Hz
-        let dcCoef = 1 - exp(-2 * Double.pi * 18 / sampleRate)    // DC block ~18 Hz
-        let master = 0.42 * windSoundGain // w≈0.9 ≈ -19 dBFS RMS at full slider
+        let smoothUp = 1 - exp(-blockD / (0.7 * sampleRate))   // the audible swell lags the gust
+        let smoothDown = 1 - exp(-blockD / (2.0 * sampleRate)) // ...and dies away slowly
+        let frontDecay = exp(-blockD / (1.5 * sampleRate))
+        let walk = 1 - exp(-blockD / (2.5 * sampleRate))       // ~2.5 s wander smoothing
+        let brownCoef = 1 - exp(-2 * Double.pi * 70 / sampleRate) // brown corner ~70 Hz
+        let dcCoef = 1 - exp(-2 * Double.pi * 55 / sampleRate)    // highpass ~55 Hz: below this a phone only pumps
+        let master = 0.42 // pre-compressor level
+        let compAttack = 1 - exp(-blockD / (0.01 * sampleRate))
+        let compRelease = 1 - exp(-blockD / (0.25 * sampleRate))
+        let compThreshold = 0.055, compRatio = 5.0, makeup = 2.0 // ≈ -25 dBFS RMS, 5:1
 
         var offset = 0
         while offset < frames {
             let n = min(block, frames - offset)
             let before = windSmoothed
-            windSmoothed += (target - windSmoothed) * smooth
+            windSmoothed += (target - windSmoothed) * (target > windSmoothed ? smoothUp : smoothDown)
             let w = windSmoothed
             // Rising wind brightens briefly: a gust front
             let rise = max(0, w - before) * sampleRate / blockD
-            windFront = max(windFront * frontDecay, min(1, rise * 2.5))
+            windFront = max(windFront * frontDecay, min(1, rise * 0.9))
             if w < 0.002 && target <= 0 { windSmoothed = 0; break }
 
             // Slow random walks, retargeted now and then
-            if (whiteNoise() + 1) / 2 < blockD / (0.8 * sampleRate) { flutterTarget = 0.7 + (whiteNoise() + 1) / 2 * 0.3 }
+            if (whiteNoise() + 1) / 2 < blockD / (1.5 * sampleRate) { flutterTarget = 0.85 + (whiteNoise() + 1) / 2 * 0.15 }
             flutter += (flutterTarget - flutter) * walk
             for i in bands.indices {
-                if (whiteNoise() + 1) / 2 < blockD / (1.2 * sampleRate) {
-                    bands[i].wanderTarget = 0.75 + (whiteNoise() + 1) / 2 * 0.5
-                    bands[i].levelTarget = 0.3 + (whiteNoise() + 1) / 2 * 0.7
+                if (whiteNoise() + 1) / 2 < blockD / (2.0 * sampleRate) {
+                    bands[i].wanderTarget = 0.8 + (whiteNoise() + 1) / 2 * 0.4
+                    bands[i].levelTarget = 0.4 + (whiteNoise() + 1) / 2 * 0.6
                 }
                 bands[i].wander += (bands[i].wanderTarget - bands[i].wander) * walk
                 bands[i].level += (bands[i].levelTarget - bands[i].level) * walk
                 bands[i].filter.setFrequency(bands[i].base * (0.9 + w * 1.4) * bands[i].wander, sampleRate: sampleRate)
             }
-            rumbleLP.setFrequency(60 + w * 120, sampleRate: sampleRate)
-            rumbleLP2.setFrequency(90 + w * 160, sampleRate: sampleRate)
-            bodyLP.setFrequency(140 + w * 700 + windFront * 500, sampleRate: sampleRate)
+            rumbleLP.setFrequency(110 + w * 160, sampleRate: sampleRate)
+            rumbleLP2.setFrequency(160 + w * 220, sampleRate: sampleRate)
+            bodyLP.setFrequency(140 + w * 700 + windFront * 350, sampleRate: sampleRate)
 
             let shape = pow(w, 1.3) * flutter
             let gRumble = shape * 1.0
-            let gBody = shape * (0.25 + windFront * 0.45)
+            let gBody = shape * (0.25 + windFront * 0.25)
             let gWhoosh = pow(w, 1.6) * 0.5
 
+            var blockSum = 0.0
             for k in 0..<n {
                 let white = whiteNoise()
                 // Brown: leaky integrator, DC-blocked
@@ -373,7 +379,7 @@ final class ChimeSynth {
                 let dc = brown - dcIn + (1 - dcCoef) * dcOut
                 dcIn = brown
                 dcOut = dc
-                let brownOut = dc * 9.0
+                let brownOut = dc * 6.0
                 // Pink (Kellet economy)
                 pink0 = 0.99765 * pink0 + white * 0.0990460
                 pink1 = 0.96300 * pink1 + white * 0.2965164
@@ -385,8 +391,17 @@ final class ChimeSynth {
                 var whoosh = 0.0
                 for i in bands.indices { whoosh += bands[i].filter.process(pink) * bands[i].level }
 
-                out[offset + k] += Float((rumble * gRumble + body * gBody + whoosh * gWhoosh) * master)
+                let y = (rumble * gRumble + body * gBody + whoosh * gWhoosh) * master * compGain
+                blockSum += y * y
+                // Soft clip tames what the compressor misses
+                out[offset + k] += Float(tanh(y * makeup * 1.6) / 1.6 * windSoundGain)
             }
+            // Detector on this block's level before gain, applied from the next block
+            let rms = (blockSum / Double(n)).squareRoot() / max(compGain, 1e-6)
+            compEnvelope += (rms - compEnvelope) * (rms > compEnvelope ? compAttack : compRelease)
+            let over = compEnvelope / compThreshold
+            let wanted = over > 1 ? pow(over, 1 / compRatio - 1) : 1
+            compGain += (wanted - compGain) * (wanted < compGain ? compAttack : compRelease)
             offset += n
         }
     }
