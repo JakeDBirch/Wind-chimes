@@ -23,6 +23,7 @@ final class ChimeEngine {
     private var physicsOn = false
     private var source = "wind"
     private var sound = "metal" // "metal" | "recorded"
+    private var voiceParams = SampleVoiceParams()
     private var userSample = SampleBank.loadTake() // the sample strikes play when sound == "recorded"
     private var takeUnsaved = SampleBank.loadTake() != nil
 
@@ -47,7 +48,7 @@ final class ChimeEngine {
     private init() {
         physics.onStrike = { [unowned self] strike in
             let sample = self.sound == "recorded" ? self.userSample : nil
-            self.synth.enqueue(ChimeVoices.make(for: strike, sample: sample, sampleRate: self.synth.sampleRate))
+            self.synth.enqueue(ChimeVoices.make(for: strike, sample: sample, tuning: self.voiceParams, sampleRate: self.synth.sampleRate))
         }
 
         let center = NotificationCenter.default
@@ -105,6 +106,10 @@ final class ChimeEngine {
             self.physics.gust()
             if !self.physicsOn { self.applyPhysics(true) }
         }
+    }
+
+    func setVoiceParams(_ values: [String: Double]) {
+        queue.async { self.voiceParams.apply(values) }
     }
 
     func setSound(_ mode: String) {

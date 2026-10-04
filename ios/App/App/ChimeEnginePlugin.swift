@@ -11,6 +11,7 @@ public class ChimeEnginePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "setPhysics", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "gust", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setSound", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setVoiceParams", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "startStandby", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setTriggerLevel", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "arm", returnType: CAPPluginReturnPromise),
@@ -66,6 +67,15 @@ public class ChimeEnginePlugin: CAPPlugin, CAPBridgedPlugin {
 
     @objc func setSound(_ call: CAPPluginCall) {
         engine.setSound(call.getString("mode") ?? "metal")
+        call.resolve()
+    }
+
+    @objc func setVoiceParams(_ call: CAPPluginCall) {
+        var values: [String: Double] = [:]
+        for (key, value) in call.options ?? [:] {
+            if let key = key as? String, let number = value as? NSNumber { values[key] = number.doubleValue }
+        }
+        engine.setVoiceParams(values)
         call.resolve()
     }
 
