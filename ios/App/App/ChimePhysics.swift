@@ -143,7 +143,12 @@ final class ChimePhysics {
             windSpeed = 0; noiseX = 0; noiseY = 0
             calmDamp = 1.0
         }
+        // Skip the opening lull: the first gust starts rising at once, and the
+        // 10-50 s lulls follow between events
         scheduleNextEvent()
+        evtPhase = .rise
+        evtT = 0
+        windAngle = evtAngle
     }
 
     /// Physics off: wind stops and forces clear; the pendulums keep their state.
