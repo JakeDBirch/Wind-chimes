@@ -8,7 +8,7 @@ struct ChimeParams {
     var tubeCount = 6
     var register = 0.0
     var scale = "Pentatonic"
-    var windSound = true
+    var windSoundGain = 0.1 // linear; 0 = off, 1 = full
     var customScale = [0, 3, 5, 7, 10] // semitones above A, used when scale == "Custom"
 
     let cordLength = 0.53

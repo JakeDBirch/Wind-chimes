@@ -1,37 +1,37 @@
 import Foundation
 
-/// Everything about how a recorded sample responds to a strike. Exposed on the tuning
-/// branch so the values can be tweaked live; the defaults are the current baked-in sound.
+/// Everything about how a recorded sample responds to a strike. The defaults were found
+/// by ear with the live sliders on the sample-tuning branch.
 struct SampleVoiceParams {
-    var level = 0.55            // overall gain
-    var hitCurve = 1.3          // hit = velocity^hitCurve drives most of the velocity response
+    var level = 0.81            // overall gain
+    var hitCurve = 1.9          // hit = velocity^hitCurve drives most of the velocity response
     // VCA
     var attackSoftMs = 14.0
     var attackHardMs = 2.0
-    var decayMin = 0.25         // seconds at zero velocity
-    var decayMax = 9.0          // seconds added at full velocity
-    var decayCurve = 0.8        // velocity^decayCurve shapes how fast decay grows
+    var decayMin = 3.0         // seconds at zero velocity
+    var decayMax = 12.2          // seconds added at full velocity
+    var decayCurve = 0.75        // velocity^decayCurve shapes how fast decay grows
     var decayVariation = 0.15   // ± random per hit
     var kneeTime = 0.12         // fraction of the decay at which the fast drop ends
     var kneeLevelSoft = 0.18    // level (× peak) at the knee for soft hits
     var kneeLevelHard = 0.35    // ... for hard hits
     // VCF
-    var cutoffSoft = 1.5        // start cutoff × fundamental, soft hit
+    var cutoffSoft = 0.5        // start cutoff × fundamental, soft hit
     var cutoffHard = 12.0       // ... hard hit
-    var cutoffEndSoft = 0.7     // end cutoff × fundamental, soft hit
+    var cutoffEndSoft = 0.3     // end cutoff × fundamental, soft hit
     var cutoffEndHard = 1.2
-    var filterDecaySoft = 0.35  // filter close time as a fraction of the decay
-    var filterDecayHard = 0.5
-    var resonanceSoft = 0.5     // lowpass Q in dB
-    var resonanceHard = 4.5
+    var filterDecaySoft = 1.1  // filter close time as a fraction of the decay
+    var filterDecayHard = 1.05
+    var resonanceSoft = 0.0     // lowpass Q in dB
+    var resonanceHard = 0.0
     // Pitch
-    var bendCents = 21.0        // how sharp a full-velocity hit starts
+    var bendCents = 12.0        // how sharp a full-velocity hit starts
     var bendTimeSoftMs = 60.0   // how long the bend takes to settle
     var bendTimeHardMs = 100.0
     var detuneCents = 8.0       // random spread per hit
     // Octave layer
-    var octaveThreshold = 0.35  // velocity above which the octave layer appears
-    var octaveGain = 0.28
+    var octaveThreshold = 0.49  // velocity above which the octave layer appears
+    var octaveGain = 0.18
     var octaveDecay = 0.45      // × the main decay
     var octaveCutoff = 0.8      // × the main cutoff
 

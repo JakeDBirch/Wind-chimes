@@ -34,7 +34,7 @@ public class ChimeEnginePlugin: CAPPlugin, CAPBridgedPlugin {
         let tubeCount = number(call, "tubeCount").map { Int($0.rounded()) }
         let register = number(call, "register")
         let scale = call.getString("scale")
-        let windSound = call.getBool("windSound")
+        let windSoundGain = number(call, "windSoundGain")
         let customScale = (call.options["customScale"] as? [NSNumber])?.map { $0.intValue }
 
         engine.updateParams { p in
@@ -44,7 +44,7 @@ public class ChimeEnginePlugin: CAPPlugin, CAPBridgedPlugin {
             if let tubeCount { p.tubeCount = min(12, max(1, tubeCount)) }
             if let register { p.register = register }
             if let scale { p.scale = scale }
-            if let windSound { p.windSound = windSound }
+            if let windSoundGain { p.windSoundGain = min(1, max(0, windSoundGain)) }
             if let customScale { p.customScale = customScale }
         }
         call.resolve()

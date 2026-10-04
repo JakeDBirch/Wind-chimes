@@ -378,7 +378,7 @@ final class ChimeEngine {
             physics.tick()
             accumulator -= ChimePhysics.dt
         }
-        synth.windSoundOn = physics.params.windSound
+        synth.windSoundGain = physics.params.windSoundGain
         synth.windLevel = physics.windOn ? (physics.windX * physics.windX + physics.windY * physics.windY).squareRoot() : 0
     }
 
