@@ -87,6 +87,7 @@ final class ChimePhysics {
     private(set) var strikeFlash: [Double] = []
     private(set) var ringRadius = 0.187
     private(set) var windX = 0.0, windY = 0.0
+    private(set) var windSurge = 0.0 // mean wind speed (gust envelope with its texture), without turbulence
     private(set) var strikeCount = 0
 
     var onStrike: ((ChimeStrike) -> Void)?
@@ -148,7 +149,7 @@ final class ChimePhysics {
     /// Physics off: wind stops and forces clear; the pendulums keep their state.
     func stopWind() {
         windOn = false
-        windX = 0; windY = 0
+        windX = 0; windY = 0; windSurge = 0
     }
 
     func selectMotion() {
@@ -529,13 +530,16 @@ final class ChimePhysics {
             let meanX = cos(windAngle) * surge
             let meanY = sin(windAngle) * surge
 
-            // Turbulence: bounded (Ornstein-Uhlenbeck, τ 0.4 s) and proportional to the
-            // wind, so a lull is calm. The original random walk never died down.
-            let turbTau = 0.4
+            // Turbulence: bounded (Ornstein-Uhlenbeck, τ 1 s) and proportional to the
+            // wind, so a lull is calm. The original random walk never died down; the
+            // amplitude here matches the fluctuating force it delivered during a gust
+            // (~0.3 RMS at full strength), which is what the chimes couple to.
+            let turbTau = 1.0
             noiseX += (-noiseX / turbTau) * DT + (2 * DT / turbTau).squareRoot() * gaussian()
             noiseY += (-noiseY / turbTau) * DT + (2 * DT / turbTau).squareRoot() * gaussian()
-            let turbAmp = wTurb * (0.02 + surge) * 0.9
+            let turbAmp = wTurb * (0.02 + surge) * 4.0
 
+            windSurge = surge
             windX = meanX + noiseX * turbAmp
             windY = meanY + noiseY * turbAmp
             windMeanX += (windX - windMeanX) * 0.003
@@ -551,11 +555,13 @@ final class ChimePhysics {
             let fy = (motionY - motionBaseY) * motionGain
             windX = -fx * 0.5
             windY = fy * 0.5
+            windSurge = 0
             windMeanX *= 0.9
             windMeanY *= 0.9
         } else {
             windX *= 0.97
             windY *= 0.97
+            windSurge *= 0.97
             windMeanX *= 0.97
             windMeanY *= 0.97
         }
