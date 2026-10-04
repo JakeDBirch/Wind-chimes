@@ -238,6 +238,8 @@ final class ChimeSynth {
     private var bands = [WhooshBand(base: 150), WhooshBand(base: 260), WhooshBand(base: 420)]
     private var flutter = 1.0, flutterTarget = 1.0
 
+    private static let maxVoices = 384
+
     private var voices: [SynthVoice] = []
     private var pending: [SynthVoice] = []
     private var incoming: [SynthVoice] = []
