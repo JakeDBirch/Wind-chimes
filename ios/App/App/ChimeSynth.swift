@@ -238,6 +238,7 @@ final class ChimeSynth {
     }
     private var bands = [WhooshBand(base: 150), WhooshBand(base: 260), WhooshBand(base: 420)]
     private var flutter = 1.0, flutterTarget = 1.0
+    private var bodyDrift = 1.0, bodyDriftTarget = 1.0
     private var compEnvelope = 0.0, compGain = 1.0 // gentle compressor evens out the surges
 
     private static let maxVoices = 384
@@ -333,7 +334,7 @@ final class ChimeSynth {
         let smoothUp = 1 - exp(-blockD / ((0.7 + (0.03 - 0.7) * tight) * sampleRate))   // the audible swell lags the gust...
         let smoothDown = 1 - exp(-blockD / ((2.0 + (0.15 - 2.0) * tight) * sampleRate)) // ...unless tightness says otherwise
         let frontDecay = exp(-blockD / (1.5 * sampleRate))
-        let walk = 1 - exp(-blockD / (2.5 * sampleRate))       // ~2.5 s wander smoothing
+        let walk = 1 - exp(-blockD / (1.8 * sampleRate))       // ~1.8 s wander smoothing
         let brownCoef = 1 - exp(-2 * Double.pi * 70 / sampleRate) // brown corner ~70 Hz
         let dcCoef = 1 - exp(-2 * Double.pi * 55 / sampleRate)    // highpass ~55 Hz: below this a phone only pumps
         let master = 0.42 // pre-compressor level
@@ -354,12 +355,14 @@ final class ChimeSynth {
             if w < 0.002 && target <= 0 { windSmoothed = 0; break }
 
             // Slow random walks, retargeted now and then
-            if (whiteNoise() + 1) / 2 < blockD / (1.5 * sampleRate) { flutterTarget = 0.85 + (whiteNoise() + 1) / 2 * 0.15 }
+            if (whiteNoise() + 1) / 2 < blockD / (2.5 * sampleRate) { flutterTarget = 0.6 + (whiteNoise() + 1) / 2 * 0.4 } // slow breathing, ±2 dB
             flutter += (flutterTarget - flutter) * walk
+            if (whiteNoise() + 1) / 2 < blockD / (3.0 * sampleRate) { bodyDriftTarget = 0.7 + (whiteNoise() + 1) / 2 * 0.6 } // colour drifts
+            bodyDrift += (bodyDriftTarget - bodyDrift) * walk
             for i in bands.indices {
-                if (whiteNoise() + 1) / 2 < blockD / (2.0 * sampleRate) {
-                    bands[i].wanderTarget = 0.8 + (whiteNoise() + 1) / 2 * 0.4
-                    bands[i].levelTarget = 0.4 + (whiteNoise() + 1) / 2 * 0.6
+                if (whiteNoise() + 1) / 2 < blockD / (1.5 * sampleRate) {
+                    bands[i].wanderTarget = 0.75 + (whiteNoise() + 1) / 2 * 0.5
+                    bands[i].levelTarget = 0.15 + (whiteNoise() + 1) / 2 * 0.85
                 }
                 bands[i].wander += (bands[i].wanderTarget - bands[i].wander) * walk
                 bands[i].level += (bands[i].levelTarget - bands[i].level) * walk
@@ -367,7 +370,7 @@ final class ChimeSynth {
             }
             rumbleLP.setFrequency(110 + w * 160, sampleRate: sampleRate)
             rumbleLP2.setFrequency(160 + w * 220, sampleRate: sampleRate)
-            bodyLP.setFrequency(140 + w * 700 + windFront * 350, sampleRate: sampleRate)
+            bodyLP.setFrequency((140 + w * 700) * bodyDrift + windFront * 350, sampleRate: sampleRate)
 
             let shape = pow(w, 1.3) * flutter
             let gRumble = shape * 1.0

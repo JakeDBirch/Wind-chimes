@@ -21,6 +21,8 @@ struct ChimeParams {
     var windTurb: Double { 0.5 - windConsistency * 0.4 }
     /// Scales the lulls between wind events: 1.5× at consistency 0, 0.5× at 1
     var lullScale: Double { 1.5 - windConsistency }
+    /// How much the speed wanders within a gust: 0.25 at consistency 1, 0.75 at 0
+    var gustVariation: Double { 0.25 + (1 - windConsistency) * 0.5 }
 }
 
 struct ChimeStrike {
@@ -108,6 +110,9 @@ final class ChimePhysics {
     private var evtLullDur = 35.0
     private var evtRiseDur = 0.0, evtHoldDur = 0.0, evtFallDur = 0.0
     private var evtPeak = 0.0, evtAngle = 0.0
+    // Gusts within gusts: a wandering multiplier on the speed plus short sub-gust bursts
+    private var textureOU = 0.0
+    private var subGustT = 9.0, subGustDur = 1.0, subGustAmp = 0.0
 
     private var chordIndex = 0
     private var chordTimer = 0.0
@@ -203,6 +208,11 @@ final class ChimePhysics {
     // MARK: - Setup
 
     private func rand() -> Double { Double.random(in: 0..<1) }
+    private func gaussian() -> Double {
+        var u = 0.0
+        while u == 0 { u = rand() }
+        return (-2 * log(u)).squareRoot() * cos(2 * .pi * rand())
+    }
 
     private func scheduleNextEvent() {
         evtLullDur = (20 + rand() * 60) * params.lullScale   // lull: 20–80s at mid consistency
@@ -491,8 +501,23 @@ final class ChimePhysics {
                 }
             }
 
+            // Texture: an Ornstein-Uhlenbeck wander (τ 2.5 s) and sub-gusts (half-sine,
+            // 0.6–2 s) on top of the event envelope, scaled by consistency
+            let variation = p.gustVariation
+            let tau = 2.5
+            textureOU += (-textureOU / tau) * DT + (2 * DT / tau).squareRoot() * gaussian()
+            textureOU = max(-2, min(2, textureOU))
+            subGustT += DT
+            if evtPhase != .lull && subGustT > subGustDur && rand() < DT / 5.0 {
+                subGustT = 0
+                subGustDur = 0.6 + rand() * 1.4
+                subGustAmp = (0.3 + rand() * 0.5) * variation / 0.55
+            }
+            let subGust = subGustT < subGustDur ? subGustAmp * sin(.pi * subGustT / subGustDur) : 0
+            let texture = max(0.2, 1 + textureOU * variation * 0.5 + subGust)
+
             windSpeed = max(0, min(1.5, windSpeed))
-            let surge = windSpeed * wStr
+            let surge = windSpeed * texture * wStr
             let meanX = cos(windAngle) * surge
             let meanY = sin(windAngle) * surge
 
