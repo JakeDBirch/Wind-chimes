@@ -10,6 +10,7 @@ struct UserSample {
     let sampleRate: Double
     let pitch: Double     // estimated fundamental in Hz, or 0 if none was found
     let duration: Double  // seconds of the prepared loop
+    let loudness: Double  // playback gain evening out dense vs sparse material, see loudnessGain
 
     /// What the page needs to list or describe a sample
     var info: [String: Any] { ["id": id, "name": name, "pitch": pitch, "duration": duration] }
@@ -31,7 +32,7 @@ struct UserSample {
         var s = Array(raw[max(0, first - lead)...last])
         guard Double(s.count) / sr >= minimumDuration else { throw PrepareError.tooQuiet }
 
-        // Normalize
+        // Normalize to peak, which is what keeps the file clean of clipping
         let gain = 0.9 / peak
         for i in s.indices { s[i] *= gain }
 
@@ -52,7 +53,19 @@ struct UserSample {
             looped[i] = s[i] * a + s[i - (m - x)] * b
         }
 
-        return UserSample(samples: looped, sampleRate: sr, pitch: pitch, duration: Double(m) / sr)
+        return UserSample(samples: looped, sampleRate: sr, pitch: pitch, duration: Double(m) / sr,
+                          loudness: loudnessGain(looped))
+    }
+
+    /// Playback gain that evens out loudness between dense material (a clean tone, RMS
+    /// near its peak) and sparse material (a breathy voice, RMS well below it) without
+    /// touching the peak-normalized data: 1x for dense, up to 3x for sparse.
+    static func loudnessGain(_ samples: [Float]) -> Double {
+        var sum = 0.0
+        for x in samples { sum += Double(x * x) }
+        let rms = (sum / Double(max(1, samples.count))).squareRoot()
+        guard rms > 1e-6 else { return 1 }
+        return min(3, max(1, 0.5 / rms))
     }
 
     /// Fundamental frequency by normalized autocorrelation over a window from the
@@ -150,7 +163,7 @@ enum SampleBank {
         guard count > 0 else { return nil }
         let samples = data.withUnsafeBytes { Array($0.bindMemory(to: Float.self).prefix(count)) }
         return UserSample(id: meta.id, name: meta.name, samples: samples, sampleRate: meta.sampleRate,
-                          pitch: meta.pitch, duration: meta.duration)
+                          pitch: meta.pitch, duration: meta.duration, loudness: UserSample.loudnessGain(samples))
     }
 
     /// Adds a sample to the bank, or renames it if it's already there.

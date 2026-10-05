@@ -118,7 +118,7 @@ enum ChimeVoices {
             let decay = decayMult * (t.decayMin + pow(velNorm, t.decayCurve) * t.decayMax)
                 * (1 - t.decayVariation + rand() * 2 * t.decayVariation) * (1 - freqNorm * 0.3)
             let attack = attackMult * mix(t.attackSoftMs, t.attackHardMs, velNorm) / 1000
-            let level = vel * t.level
+            let level = vel * t.level * sample.loudness // evens out dense vs breathy material
 
             func layer(octave: Double, gainScale: Double, decayScale: Double, cutoffScale: Double) -> SynthVoice {
                 let v = SynthVoice()
@@ -140,8 +140,12 @@ enum ChimeVoices {
                 v.filterFrequency = cutoff
                 v.filter = Biquad(.lowpass, q: mix(t.resonanceSoft, t.resonanceHard, hit))
 
+                // Makeup for a filter that starts below the fundamental, so a dark soft hit
+                // is as loud as a bright one, just darker (2-pole lowpass response at f0)
+                let makeup = min(4.0, (1 + pow(1 / max(0.05, startMult), 4)).squareRoot())
+
                 // VCA: fast drop into a quieter tail that rings for the rest of the decay
-                let peak = level * gainScale
+                let peak = level * gainScale * makeup
                 let d = decay * decayScale
                 v.gain.setValue(0, at: now)
                 v.gain.linearRamp(to: peak, at: now + attack)
