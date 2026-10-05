@@ -23,6 +23,7 @@ input[type=range] { flex: 1; -webkit-appearance: none; height: 2px; background: 
 input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #0b0c0e; border: 1.5px solid #7ac89a; }
 .schip { padding: 4px 9px; border-radius: 4px; border: 1px solid #1e2e22; background: none; color: #4a7060; font-family: 'Courier New', monospace; font-size: 9px; cursor: pointer; outline: none; transition: all 0.15s; letter-spacing: 0.05em; }
 .schip.active { border-color: #7ac89a; color: #7ac89a; background: rgba(122,200,154,0.08); }
+.select { flex: 1; min-width: 0; -webkit-appearance: none; appearance: none; padding: 7px 28px 7px 10px; border-radius: 6px; border: 1px solid #1e2e22; background: #0e1210 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%237ac89a' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 10px center; color: #7ac89a; font-family: 'Courier New', monospace; font-size: 10px; letter-spacing: 0.05em; outline: none; }
 .float-bar { position: fixed; bottom: calc(16px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); display: flex; gap: 8px; background: rgba(11,12,14,0.96); border: 1px solid #1a2a1e; border-radius: 10px; padding: 10px 14px; z-index: 100; }
 .fbtn { padding: 9px 16px; border-radius: 6px; border: 1px solid #7ac89a; background: rgba(122,200,154,0.07); color: #7ac89a; font-family: 'Courier New', monospace; font-size: 9px; letter-spacing: 0.16em; cursor: pointer; outline: none; text-transform: uppercase; }
 .fbtn:active { opacity: 0.6; }
@@ -104,11 +105,10 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px;
       <input type="range" id="register" min="-2" max="2" step="0.1" value="0">
       <span class="val" id="v-register">0</span>
     </div>
-  </div>
-
-  <div class="section">
-    <div class="stitle">Scale</div>
-    <div id="scale-chips" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
+    <div class="row">
+      <span class="label">Scale</span>
+      <select class="select" id="scale"></select>
+    </div>
     <div id="custom-keys" style="display:none;">
       <div class="keys" id="keys"></div>
       <div class="hint">Tap keys to choose the notes. Chimes take them low to high, then repeat an octave up.</div>
@@ -241,12 +241,17 @@ window.addEventListener('load', function() {
     });
   });
 
-  makeChips('scale-chips', SCALE_NAMES,
-    function() { return currentScale; },
-    function(n) {
-      currentScale = n;
-      document.getElementById('custom-keys').style.display = n === 'Custom' ? 'block' : 'none';
-    });
+  var scaleSelect = document.getElementById('scale');
+  SCALE_NAMES.forEach(function(name) {
+    var o = document.createElement('option');
+    o.value = name; o.textContent = name; o.selected = name === currentScale;
+    scaleSelect.appendChild(o);
+  });
+  scaleSelect.addEventListener('change', function() {
+    currentScale = this.value;
+    document.getElementById('custom-keys').style.display = currentScale === 'Custom' ? 'block' : 'none';
+    sendParams();
+  });
   buildKeyboard();
 
   document.getElementById('wind-sound').addEventListener('click', function() {

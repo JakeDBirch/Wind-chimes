@@ -15,7 +15,7 @@ Pocket Chimes is an iOS app built with [Capacitor](https://capacitorjs.com). The
 | *(tuning branch)* Wind tightness | How closely the wind sound tracks the force on the chimes: 0 is a smooth, lagging impression; 1 follows every gust and jiggle almost directly, for judging the physics by ear. Fixed at 0.6 in the main build |
 | **Chimes** | Number of tubes, 3–12 |
 | **Register** | Pitch, ±2 octaves |
-| **Scale** | Which notes the tubes are tuned to (default Pentatonic). *Chord Seq* cycles through a chord progression; *Custom* shows an octave of keys to pick notes from |
+| **Scale** | Dropdown of tunings (default Pentatonic). *Chord Seq* cycles through a chord progression; *Custom* shows an octave of keys to pick notes from |
 | **Sound** | *Metal* is the synthesized tube. *Recorded* uses a sound you record with the mic. Each chime plays it at its own pitch, shaped with the same decay and filter sweep as a struck tube, so even a sustained note rings and dies away |
 | **Record** | Opens the mic in standby with a level meter. Set **Trigger** just below your sound's level, tap **Arm**, and recording starts the moment the level crosses it (with 150 ms of pre-roll). Tap **Stop** when done; it caps at 10 s |
 | **Save / bank** | After a take, name it and tap **Save** to keep it. Saved sounds are listed under the recorder: **Use** switches to one, ✕ deletes it. The last take is kept between launches even if unsaved |
