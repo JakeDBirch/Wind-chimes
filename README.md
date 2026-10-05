@@ -58,6 +58,8 @@ Pocket Chimes is an iOS app built with [Capacitor](https://capacitorjs.com). The
    | `APP_STORE_CONNECT_API_KEY` | The full text of the `.p8` file, including the `BEGIN`/`END` lines |
    | `APPLE_TEAM_ID` | Your 10-character Team ID from <https://developer.apple.com/account> → Membership details |
 
+If a run fails with **"Your account has reached the maximum number of certificates"**, old runs left Apple Development certificates behind (one per CI machine). In Certificates, Identifiers & Profiles → Certificates, revoke the Development ones you don't use; the workflow signs with a shared Distribution certificate and doesn't need them.
+
 ### Each build
 
 1. GitHub → Actions → **TestFlight** → **Run workflow**.
