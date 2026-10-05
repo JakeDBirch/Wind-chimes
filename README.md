@@ -21,6 +21,8 @@ Pocket Chimes is an iOS app built with [Capacitor](https://capacitorjs.com). The
 | **Save / bank** | After a take, name it and tap **Save** to keep it. Saved sounds are listed under the recorder: **Use** switches to one, ✕ deletes it. The last take is kept between launches even if unsaved |
 | **Gust** | A two-second push of wind |
 
+Every setting (sliders, wind sound, scale and custom keys, sound mode, the sample in use, physics on or off) is saved as you change it and restored the next time the app opens.
+
 ## Project layout
 
 | Path | What it is |

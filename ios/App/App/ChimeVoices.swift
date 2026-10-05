@@ -141,8 +141,11 @@ enum ChimeVoices {
                 v.filter = Biquad(.lowpass, q: mix(t.resonanceSoft, t.resonanceHard, hit))
 
                 // Makeup for a filter that starts below the fundamental, so a dark soft hit
-                // is as loud as a bright one, just darker (2-pole lowpass response at f0)
-                let makeup = min(4.0, (1 + pow(1 / max(0.05, startMult), 4)).squareRoot())
+                // holds its own against a bright one (2-pole lowpass response at f0). Full
+                // makeup pushed the quiet notes past the metal, so three quarters of it is
+                // applied; hard hits open the filter and get no makeup either way.
+                let fullMakeup = min(4.0, (1 + pow(1 / max(0.05, startMult), 4)).squareRoot())
+                let makeup = 1 + (fullMakeup - 1) * 0.75
 
                 // VCA: fast drop into a quieter tail that rings for the rest of the decay
                 let peak = level * gainScale * makeup

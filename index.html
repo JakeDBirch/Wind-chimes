@@ -176,6 +176,72 @@ var windSound = true;
 var WIND_SOUND_GAIN = 0.1; // -20 dB when on
 function windSoundGain() { return windSound ? WIND_SOUND_GAIN : 0; }
 
+// ── Saved settings ────────────────────────────────────────
+// Everything on this page is written to localStorage whenever it changes and put back on
+// the next launch, so the app reopens the way it was left.
+var SETTINGS_KEY = 'pocketChimesSettings';
+
+function saveSettings() {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify({
+      windStrength: gv('windStrength'),
+      windConsistency: gv('windConsistency'),
+      windSound: windSound,
+      tubeCount: gv('tubeCount'),
+      register: gv('register'),
+      scale: currentScale,
+      customScale: customScale,
+      sound: currentSound,
+      sampleId: activeSampleId,
+      physicsOn: physicsOn
+    }));
+  } catch (e) {}
+}
+
+function loadSettings() {
+  try {
+    var s = JSON.parse(localStorage.getItem(SETTINGS_KEY));
+    return s && typeof s === 'object' ? s : null;
+  } catch (e) { return null; }
+}
+
+// Puts the sliders, scale and toggles back; the engine side is replayed in restoreEngine().
+function applySettings(s) {
+  if (!s) return;
+  ['windStrength', 'windConsistency', 'tubeCount', 'register'].forEach(function(id) {
+    if (typeof s[id] === 'number' && isFinite(s[id])) document.getElementById(id).value = s[id];
+  });
+  if (typeof s.windSound === 'boolean') windSound = s.windSound;
+  if (SCALE_NAMES.indexOf(s.scale) >= 0) currentScale = s.scale;
+  if (Array.isArray(s.customScale)) {
+    var keys = s.customScale.filter(function(k) { return k === Math.floor(k) && k >= 0 && k < 12; });
+    if (keys.length) customScale = keys.sort(function(a, b) { return a - b; });
+  }
+  if (s.sound === 'recorded') currentSound = 'recorded';
+  if (typeof s.sampleId === 'string') activeSampleId = s.sampleId;
+  physicsOn = !!s.physicsOn;
+}
+
+// Replays the saved engine-side state: physics on, and the recorded voice (a bank sample
+// re-selected by id, or the last take the engine keeps on its own).
+function restoreEngine(s) {
+  if (!Engine || !s) return;
+  _userChangedAt = Date.now(); // the engine catches up over the next few polls
+  if (physicsOn) Engine.setPhysics({ on: true });
+  if (currentSound !== 'recorded') return;
+  var useTake = function() {
+    Engine.setSound({ mode: 'recorded' }); // the engine falls back to metal if there's no take
+  };
+  if (activeSampleId) {
+    Engine.selectSample({ id: activeSampleId }).then(function() {
+      showSound('recorded');
+      refreshBank(); // the next state poll fills in the sample's description
+    }, function() { activeSampleId = null; useTake(); });
+  } else {
+    useTake();
+  }
+}
+
 function sv(id) {
   var n = gv(id), el = document.getElementById('v-' + id);
   if (!el) return;
@@ -195,6 +261,7 @@ function sendParams() {
     customScale: customScale,
     windSoundGain: windSoundGain()
   });
+  saveSettings();
 }
 
 function makeChips(containerId, names, getCurrent, setCurrent) {
@@ -231,6 +298,14 @@ function buildKeyboard() {
 }
 
 window.addEventListener('load', function() {
+  var saved = loadSettings();
+  applySettings(saved);
+  showPhysics(physicsOn);
+  document.getElementById('custom-keys').style.display = currentScale === 'Custom' ? 'block' : 'none';
+  var ws = document.getElementById('wind-sound');
+  ws.textContent = windSound ? 'On' : 'Off';
+  ws.classList.toggle('active', windSound);
+
   document.querySelectorAll('input[type=range]').forEach(function(el) {
     sv(el.id);
     if (el.id === 'trigger') return; // wired separately below
@@ -289,12 +364,14 @@ window.addEventListener('load', function() {
     _userChangedAt = Date.now();
     showPhysics(!physicsOn);
     if (Engine) Engine.setPhysics({ on: physicsOn });
+    saveSettings();
   });
 
   if (!Engine) {
     document.getElementById('motion-status').textContent = 'Open Pocket Chimes on your phone to play';
   }
   sendParams();
+  restoreEngine(saved);
   requestAnimationFrame(loop);
 });
 
@@ -329,6 +406,7 @@ function chooseSound(mode) {
   }
   showSound(mode);
   if (Engine) Engine.setSound({ mode: mode });
+  saveSettings();
 }
 
 // Recording: Record opens the mic (standby, with a level meter and a trigger level),
@@ -401,6 +479,8 @@ function recordingFinished(sample) {
   activeSampleId = null;
   _userChangedAt = Date.now();
   showRecordState('idle');
+  currentSound = 'recorded';
+  saveSettings();
   showSaveRow(true);
   renderBank();
   document.getElementById('rec-status').textContent = describeSample(sample);
@@ -484,6 +564,7 @@ function renderBank() {
         showSaveRow(false);
         document.getElementById('rec-status').textContent = describeSample(m);
         renderBank();
+        saveSettings();
       });
     });
     var del = document.createElement('button');
@@ -512,6 +593,7 @@ function saveSample() {
     showSaveRow(false);
     document.getElementById('rec-status').textContent = describeSample(m);
     refreshBank();
+    saveSettings();
   }, function() {
     document.getElementById('rec-status').textContent = 'Nothing to save yet — record a sound first.';
   });
