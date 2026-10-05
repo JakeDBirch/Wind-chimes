@@ -30,7 +30,6 @@ public class ChimeEnginePlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func setParams(_ call: CAPPluginCall) {
         let windStrength = number(call, "windStrength")
         let windConsistency = number(call, "windConsistency")
-        let sensitivity = number(call, "sensitivity")
         let tubeCount = number(call, "tubeCount").map { Int($0.rounded()) }
         let register = number(call, "register")
         let scale = call.getString("scale")
@@ -41,7 +40,6 @@ public class ChimeEnginePlugin: CAPPlugin, CAPBridgedPlugin {
         engine.updateParams { p in
             if let windStrength { p.windStrength = windStrength }
             if let windConsistency { p.windConsistency = min(1, max(0, windConsistency)) }
-            if let sensitivity { p.sensitivity = sensitivity }
             if let tubeCount { p.tubeCount = min(12, max(1, tubeCount)) }
             if let register { p.register = register }
             if let scale { p.scale = scale }
