@@ -93,8 +93,7 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px;
     </div>
     <div class="row">
       <span class="label">Wind sound</span>
-      <input type="range" id="windSound" min="0" max="100" step="1" value="58">
-      <span class="val" id="v-windSound">-20 dB</span>
+      <button class="schip active" id="wind-sound">On</button>
     </div>
     <div class="row">
       <span class="label">Wind tightness</span>
@@ -105,11 +104,6 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px;
 
   <div class="section">
     <div class="stitle">Chimes</div>
-    <div class="row">
-      <span class="label">Sensitivity</span>
-      <input type="range" id="sensitivity" min="0" max="100" step="1" value="21">
-      <span class="val" id="v-sensitivity">21</span>
-    </div>
     <div class="row">
       <span class="label">Chimes</span>
       <input type="range" id="tubeCount" min="3" max="12" step="1" value="6">
@@ -198,15 +192,14 @@ var _userChangedAt = 0; // ignore engine state briefly after a tap, so an in-fli
 
 // ── Helpers ───────────────────────────────────────────────
 function gv(id) { return parseFloat(document.getElementById(id).value); }
-// Wind sound slider: 0 is silent (−∞); the rest spans −48 dB to 0 dB
-function windSoundDb(v) { return v <= 0 ? -Infinity : -48 + v / 100 * 48; }
-function windSoundGain() { var dB = windSoundDb(gv('windSound')); return dB === -Infinity ? 0 : Math.pow(10, dB / 20); }
+var windSound = true;
+var WIND_SOUND_GAIN = 0.1; // -20 dB when on
+function windSoundGain() { return windSound ? WIND_SOUND_GAIN : 0; }
 
 function sv(id) {
   var n = gv(id), el = document.getElementById('v-' + id);
   if (!el) return;
   if (id === 'register') el.textContent = (n > 0 ? '+' : '') + n.toFixed(1);
-  else if (id === 'windSound') { var dB = windSoundDb(n); el.textContent = dB === -Infinity ? '−∞' : Math.round(dB) + ' dB'; }
   else el.textContent = Math.round(n);
 }
 
@@ -216,7 +209,6 @@ function sendParams() {
   Engine.setParams({
     windStrength: 0.10 + gv('windStrength') / 100 * 0.40,
     windConsistency: gv('windConsistency') / 100,
-    sensitivity: 0.1 + gv('sensitivity') / 100 * 1.9,
     tubeCount: Math.round(gv('tubeCount')),
     register: gv('register'),
     scale: currentScale,
@@ -277,6 +269,13 @@ window.addEventListener('load', function() {
       document.getElementById('custom-keys').style.display = n === 'Custom' ? 'block' : 'none';
     });
   buildKeyboard();
+
+  document.getElementById('wind-sound').addEventListener('click', function() {
+    windSound = !windSound;
+    this.textContent = windSound ? 'On' : 'Off';
+    this.classList.toggle('active', windSound);
+    sendParams();
+  });
 
 
   makeChips('sound-chips', ['Metal', 'Recorded'],

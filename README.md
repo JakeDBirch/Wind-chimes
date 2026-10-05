@@ -11,9 +11,8 @@ Pocket Chimes is an iOS app built with [Capacitor](https://capacitorjs.com). The
 | *(hidden)* Phone mode | Simulated wind drives the chimes. Hang the phone upside down (top edge toward the ground) for a second and its own motion takes over; turn it upright again to go back to wind |
 | **Strength** | How hard the wind blows |
 | **Consistency** | Low: gusty and shifting, long lulls, half of them truly still, big wander within each gust. High: long steady holds, short lulls that stay a breeze, little wander. Strength scales all of it |
-| **Wind sound** | Level of the wind itself, which follows the same gusts that move the chimes. −∞ at the bottom of the slider turns it off; silent in phone mode |
+| **Wind sound** | The sound of the wind itself, following the same gusts that move the chimes. On or off; silent in phone mode |
 | *(tuning branch)* Wind tightness | How closely the wind sound tracks the force on the chimes: 0 is a smooth, lagging impression; 1 follows every gust and jiggle almost directly, for judging the physics by ear. Fixed at 0.6 in the main build |
-| **Sensitivity** | How much of the wind's force reaches the chimes |
 | **Chimes** | Number of tubes, 3–12 |
 | **Register** | Pitch, ±2 octaves |
 | **Scale** | Which notes the tubes are tuned to (default Pentatonic). *Chord Seq* cycles through a chord progression; *Custom* shows an octave of keys to pick notes from |

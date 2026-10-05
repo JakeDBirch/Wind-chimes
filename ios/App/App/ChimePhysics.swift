@@ -4,7 +4,7 @@ import Foundation
 struct ChimeParams {
     var windStrength = 0.3
     var windConsistency = 0.4 // 0 = gusty and shifting with long calms, 1 = a steady breeze
-    var sensitivity = 0.5     // how much wind force reaches the chimes
+    let sensitivity = 0.5     // how much wind force reaches the chimes (the old slider's default)
     var tubeCount = 6
     var register = 0.0
     var scale = "Pentatonic"
@@ -571,10 +571,15 @@ final class ChimePhysics {
             motionY += (motionRawY - motionY) * 0.4
             motionBaseX += (motionX - motionBaseX) * 0.02
             motionBaseY += (motionY - motionBaseY) * 0.02
+            // Scaled so a gentle sway lands around a moderate gust (the wind model's
+            // forces are ~0.3), and capped so a shake can't turn violent
             let fx = (motionX - motionBaseX) * motionGain
             let fy = (motionY - motionBaseY) * motionGain
-            windX = -fx * 0.5
-            windY = fy * 0.5
+            var mx = -fx * 0.12, my = fy * 0.12
+            let mag = (mx * mx + my * my).squareRoot()
+            if mag > 0.6 { mx *= 0.6 / mag; my *= 0.6 / mag }
+            windX = mx
+            windY = my
             windSurge = 0
             windMeanX *= 0.9
             windMeanY *= 0.9
