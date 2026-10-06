@@ -22,15 +22,6 @@ final class ChimeEngine {
     private var accumulator = 0.0
     private var physicsOn = false
     private var resumeAfterInterruption = false // physics was on when another app took the audio
-
-    // Shake control: each shake is one swing of the phone past ~0.9 g of its own
-    // acceleration, and how hard it is sets the wind's strength. See detectShake.
-    private var inShake = false
-    private var shakePeak = 0.0
-    private var lastShakeEnd = 0.0
-    private var shakesInBurst = 0
-    private var shakeStrength = 0.0     // 0–1, the page's Strength slider
-    private var lastShakeAt = 0.0       // CACurrentMediaTime of the last shake, 0 if none
     private var windSoundEnvelope = 0.0
     private var source = "wind"
     private var sound = "metal" // "metal" | "recorded"
@@ -185,8 +176,6 @@ final class ChimeEngine {
             state["triggerLevel"] = triggerLevel
             state["recordSeconds"] = recordState == .recording ? CACurrentMediaTime() - recordingStart : 0
             state["motionAvailable"] = motion.isDeviceMotionAvailable
-            state["windStrength"] = physics.params.windStrength
-            state["lastShakeAgo"] = lastShakeAt > 0 ? CACurrentMediaTime() - lastShakeAt : -1
             if let sample = userSample {
                 state["sample"] = sample.info
                 state["takeUnsaved"] = takeUnsaved
@@ -437,7 +426,6 @@ final class ChimeEngine {
 
         if let data = motion.deviceMotion {
             updateSourceFromOrientation(data)
-            if physics.params.shakeControl && source == "wind" { detectShake(data.userAcceleration) }
             if physics.motionOn {
                 // Same units and axes as the web's accelerationIncludingGravity on iOS
                 physics.motionRawX = (data.gravity.x + data.userAcceleration.x) * ChimePhysics.g
@@ -462,37 +450,6 @@ final class ChimeEngine {
         let tau = magnitude > windSoundEnvelope ? 0.7 + (0.05 - 0.7) * t : 2.0 + (0.25 - 2.0) * t
         windSoundEnvelope += (magnitude - windSoundEnvelope) * (1 - exp(-ChimePhysics.dt / tau))
         synth.windLevel = windSoundEnvelope
-    }
-
-    // MARK: - Shake control
-
-    /// A shake begins when the phone's own acceleration passes 0.9 g and ends when it
-    /// drops under 0.4 g. Its peak sets Strength: 1 g is a light shake, 3 g a hard one.
-    /// Within a burst of shakes the value settles toward the burst's average, so one
-    /// odd shake doesn't throw it; a burst ends after a second of stillness.
-    private func detectShake(_ a: CMAcceleration) {
-        let g = (a.x * a.x + a.y * a.y + a.z * a.z).squareRoot()
-        let now = CACurrentMediaTime()
-        if inShake {
-            shakePeak = max(shakePeak, g)
-            guard g < 0.4 else { return }
-            inShake = false
-            let gap = now - lastShakeEnd
-            lastShakeEnd = now
-            shakesInBurst = gap < 1.0 ? shakesInBurst + 1 : 1
-            let blend = shakesInBurst == 1 ? 1.0 : 2.0 / Double(shakesInBurst + 1)
-
-            let strength = min(1, max(0, (shakePeak - 0.8) / 2.2))
-            shakeStrength = shakesInBurst == 1 ? strength : shakeStrength + (strength - shakeStrength) * blend
-            lastShakeAt = now
-
-            var params = physics.params
-            params.windStrength = 0.10 + shakeStrength * 0.40 // the page's Strength mapping
-            physics.apply(params)
-        } else if g > 0.9 {
-            inShake = true
-            shakePeak = g
-        }
     }
 
     // MARK: - Motion

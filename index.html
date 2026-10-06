@@ -9,38 +9,54 @@
 <title>Pocket Chimes</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { background: #0b0c0e; color: #c8d0c8; font-family: 'Courier New', monospace; font-size: 24px; overflow: hidden; height: 100%; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+html, body { background: #0b0c0e; color: #c8d0c8; font-family: ui-rounded, 'SF Pro Rounded', -apple-system, 'Nunito', 'Avenir Next Rounded', 'Helvetica Neue', sans-serif; font-weight: 600; font-size: 22px; overflow: hidden; height: 100%; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 #viz { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
 /* A line of text that fades in on a gesture and out again */
-.hud { position: fixed; left: 0; right: 0; top: calc(26px + env(safe-area-inset-top)); text-align: center; font-size: 22px; letter-spacing: 0.3em; text-transform: uppercase; color: rgba(255,255,255,0.85); opacity: 0; transition: opacity 0.6s; pointer-events: none; text-shadow: 0 1px 8px rgba(0,0,0,0.6); }
+.hud { position: fixed; left: 0; right: 0; top: calc(26px + env(safe-area-inset-top)); text-align: center; font-size: 26px; font-weight: 700; letter-spacing: 0.02em; color: rgba(255,255,255,0.88); opacity: 0; transition: opacity 0.6s; pointer-events: none; text-shadow: 0 1px 8px rgba(0,0,0,0.6); }
 .hud.show { opacity: 1; transition: opacity 0.12s; }
-.hud.sub { top: calc(62px + env(safe-area-inset-top)); font-size: 18px; letter-spacing: 0.2em; color: rgba(255,255,255,0.55); }
+.hud.sub { top: calc(64px + env(safe-area-inset-top)); font-size: 19px; letter-spacing: 0.02em; color: rgba(255,255,255,0.55); }
 /* Wind sound toggle */
 #wind-btn { position: fixed; top: calc(14px + env(safe-area-inset-top)); right: calc(14px + env(safe-area-inset-right)); width: 52px; height: 52px; border: none; background: none; padding: 10px; outline: none; -webkit-tap-highlight-color: transparent; opacity: 0.85; }
 #wind-btn.off { opacity: 0.3; }
 #wind-btn svg { width: 32px; height: 32px; display: block; }
 #wind-btn.off svg path { stroke-dasharray: 3 3; }
+/* Wind drawer: drops down from the icon */
+#catch { position: fixed; inset: 0; display: none; }
+#catch.open { display: block; }
+#drawer { position: fixed; top: calc(66px + env(safe-area-inset-top)); right: calc(14px + env(safe-area-inset-right)); width: min(320px, calc(100vw - 28px)); background: rgba(16,18,20,0.96); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 18px 20px 14px; transform: translateY(-12px) scale(0.96); transform-origin: top right; opacity: 0; pointer-events: none; transition: transform 0.22s cubic-bezier(.2,.8,.2,1), opacity 0.18s; box-shadow: 0 12px 40px rgba(0,0,0,0.45); }
+#drawer.open { transform: none; opacity: 1; pointer-events: auto; }
+.drow { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.drow:last-child { margin-bottom: 4px; }
+.dlabel { font-size: 18px; color: #d4dce2; }
+.dval { font-size: 16px; color: #8a96a0; min-width: 36px; text-align: right; font-variant-numeric: tabular-nums; }
+.dslider { display: block; width: 100%; margin-top: 8px; }
+.dgroup { margin-bottom: 14px; }
+/* Toggle switch */
+.switch { position: relative; width: 52px; height: 30px; border-radius: 15px; background: #2a3338; border: none; outline: none; padding: 0; transition: background 0.2s; -webkit-tap-highlight-color: transparent; flex-shrink: 0; }
+.switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #e6ecf0; transition: transform 0.2s; }
+.switch.on { background: #5aa37a; }
+.switch.on::after { transform: translateX(22px); }
 /* Sound sheet: opened by a double tap on the clapper */
 #dim { position: fixed; inset: 0; background: rgba(0,0,0,0.45); opacity: 0; pointer-events: none; transition: opacity 0.25s; }
 #dim.open { opacity: 1; pointer-events: auto; }
 #sheet { position: fixed; left: 0; right: 0; bottom: 0; background: rgba(12,14,16,0.97); border-top: 1px solid rgba(255,255,255,0.08); border-radius: 16px 16px 0 0; padding: 14px 18px calc(18px + env(safe-area-inset-bottom)); transform: translateY(105%); transition: transform 0.3s cubic-bezier(.2,.8,.2,1); max-height: 80vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 #sheet.open { transform: none; }
 .sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-.stitle { font-size: 16px; letter-spacing: 0.22em; text-transform: uppercase; color: #9ab; }
+.stitle { font-size: 18px; font-weight: 700; letter-spacing: 0.02em; color: #b8c4cc; }
 .close { border: none; background: none; color: #789; font-family: inherit; font-size: 28px; padding: 6px 10px; outline: none; }
 .row { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
 .label { width: 100px; flex-shrink: 0; font-size: 18px; color: #678; }
 .val { width: 56px; text-align: right; flex-shrink: 0; font-size: 20px; color: #9ab; font-variant-numeric: tabular-nums; }
-input[type=range] { flex: 1; -webkit-appearance: none; height: 2px; background: #243; border-radius: 1px; outline: none; }
-input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #0b0c0e; border: 1.5px solid #9ab; }
-.schip { padding: 6px 12px; border-radius: 6px; border: 1px solid #2a3338; background: none; color: #678; font-family: inherit; font-size: 18px; outline: none; letter-spacing: 0.08em; text-transform: uppercase; }
+input[type=range] { flex: 1; -webkit-appearance: none; height: 4px; background: #2a3338; border-radius: 2px; outline: none; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px; height: 26px; border-radius: 50%; background: #e6ecf0; border: none; box-shadow: 0 2px 6px rgba(0,0,0,0.4); }
+.schip { padding: 8px 16px; border-radius: 12px; border: 1px solid #2a3338; background: none; color: #678; font-family: inherit; font-size: 18px; outline: none; letter-spacing: 0.01em;  }
 .schip.active { border-color: #cde; color: #cde; background: rgba(255,255,255,0.06); }
 .rec-row { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
-.rec-btn { white-space: nowrap; padding: 8px 14px; border-radius: 6px; border: 1px solid #c87a7a; background: rgba(200,122,122,0.07); color: #c87a7a; font-family: inherit; font-size: 18px; letter-spacing: 0.16em; text-transform: uppercase; outline: none; }
+.rec-btn { white-space: nowrap; padding: 9px 16px; border-radius: 12px; border: 1px solid #c87a7a; background: rgba(200,122,122,0.07); color: #c87a7a; font-family: inherit; font-size: 18px; letter-spacing: 0.16em;  outline: none; }
 .rec-btn.quiet { border-color: #2a3338; color: #678; background: none; }
 .rec-btn.live { background: rgba(200,122,122,0.3); }
-.rec-status { font-size: 16px; letter-spacing: 0.08em; color: #678; }
-.meter { position: relative; height: 10px; background: #0e1012; border: 1px solid #243; border-radius: 3px; margin-top: 12px; overflow: hidden; }
+.rec-status { font-size: 16px; letter-spacing: 0.01em; color: #678; }
+.meter { position: relative; height: 12px; background: #0e1012; border: 1px solid #243; border-radius: 6px; margin-top: 12px; overflow: hidden; }
 .meter-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: #4a7058; transition: width 0.05s linear; }
 .meter-fill.hot { background: #c87a7a; }
 .meter-mark { position: absolute; top: -1px; bottom: -1px; width: 2px; background: #cde; }
@@ -48,16 +64,16 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px;
 .rec-panel.open { display: block; }
 .save-row { display: none; align-items: center; gap: 8px; margin-top: 10px; }
 .save-row.open { display: flex; }
-.name-input { flex: 1; min-width: 0; padding: 8px 9px; border-radius: 6px; border: 1px solid #2a3338; background: #0e1012; color: #c8d0c8; font-family: inherit; font-size: 22px; outline: none; -webkit-user-select: text; user-select: text; }
+.name-input { flex: 1; min-width: 0; padding: 9px 11px; border-radius: 12px; border: 1px solid #2a3338; background: #0e1012; color: #c8d0c8; font-family: inherit; font-size: 22px; outline: none; -webkit-user-select: text; user-select: text; }
 .bank { margin-top: 10px; }
-.bank-row { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border: 1px solid #243; border-radius: 6px; margin-bottom: 5px; }
+.bank-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid #243; border-radius: 12px; margin-bottom: 5px; }
 .bank-row.active { border-color: #9ab; background: rgba(255,255,255,0.04); }
 .bank-name { flex: 1; min-width: 0; font-size: 20px; color: #c8d0c8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bank-meta { font-size: 16px; color: #678; white-space: nowrap; }
-.bank-btn { padding: 5px 9px; border-radius: 4px; border: 1px solid #2a3338; background: none; color: #789; font-family: inherit; font-size: 16px; outline: none; letter-spacing: 0.08em; text-transform: uppercase; }
+.bank-btn { padding: 6px 11px; border-radius: 10px; border: 1px solid #2a3338; background: none; color: #789; font-family: inherit; font-size: 16px; outline: none; letter-spacing: 0.01em;  }
 .bank-btn.use { border-color: #9ab; color: #cde; }
 .bank-btn.del { color: #c87a7a; border-color: #3a2424; }
-.hint { font-size: 16px; color: #567; margin-top: 10px; letter-spacing: 0.05em; line-height: 1.6; }
+.hint { font-size: 16px; color: #567; margin-top: 10px; letter-spacing: 0.01em; line-height: 1.6; }
 </style>
 </head>
 <body>
@@ -73,6 +89,19 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px;
     <path d="M3 16h7a2 2 0 1 1-2 2"/>
   </svg>
 </button>
+
+<div id="catch"></div>
+<div id="drawer">
+  <div class="drow"><span class="dlabel">Wind sound</span><button class="switch" id="wind-switch" aria-label="Wind sound"></button></div>
+  <div class="dgroup">
+    <div class="drow" style="margin-bottom:0;"><span class="dlabel">Strength</span><span class="dval" id="v-strength">50</span></div>
+    <input class="dslider" type="range" id="strength" min="0" max="100" step="1" value="50">
+  </div>
+  <div class="dgroup">
+    <div class="drow" style="margin-bottom:0;"><span class="dlabel">Consistency</span><span class="dval" id="v-consistency">40</span></div>
+    <input class="dslider" type="range" id="consistency" min="0" max="100" step="1" value="40">
+  </div>
+</div>
 
 <div id="dim"></div>
 <div id="sheet">
@@ -100,7 +129,7 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px;
     <button class="rec-btn quiet" id="btn-save">Save</button>
   </div>
   <div class="bank" id="bank"></div>
-  <div class="hint">Swipe in from the left or right edge for another scale. Circle a finger around the outside to change register, around the chimes to add or remove them. Press and hold for a gust; tap in rhythm to set how steady the wind is. Shake the phone to set how strong: harder is stronger.</div>
+  <div class="hint">Swipe in from the left or right edge for another scale. Circle a finger around the outside to change register, around the chimes to add or remove them. Press and hold for a gust. The wind icon opens the wind: its sound, how strong it blows and how steady it is.</div>
 </div>
 
 <script>
@@ -132,8 +161,8 @@ var windSound = true;
 var currentSound = 'metal';   // 'metal' | 'recorded'
 var hasRecording = false;
 var activeSampleId = null;
-var windStrength = 0.3;    // engine value, set by shaking
-var windConsistency = 0.4; // 0–1, set by tapping in rhythm
+var windStrength = 50;     // 0–100, the drawer's Strength slider
+var windConsistency = 40;  // 0–100, the drawer's Consistency slider
 var S = null;            // latest engine state
 var hue = SCALES[0].hue, hueTarget = hue;
 var _userChangedAt = 0;  // ignore engine state briefly after a tap, so an in-flight poll can't undo it
@@ -161,8 +190,8 @@ function loadSettings() {
   if (typeof s.windSound === 'boolean') windSound = s.windSound;
   if (s.sound === 'recorded') currentSound = 'recorded';
   if (typeof s.sampleId === 'string') activeSampleId = s.sampleId;
-  if (isNum(s.windStrength)) windStrength = clamp(s.windStrength, 0.1, 0.5);
-  if (isNum(s.windConsistency)) windConsistency = clamp(s.windConsistency, 0, 1);
+  if (isNum(s.windStrength) && s.windStrength > 1) windStrength = clamp(Math.round(s.windStrength), 0, 100);
+  if (isNum(s.windConsistency) && s.windConsistency > 1) windConsistency = clamp(Math.round(s.windConsistency), 0, 100);
   hue = hueTarget = SCALES[scaleIndex].hue;
 }
 
@@ -172,12 +201,12 @@ function clamp(x, lo, hi) { return Math.max(lo, Math.min(hi, x)); }
 // ── Engine ────────────────────────────────────────────────
 function sendParams(extra) {
   var p = {
-    windConsistency: windConsistency,
+    windStrength: 0.10 + windStrength / 100 * 0.40,
+    windConsistency: windConsistency / 100,
     tubeCount: tubeCount,
     register: Math.round(register * 10) / 10,
     scale: SCALES[scaleIndex].name,
-    windSoundGain: windSound ? WIND_SOUND_GAIN : 0,
-    shakeControl: true
+    windSoundGain: windSound ? WIND_SOUND_GAIN : 0
   };
   if (extra) for (var k in extra) p[k] = extra[k];
   if (Engine) Engine.setParams(p);
@@ -298,20 +327,16 @@ function pointerUp(e) {
   }
 }
 
-// A double tap on the clapper opens the sound sheet. Any other taps are rhythm: from
-// the third tap in a row, the spacing sets Consistency (slow taps a second apart make
-// the wind gusty and shifting, a quick patter makes it steady). A lone tap does nothing.
+// A double tap on the clapper opens the sound sheet; any other tap does nothing.
 function tap(x, y) {
   var onClapper = Math.hypot(x - layout.clapperX, y - layout.clapperY) < Math.max(layout.clapperR + 10, 28);
   var now = performance.now();
   if (onClapper && now - _clapperTapAt < 320) {
     _clapperTapAt = 0;
-    _tapTimes = [];
     openSheet();
     return;
   }
   _clapperTapAt = onClapper ? now : 0;
-  tapRhythm();
 }
 
 function gust() {
@@ -320,19 +345,6 @@ function gust() {
   hud('Gust', '', 800);
 }
 
-var _tapTimes = [];
-function tapRhythm() {
-  var now = performance.now();
-  if (_tapTimes.length && now - _tapTimes[_tapTimes.length - 1] > 1200) _tapTimes = [];
-  _tapTimes.push(now);
-  if (_tapTimes.length > 6) _tapTimes.shift();
-  if (_tapTimes.length >= 3) {
-    var mean = (_tapTimes[_tapTimes.length - 1] - _tapTimes[0]) / (_tapTimes.length - 1) / 1000;
-    windConsistency = clamp((1.0 - mean) / 0.85, 0, 1); // 1 s apart → 0, 150 ms apart → 1
-    sendParams();
-    hud('Steady ' + Math.round(windConsistency * 100), '', 1100);
-  }
-}
 
 function changeScale(dir) {
   scaleIndex = (scaleIndex + dir + SCALES.length) % SCALES.length;
@@ -341,9 +353,19 @@ function changeScale(dir) {
   hud(SCALES[scaleIndex].name, '', 1300);
 }
 
-// ── Wind sound ────────────────────────────────────────────
-function showWindSound() {
+// ── Wind drawer ───────────────────────────────────────────
+function showWind() {
   document.getElementById('wind-btn').classList.toggle('off', !windSound);
+  document.getElementById('wind-switch').classList.toggle('on', windSound);
+  document.getElementById('strength').value = windStrength;
+  document.getElementById('consistency').value = windConsistency;
+  document.getElementById('v-strength').textContent = windStrength;
+  document.getElementById('v-consistency').textContent = windConsistency;
+}
+
+function openDrawer(open) {
+  document.getElementById('drawer').classList.toggle('open', open);
+  document.getElementById('catch').classList.toggle('open', open);
 }
 
 // ── Sound sheet ───────────────────────────────────────────
@@ -587,7 +609,7 @@ function saveSample() {
 // ── Startup ───────────────────────────────────────────────
 window.addEventListener('load', function() {
   loadSettings();
-  showWindSound();
+  showWind();
 
   var canvas = document.getElementById('viz');
   canvas.addEventListener('pointerdown', pointerDown);
@@ -596,10 +618,23 @@ window.addEventListener('load', function() {
   canvas.addEventListener('pointercancel', function() { G = null; });
 
   document.getElementById('wind-btn').addEventListener('click', function() {
+    openDrawer(!document.getElementById('drawer').classList.contains('open'));
+  });
+  document.getElementById('catch').addEventListener('click', function() { openDrawer(false); });
+  document.getElementById('wind-switch').addEventListener('click', function() {
     windSound = !windSound;
-    showWindSound();
+    showWind();
     sendParams();
-    hud('Wind sound ' + (windSound ? 'on' : 'off'), '', 900);
+  });
+  document.getElementById('strength').addEventListener('input', function() {
+    windStrength = Math.round(parseFloat(this.value));
+    document.getElementById('v-strength').textContent = windStrength;
+    sendParams();
+  });
+  document.getElementById('consistency').addEventListener('input', function() {
+    windConsistency = Math.round(parseFloat(this.value));
+    document.getElementById('v-consistency').textContent = windConsistency;
+    sendParams();
   });
 
   document.getElementById('dim').addEventListener('click', closeSheet);
@@ -622,8 +657,7 @@ window.addEventListener('load', function() {
     refreshBank();
   }
 
-  // Saved wind goes in with the first params; after that the shake detector owns it
-  sendParams({ windStrength: windStrength });
+  sendParams();
   restoreSound();
   keepPhysicsOn();
   requestAnimationFrame(loop);
@@ -644,7 +678,7 @@ function restoreSound() {
 }
 
 // ── State polling ─────────────────────────────────────────
-var _polling = 0, _lastShakeShown = 0, _source = 'wind';
+var _polling = 0, _source = 'wind';
 function loop() {
   if (Engine && (!_polling || Date.now() - _polling > 500) && document.visibilityState === 'visible') {
     _polling = Date.now();
@@ -657,13 +691,6 @@ function loop() {
       if (S.source !== _source) {
         _source = S.source;
         if (_source === 'phone') hud('Phone mode', 'swinging with you', 1600);
-      }
-      // A shake just set the wind: show what it chose, and remember it
-      if (isNum(S.lastShakeAgo) && S.lastShakeAgo >= 0 && S.lastShakeAgo < 0.5 && _lastShakeShown !== S.windStrength) {
-        _lastShakeShown = S.windStrength;
-        windStrength = S.windStrength;
-        hud('Wind ' + Math.round((windStrength - 0.1) / 0.4 * 100), '', 1400);
-        saveSettings();
       }
       updateMeter();
       if (S.sample && !hasRecording) {

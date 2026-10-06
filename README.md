@@ -14,10 +14,8 @@ Nothing on screen but the chimes. Physics is always on; everything is a gesture.
 | **Circle a finger around the outside** | Register, one octave per turn, clockwise up, ±2 octaves |
 | **Circle a finger over the chimes** | Add a chime per sixth of a turn clockwise, remove one anticlockwise, 3–12 |
 | **Press and hold** | A two-second gust |
-| **Tap in rhythm** | From the third tap in a row, the spacing sets Consistency: taps a second apart make the wind gusty and shifting, a quick patter makes it a steady breeze |
-| **Shake** | Strength: a light shake is a light wind, a hard one a strong wind. Within a burst the value settles on the burst's average |
 | **Double-tap the clapper** | Opens the sound sheet: Metal or Recorded, the recorder (standby, trigger, arm, stop, 10 s cap) and the sample bank |
-| **Wind icon** (top right) | Wind sound on or off |
+| **Wind icon** (top right) | Opens the wind drawer: wind sound on or off, **Strength** and **Consistency** sliders |
 | *(hidden)* Phone mode | Hang the phone upside down for a second and its own motion drives the chimes; upright again returns to wind |
 
 Pocket Chimes takes the audio for itself: it pauses whatever else was playing, and another app starting playback (or a call) stops the chimes. After a call they come back on their own; after music, tap the screen.
