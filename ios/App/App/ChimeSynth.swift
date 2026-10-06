@@ -143,6 +143,7 @@ final class SynthVoice {
     var frequency = Automation(440)
     var sample: [Float]?     // when set, replaces the sine
     var sampleStep = 1.0     // source samples advanced per output sample (pitch shift)
+    var loopStart = 0        // after the end of `sample`, playback continues from here
     var pitchBend = Automation(1) // multiplier on sampleStep, for a settling bend after the hit
     var filter: Biquad?
     var filterFrequency: Automation? // nil = cutoff fixed when the voice was built
@@ -162,6 +163,8 @@ final class SynthVoice {
         let sampleBuf = sample ?? []
         let sampleCount = sampleBuf.count
         let isSample = sampleCount > 1
+        let loopFrom = max(0, min(loopStart, sampleCount - 1))
+        let loopLen = Double(sampleCount - loopFrom)
 
         var offset = 0
         while offset < frames {
@@ -189,11 +192,11 @@ final class SynthVoice {
                 if isSample {
                     // Linear interpolation through the loop
                     let i0 = Int(samplePos)
-                    let i1 = i0 + 1 < sampleCount ? i0 + 1 : 0
+                    let i1 = i0 + 1 < sampleCount ? i0 + 1 : loopFrom
                     let t = samplePos - Double(i0)
                     x = Double(sampleBuf[i0]) * (1 - t) + Double(sampleBuf[i1]) * t
                     samplePos += step
-                    if samplePos >= Double(sampleCount) { samplePos -= Double(sampleCount) }
+                    if samplePos >= Double(sampleCount) { samplePos -= loopLen }
                 } else {
                     x = sin(phase)
                     phase += w * (f0 + fD * frac)

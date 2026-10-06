@@ -1,16 +1,18 @@
 import Foundation
 
 /// A short recording from the microphone, prepared so a strike can play it at any
-/// pitch: silence trimmed, level normalized, the end crossfaded into the start so it
-/// loops without a click, and its fundamental frequency estimated.
+/// pitch: silence trimmed, level normalized, its fundamental frequency estimated, and
+/// shaped like a sampler's note: the start plays once, then a short sustain segment
+/// loops for as long as the note rings (see makeLoop).
 struct UserSample {
     var id = UUID().uuidString
     var name = ""
     let samples: [Float]
     let sampleRate: Double
     let pitch: Double     // estimated fundamental in Hz, or 0 if none was found
-    let duration: Double  // seconds of the prepared loop
+    let duration: Double  // seconds of the recording after trimming
     let loudness: Double  // playback gain evening out dense vs sparse material, see loudnessGain
+    let loopStart: Int    // playback wraps from the end of `samples` back to here
 
     /// What the page needs to list or describe a sample
     var info: [String: Any] { ["id": id, "name": name, "pitch": pitch, "duration": duration] }
@@ -41,20 +43,44 @@ struct UserSample {
         for i in 0..<fade { s[i] *= Float(i) / Float(fade) }
 
         let pitch = estimatePitch(s, sampleRate: sr)
+        let duration = Double(s.count) / sr
+        let loudness = loudnessGain(s)
+        let loopStart = makeLoop(&s, sampleRate: sr, pitch: pitch)
 
-        // Crossfade the tail into the head so the sample loops seamlessly
+        return UserSample(samples: s, sampleRate: sr, pitch: pitch, duration: duration,
+                          loudness: loudness, loopStart: loopStart)
+    }
+
+    /// Turns the recording into a one-shot head followed by a loop, the way a sampler
+    /// holds a note. Looping the whole recording made a delay effect at high pitches,
+    /// where the attack came round several times a second. The loop is a short stretch
+    /// of the sound's body, about 120 ms and a whole number of pitch periods when the
+    /// pitch is known, so the repetition sits on the note's own frequency and is not
+    /// heard as rhythm. Its last half is crossfaded into the material that leads into
+    /// it, so the wrap is seamless. Drops the samples after the loop; returns loopStart.
+    static func makeLoop(_ s: inout [Float], sampleRate sr: Double, pitch: Double) -> Int {
         let n = s.count
-        let x = min(Int(sr * 0.08), n / 4)
-        let m = n - x
-        var looped = Array(s[0..<m])
-        for i in (m - x)..<m {
-            let w = Float(i - (m - x)) / Float(x)
-            let a = cos(w * .pi / 2), b = sin(w * .pi / 2)
-            looped[i] = s[i] * a + s[i - (m - x)] * b
+        var loopLen: Int
+        if pitch > 0 {
+            let period = sr / pitch
+            let periods = max(2, Int((0.12 * sr / period).rounded()))
+            loopLen = Int((Double(periods) * period).rounded())
+        } else {
+            loopLen = Int(sr * 0.25)
         }
-
-        return UserSample(samples: looped, sampleRate: sr, pitch: pitch, duration: Double(m) / sr,
-                          loudness: loudnessGain(looped))
+        loopLen = max(2, min(loopLen, n / 2))
+        let loopStart = min(Int(Double(n) * 0.3), n - loopLen)
+        let loopEnd = loopStart + loopLen
+        let x = min(loopLen / 2, loopStart)
+        for k in 0..<x {
+            let w = Float(k) / Float(x)
+            let a = cos(w * .pi / 2), b = sin(w * .pi / 2)
+            let i = loopEnd - x + k
+            let j = loopStart - x + k
+            s[i] = s[i] * a + s[j] * b
+        }
+        s.removeSubrange(loopEnd..<n)
+        return loopStart
     }
 
     /// Playback gain that evens out loudness between dense material (a clean tone, RMS
@@ -123,6 +149,7 @@ enum SampleBank {
         var pitch: Double
         var duration: Double
         var created: Double
+        var loopStart: Int? // absent for samples saved before the head-plus-loop layout
 
         var info: [String: Any] { ["id": id, "name": name, "pitch": pitch, "duration": duration] }
     }
@@ -149,7 +176,7 @@ enum SampleBank {
 
     private static func meta(for sample: UserSample) -> Meta {
         Meta(id: sample.id, name: sample.name, sampleRate: sample.sampleRate, pitch: sample.pitch,
-             duration: sample.duration, created: Date().timeIntervalSince1970)
+             duration: sample.duration, created: Date().timeIntervalSince1970, loopStart: sample.loopStart)
     }
 
     private static func writePCM(_ sample: UserSample) {
@@ -161,9 +188,12 @@ enum SampleBank {
         guard let data = try? Data(contentsOf: pcmURL(meta.id)) else { return nil }
         let count = data.count / MemoryLayout<Float>.size
         guard count > 0 else { return nil }
-        let samples = data.withUnsafeBytes { Array($0.bindMemory(to: Float.self).prefix(count)) }
+        var samples = data.withUnsafeBytes { Array($0.bindMemory(to: Float.self).prefix(count)) }
+        let loudness = UserSample.loudnessGain(samples)
+        // Older entries hold the whole recording as the loop; give them the new layout
+        let loopStart = meta.loopStart ?? UserSample.makeLoop(&samples, sampleRate: meta.sampleRate, pitch: meta.pitch)
         return UserSample(id: meta.id, name: meta.name, samples: samples, sampleRate: meta.sampleRate,
-                          pitch: meta.pitch, duration: meta.duration, loudness: UserSample.loudnessGain(samples))
+                          pitch: meta.pitch, duration: meta.duration, loudness: loudness, loopStart: loopStart)
     }
 
     /// Adds a sample to the bank, or renames it if it's already there.
