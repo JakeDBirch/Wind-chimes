@@ -32,6 +32,12 @@ jobs:
           echo "$ASC_KEY" > "$RUNNER_TEMP/keys/AuthKey.p8"
           echo "ASC_KEY_PATH=$RUNNER_TEMP/keys/AuthKey.p8" >> "$GITHUB_ENV"
 
+      # Xcode creates a new cloud-managed Development certificate on every fresh CI
+      # machine and Apple caps how many a team can have, so note what exists now and
+      # delete what this run adds once the upload is done.
+      - name: Snapshot Development certificates
+        run: node scripts/asc-certs.mjs snapshot > "$RUNNER_TEMP/certs-before.json"
+
       - name: Archive
         run: |
           xcodebuild archive \
@@ -58,6 +64,13 @@ jobs:
             -authenticationKeyPath "$ASC_KEY_PATH" \
             -authenticationKeyID "$ASC_KEY_ID" \
             -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+
+      - name: Delete the Development certificate this run created
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/certs-before.json" ]; then
+            node scripts/asc-certs.mjs delete-new "$RUNNER_TEMP/certs-before.json"
+          fi
 
       - name: Remove API key
         if: always()

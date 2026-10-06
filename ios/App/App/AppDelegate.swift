@@ -1,5 +1,4 @@
 import UIKit
-import AVFoundation
 import Capacitor
 
 @UIApplicationMain
@@ -8,8 +7,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Play chime audio even when the ring/silent switch is on, mixing with other apps' audio.
-        try? AVAudioSession.sharedInstance().setCategory(.playback, options: [.mixWithOthers])
+        // Override point for customization after application launch.
         return true
     }
 
