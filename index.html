@@ -31,6 +31,12 @@ html, body { background: #0b0c0e; color: #c8d0c8; font-family: ui-rounded, -appl
 .dval { font-size: 16px; color: #8a96a0; min-width: 36px; text-align: right; font-variant-numeric: tabular-nums; }
 .dslider { display: block; width: 100%; margin-top: 8px; }
 .dgroup { margin-bottom: 14px; }
+/* Custom scale keyboard: an octave of keys along the bottom, shown while Custom is the scale */
+#keys { position: fixed; left: 0; right: 0; bottom: 0; display: flex; gap: 6px; align-items: flex-end; padding: 10px 12px calc(14px + env(safe-area-inset-bottom)); background: linear-gradient(to top, rgba(0,0,0,0.5), rgba(0,0,0,0)); transform: translateY(110%); transition: transform 0.3s cubic-bezier(.2,.8,.2,1); }
+#keys.open { transform: none; }
+.key { flex: 1; min-width: 0; height: 72px; border-radius: 14px; border: 1.5px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.55); font-family: inherit; font-weight: 700; font-size: 17px; outline: none; padding: 0; -webkit-tap-highlight-color: transparent; transition: background 0.15s, color 0.15s; }
+.key.black { height: 50px; background: rgba(0,0,0,0.35); color: rgba(255,255,255,0.4); }
+.key.active { background: rgba(255,255,255,0.85); color: #16181c; border-color: rgba(255,255,255,0.9); }
 /* Toggle switch */
 .switch { position: relative; width: 52px; height: 30px; border-radius: 15px; background: #2a3338; border: none; outline: none; padding: 0; transition: background 0.2s; -webkit-tap-highlight-color: transparent; flex-shrink: 0; }
 .switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #e6ecf0; transition: transform 0.2s; }
@@ -103,6 +109,8 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px;
   </div>
 </div>
 
+<div id="keys"></div>
+
 <div id="dim"></div>
 <div id="sheet">
   <div class="sheet-head"><span class="stitle">Sound</span><button class="close" id="btn-close">✕</button></div>
@@ -129,7 +137,7 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px;
     <button class="rec-btn quiet" id="btn-save">Save</button>
   </div>
   <div class="bank" id="bank"></div>
-  <div class="hint">Swipe in from the left or right edge for another scale. Circle a finger around the outside to change register, around the chimes to add or remove them. Press and hold for a gust. The wind icon opens the wind: its sound, how strong it blows and how steady it is.</div>
+  <div class="hint">Swipe in from the left or right edge for another scale; Custom brings up a keyboard to pick your own notes. Circle a finger around the outside to change register, around the chimes to add or remove them. Press and hold for a gust. The wind icon opens the wind: its sound, how strong it blows and how steady it is.</div>
 </div>
 
 <script>
@@ -152,7 +160,11 @@ var SCALES = [
   { name: 'Whole Tone',  hue: 305 },
   { name: 'Hirajoshi',   hue: 350 },
   { name: 'Chord Seq',   hue: 85 },
+  { name: 'Custom',      hue: 55 }, // your own notes, picked on the keyboard
 ];
+// Semitones above A, as the engine counts them
+var KEY_NAMES = ['A', 'A#', 'B', 'C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#'];
+var customScale = [0, 3, 5, 7, 10];
 
 var scaleIndex = 0;
 var register = 0;        // octaves, -2..2
@@ -173,7 +185,8 @@ var SETTINGS_KEY = 'pocketChimesGesture';
 function saveSettings() {
   try {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify({
-      scale: SCALES[scaleIndex].name, register: register, tubeCount: tubeCount, windSound: windSound,
+      scale: SCALES[scaleIndex].name,
+    customScale: customScale, customScale: customScale, register: register, tubeCount: tubeCount, windSound: windSound,
       sound: currentSound, sampleId: activeSampleId, windStrength: windStrength, windConsistency: windConsistency
     }));
   } catch (e) {}
@@ -185,6 +198,10 @@ function loadSettings() {
   if (!s || typeof s !== 'object') return;
   var i = SCALES.findIndex(function(x) { return x.name === s.scale; });
   if (i >= 0) scaleIndex = i;
+  if (Array.isArray(s.customScale)) {
+    var keys = s.customScale.filter(function(k) { return k === Math.floor(k) && k >= 0 && k < 12; });
+    if (keys.length) customScale = keys.sort(function(a, b) { return a - b; });
+  }
   if (isNum(s.register)) register = clamp(s.register, -2, 2);
   if (isNum(s.tubeCount)) tubeCount = clamp(Math.round(s.tubeCount), 3, 12);
   if (typeof s.windSound === 'boolean') windSound = s.windSound;
@@ -206,6 +223,7 @@ function sendParams(extra) {
     tubeCount: tubeCount,
     register: Math.round(register * 10) / 10,
     scale: SCALES[scaleIndex].name,
+    customScale: customScale,
     windSoundGain: windSound ? WIND_SOUND_GAIN : 0
   };
   if (extra) for (var k in extra) p[k] = extra[k];
@@ -349,8 +367,36 @@ function gust() {
 function changeScale(dir) {
   scaleIndex = (scaleIndex + dir + SCALES.length) % SCALES.length;
   hueTarget = SCALES[scaleIndex].hue;
+  showKeyboard();
   sendParams();
   hud(SCALES[scaleIndex].name, '', 1300);
+}
+
+// ── Custom scale keyboard ─────────────────────────────────
+function showKeyboard() {
+  document.getElementById('keys').classList.toggle('open', SCALES[scaleIndex].name === 'Custom');
+}
+
+function buildKeyboard() {
+  var el = document.getElementById('keys');
+  KEY_NAMES.forEach(function(name, semitone) {
+    var b = document.createElement('button');
+    b.className = 'key' + (name.length > 1 ? ' black' : '') + (customScale.indexOf(semitone) >= 0 ? ' active' : '');
+    b.textContent = name;
+    b.addEventListener('click', function() {
+      var i = customScale.indexOf(semitone);
+      if (i >= 0) {
+        if (customScale.length === 1) return; // keep at least one note
+        customScale.splice(i, 1);
+      } else {
+        customScale.push(semitone);
+      }
+      customScale.sort(function(a, b) { return a - b; });
+      b.classList.toggle('active', i < 0);
+      sendParams();
+    });
+    el.appendChild(b);
+  });
 }
 
 // ── Wind drawer ───────────────────────────────────────────
@@ -610,6 +656,8 @@ function saveSample() {
 window.addEventListener('load', function() {
   loadSettings();
   showWind();
+  buildKeyboard();
+  showKeyboard();
 
   var canvas = document.getElementById('viz');
   canvas.addEventListener('pointerdown', pointerDown);
@@ -792,19 +840,32 @@ function draw() {
 
     c.beginPath(); c.arc(wx(mx), wy(my), 2.5, 0, Math.PI * 2); c.fillStyle = hsla(hue, 20, 50, 1); c.fill();
 
+    // A tube seen end-on: a hollow ring, dark inside until a strike lights it up from
+    // within and the light fades back out
     var r = Math.max(4, TUBE_R * scale);
+    var wall = Math.max(2, r * 0.24);
+    var sx = wx(midX), sy = wy(midY);
+    var inner = r - wall / 2;
     if (absFlash > 0.01) {
-      // A glow that fades with the strike
-      c.beginPath(); c.arc(wx(midX), wy(midY), r * (1.6 + absFlash * 1.2), 0, Math.PI * 2);
-      c.fillStyle = hsla(hue, 80, 70, absFlash * 0.25); c.fill();
+      var litHue = flash < 0 ? (hue + 180) % 360 : hue; // tube on tube glows the opposite colour
+      var glow = c.createRadialGradient(sx, sy, 0, sx, sy, inner);
+      glow.addColorStop(0, hsla(litHue, 85, 85, Math.min(1, absFlash * 1.1)));
+      glow.addColorStop(0.55, hsla(litHue, 85, 65, absFlash * 0.8));
+      glow.addColorStop(1, hsla(litHue, 85, 55, absFlash * 0.25));
+      c.beginPath(); c.arc(sx, sy, inner, 0, Math.PI * 2);
+      c.fillStyle = glow; c.fill();
+    } else {
+      c.beginPath(); c.arc(sx, sy, inner, 0, Math.PI * 2);
+      c.fillStyle = hsla(hue, 30, 6, 0.55); c.fill();
     }
-    c.beginPath(); c.arc(wx(midX), wy(midY), r, 0, Math.PI * 2);
-    if (flash < -0.01) c.fillStyle = hsla((hue + 180) % 360, 55, 55 + absFlash * 15, 0.95); // tube on tube
-    else if (flash > 0.01) c.fillStyle = hsla(hue, 70, 60 + absFlash * 25, 0.95);          // clapper strike
-    else c.fillStyle = hsla(hue, 18, 48, 0.9);
-    c.fill();
-    c.beginPath(); c.arc(wx(midX) - r * 0.3, wy(midY) - r * 0.3, r * 0.4, 0, Math.PI * 2);
-    c.fillStyle = 'rgba(255,252,240,' + (0.08 + absFlash * 0.25) + ')'; c.fill();
+    c.beginPath(); c.arc(sx, sy, r - wall / 2, 0, Math.PI * 2);
+    c.lineWidth = wall;
+    c.strokeStyle = hsla(hue, 18, 52 + absFlash * 25, 0.95);
+    c.stroke();
+    // Rim highlight, the way light catches the top of a polished tube
+    c.beginPath(); c.arc(sx, sy, r - wall / 2, Math.PI * 1.1, Math.PI * 1.6);
+    c.lineWidth = wall * 0.45;
+    c.strokeStyle = 'rgba(255,252,240,' + (0.18 + absFlash * 0.3) + ')'; c.stroke();
   }
 }
 </script>
