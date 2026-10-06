@@ -11,6 +11,7 @@ struct ChimeParams {
     var windSoundGain = 0.1 // linear; 0 = off, 1 = full
     var windTightness = 0.6 // 0 = smooth, lagging impression; 1 = tracks the force almost directly
     var customScale = [0, 3, 5, 7, 10] // semitones above A, used when scale == "Custom"
+    var shakeControl = false // shaking the phone sets windStrength and windConsistency, see ChimeEngine
 
     let cordLength = 0.53
     let gap = 15.25 // mm between tubes

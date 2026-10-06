@@ -36,6 +36,7 @@ public class ChimeEnginePlugin: CAPPlugin, CAPBridgedPlugin {
         let windSoundGain = number(call, "windSoundGain")
         let windTightness = number(call, "windTightness")
         let customScale = (call.options["customScale"] as? [NSNumber])?.map { $0.intValue }
+        let shakeControl = call.getBool("shakeControl")
 
         engine.updateParams { p in
             if let windStrength { p.windStrength = windStrength }
@@ -46,6 +47,7 @@ public class ChimeEnginePlugin: CAPPlugin, CAPBridgedPlugin {
             if let windSoundGain { p.windSoundGain = min(1, max(0, windSoundGain)) }
             if let windTightness { p.windTightness = min(1, max(0, windTightness)) }
             if let customScale { p.customScale = customScale }
+            if let shakeControl { p.shakeControl = shakeControl }
         }
         call.resolve()
     }

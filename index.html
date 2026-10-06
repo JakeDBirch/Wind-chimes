@@ -4,393 +4,348 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0b0c0e">
 <title>Pocket Chimes</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { background: #0b0c0e; color: #c8d0c8; font-family: 'Courier New', monospace; font-size: 12px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
-.app { padding: 18px; padding-top: calc(18px + env(safe-area-inset-top)); padding-left: calc(18px + env(safe-area-inset-left)); padding-right: calc(18px + env(safe-area-inset-right)); padding-bottom: calc(100px + env(safe-area-inset-bottom)); max-width: 480px; margin: 0 auto; }
-h1 { font-size: 11px; letter-spacing: 0.28em; color: #7ac89a; margin-bottom: 3px; text-transform: uppercase; }
-.sub { font-size: 9px; color: #304838; letter-spacing: 0.15em; margin-bottom: 14px; }
-canvas { display: block; width: 100%; height: 340px; background: #0e1210; border: 1px solid #1a2a1e; border-radius: 6px; margin-bottom: 14px; }
-.section { margin-bottom: 16px; border-left: 1px solid #1a2a1e; padding-left: 12px; }
-.stitle { font-size: 8px; letter-spacing: 0.22em; text-transform: uppercase; color: #7ac89a; margin-bottom: 10px; }
+html, body { background: #0b0c0e; color: #c8d0c8; font-family: 'Courier New', monospace; font-size: 12px; overflow: hidden; height: 100%; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+#viz { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+/* A line of text that fades in on a gesture and out again */
+.hud { position: fixed; left: 0; right: 0; top: calc(26px + env(safe-area-inset-top)); text-align: center; font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase; color: rgba(255,255,255,0.85); opacity: 0; transition: opacity 0.6s; pointer-events: none; text-shadow: 0 1px 8px rgba(0,0,0,0.6); }
+.hud.show { opacity: 1; transition: opacity 0.12s; }
+.hud.sub { top: calc(46px + env(safe-area-inset-top)); font-size: 9px; letter-spacing: 0.2em; color: rgba(255,255,255,0.55); }
+/* Wind sound toggle */
+#wind-btn { position: fixed; top: calc(14px + env(safe-area-inset-top)); right: calc(14px + env(safe-area-inset-right)); width: 44px; height: 44px; border: none; background: none; padding: 10px; outline: none; -webkit-tap-highlight-color: transparent; opacity: 0.85; }
+#wind-btn.off { opacity: 0.3; }
+#wind-btn svg { width: 24px; height: 24px; display: block; }
+#wind-btn.off svg path { stroke-dasharray: 3 3; }
+/* Sound sheet: opened by a double tap on the clapper */
+#dim { position: fixed; inset: 0; background: rgba(0,0,0,0.45); opacity: 0; pointer-events: none; transition: opacity 0.25s; }
+#dim.open { opacity: 1; pointer-events: auto; }
+#sheet { position: fixed; left: 0; right: 0; bottom: 0; background: rgba(12,14,16,0.97); border-top: 1px solid rgba(255,255,255,0.08); border-radius: 16px 16px 0 0; padding: 14px 18px calc(18px + env(safe-area-inset-bottom)); transform: translateY(105%); transition: transform 0.3s cubic-bezier(.2,.8,.2,1); max-height: 80vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+#sheet.open { transform: none; }
+.sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.stitle { font-size: 8px; letter-spacing: 0.22em; text-transform: uppercase; color: #9ab; }
+.close { border: none; background: none; color: #789; font-family: inherit; font-size: 14px; padding: 6px 10px; outline: none; }
 .row { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
-.label { width: 130px; flex-shrink: 0; font-size: 9px; color: #4a7058; }
-.val { width: 48px; text-align: right; flex-shrink: 0; font-size: 10px; color: #7ac89a; font-variant-numeric: tabular-nums; }
-input[type=range] { flex: 1; -webkit-appearance: none; height: 2px; background: #1a2a1e; border-radius: 1px; outline: none; cursor: pointer; }
-input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #0b0c0e; border: 1.5px solid #7ac89a; }
-.schip { padding: 4px 9px; border-radius: 4px; border: 1px solid #1e2e22; background: none; color: #4a7060; font-family: 'Courier New', monospace; font-size: 9px; cursor: pointer; outline: none; transition: all 0.15s; letter-spacing: 0.05em; }
-.schip.active { border-color: #7ac89a; color: #7ac89a; background: rgba(122,200,154,0.08); }
-.select { flex: 1; min-width: 0; -webkit-appearance: none; appearance: none; padding: 7px 28px 7px 10px; border-radius: 6px; border: 1px solid #1e2e22; background: #0e1210 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%237ac89a' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 10px center; color: #7ac89a; font-family: 'Courier New', monospace; font-size: 10px; letter-spacing: 0.05em; outline: none; }
-.float-bar { position: fixed; bottom: calc(16px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); display: flex; gap: 8px; background: rgba(11,12,14,0.96); border: 1px solid #1a2a1e; border-radius: 10px; padding: 10px 14px; z-index: 100; }
-.fbtn { padding: 9px 16px; border-radius: 6px; border: 1px solid #7ac89a; background: rgba(122,200,154,0.07); color: #7ac89a; font-family: 'Courier New', monospace; font-size: 9px; letter-spacing: 0.16em; cursor: pointer; outline: none; text-transform: uppercase; }
-.fbtn:active { opacity: 0.6; }
-.fbtn.off { border-color: #c87a7a; color: #c87a7a; background: rgba(200,122,122,0.07); }
-/* Source toggle — Wind / Phone segmented */
-.seg { display: flex; border: 1px solid #2a3a2e; border-radius: 8px; overflow: hidden; margin-bottom: 12px; }
-.seg button { flex: 1; padding: 10px 0; background: none; border: none; color: #5a6a5e; font-family: 'Courier New', monospace; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; cursor: pointer; outline: none; transition: 0.18s; }
-.seg button.active { background: rgba(122,200,154,0.14); color: #aee3c4; }
-.seg button:first-child { border-right: 1px solid #2a3a2e; }
-.motion-status { font-size: 8px; letter-spacing: 0.12em; color: #7ac89a; text-transform: uppercase; margin: -6px 0 12px; min-height: 11px; }
-.rec-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
-.rec-btn { white-space: nowrap; padding: 7px 14px; border-radius: 6px; border: 1px solid #c87a7a; background: rgba(200,122,122,0.07); color: #c87a7a; font-family: 'Courier New', monospace; font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; cursor: pointer; outline: none; }
-.rec-btn.quiet { border-color: #2a3a2e; color: #5a6a5e; background: none; }
+.label { width: 60px; flex-shrink: 0; font-size: 9px; color: #678; }
+.val { width: 40px; text-align: right; flex-shrink: 0; font-size: 10px; color: #9ab; font-variant-numeric: tabular-nums; }
+input[type=range] { flex: 1; -webkit-appearance: none; height: 2px; background: #243; border-radius: 1px; outline: none; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #0b0c0e; border: 1.5px solid #9ab; }
+.schip { padding: 6px 12px; border-radius: 6px; border: 1px solid #2a3338; background: none; color: #678; font-family: inherit; font-size: 9px; outline: none; letter-spacing: 0.08em; text-transform: uppercase; }
+.schip.active { border-color: #cde; color: #cde; background: rgba(255,255,255,0.06); }
+.rec-row { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+.rec-btn { white-space: nowrap; padding: 8px 14px; border-radius: 6px; border: 1px solid #c87a7a; background: rgba(200,122,122,0.07); color: #c87a7a; font-family: inherit; font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; outline: none; }
+.rec-btn.quiet { border-color: #2a3338; color: #678; background: none; }
 .rec-btn.live { background: rgba(200,122,122,0.3); }
-.rec-status { font-size: 8px; letter-spacing: 0.08em; color: #556; }
-/* Level meter with the trigger threshold marked on it */
-.meter { position: relative; height: 10px; background: #0e1210; border: 1px solid #1a2a1e; border-radius: 3px; margin-top: 10px; overflow: hidden; }
+.rec-status { font-size: 8px; letter-spacing: 0.08em; color: #678; }
+.meter { position: relative; height: 10px; background: #0e1012; border: 1px solid #243; border-radius: 3px; margin-top: 12px; overflow: hidden; }
 .meter-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: #4a7058; transition: width 0.05s linear; }
 .meter-fill.hot { background: #c87a7a; }
-.meter-mark { position: absolute; top: -1px; bottom: -1px; width: 2px; background: #7ac89a; }
+.meter-mark { position: absolute; top: -1px; bottom: -1px; width: 2px; background: #cde; }
 .rec-panel { display: none; }
 .rec-panel.open { display: block; }
-/* Sample bank */
 .save-row { display: none; align-items: center; gap: 8px; margin-top: 10px; }
 .save-row.open { display: flex; }
-.name-input { flex: 1; min-width: 0; padding: 7px 9px; border-radius: 6px; border: 1px solid #1e2e22; background: #0e1210; color: #c8d0c8; font-family: 'Courier New', monospace; font-size: 10px; outline: none; }
+.name-input { flex: 1; min-width: 0; padding: 8px 9px; border-radius: 6px; border: 1px solid #2a3338; background: #0e1012; color: #c8d0c8; font-family: inherit; font-size: 11px; outline: none; -webkit-user-select: text; user-select: text; }
 .bank { margin-top: 10px; }
-.bank-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid #1a2a1e; border-radius: 6px; margin-bottom: 5px; }
-.bank-row.active { border-color: #7ac89a; background: rgba(122,200,154,0.06); }
+.bank-row { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border: 1px solid #243; border-radius: 6px; margin-bottom: 5px; }
+.bank-row.active { border-color: #9ab; background: rgba(255,255,255,0.04); }
 .bank-name { flex: 1; min-width: 0; font-size: 10px; color: #c8d0c8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.bank-meta { font-size: 8px; color: #4a7058; white-space: nowrap; }
-.bank-btn { padding: 4px 8px; border-radius: 4px; border: 1px solid #1e2e22; background: none; color: #4a7060; font-family: 'Courier New', monospace; font-size: 8px; cursor: pointer; outline: none; letter-spacing: 0.08em; text-transform: uppercase; }
-.bank-btn.use { border-color: #7ac89a; color: #7ac89a; }
+.bank-meta { font-size: 8px; color: #678; white-space: nowrap; }
+.bank-btn { padding: 5px 9px; border-radius: 4px; border: 1px solid #2a3338; background: none; color: #789; font-family: inherit; font-size: 8px; outline: none; letter-spacing: 0.08em; text-transform: uppercase; }
+.bank-btn.use { border-color: #9ab; color: #cde; }
 .bank-btn.del { color: #c87a7a; border-color: #3a2424; }
-/* Custom scale — one octave of keys, A to G# */
-.keys { display: flex; gap: 3px; margin-top: 8px; margin-bottom: 4px; align-items: flex-start; }
-.key { flex: 1; height: 38px; border-radius: 4px; border: 1px solid #1e2e22; background: none; color: #4a7060; font-family: 'Courier New', monospace; font-size: 8px; cursor: pointer; outline: none; padding: 0; }
-.key.black { height: 28px; background: #0e1210; border-color: #15201a; color: #3a5044; }
-.key.active { border-color: #7ac89a; color: #7ac89a; background: rgba(122,200,154,0.14); }
-.hint { font-size: 8px; color: #304838; margin-top: 4px; letter-spacing: 0.05em; }
+.hint { font-size: 8px; color: #567; margin-top: 10px; letter-spacing: 0.05em; line-height: 1.6; }
 </style>
 </head>
 <body>
-<div class="app">
-  <h1>Pocket Chimes</h1>
-  <div class="sub">2D pendulum system — top-down view</div>
 
-  <canvas id="viz" width="680" height="680"></canvas>
+<canvas id="viz"></canvas>
+<div class="hud" id="hud"></div>
+<div class="hud sub" id="hud2"></div>
 
-  <div class="motion-status" id="motion-status"></div>
+<button id="wind-btn" aria-label="Wind sound">
+  <svg viewBox="0 0 24 24" fill="none" stroke="#dfe6ea" stroke-width="1.6" stroke-linecap="round">
+    <path d="M3 8h10a2.5 2.5 0 1 0-2.5-2.5"/>
+    <path d="M3 12h14a3 3 0 1 1-3 3"/>
+    <path d="M3 16h7a2 2 0 1 1-2 2"/>
+  </svg>
+</button>
 
-  <div class="section" id="wind-section">
-    <div class="stitle">Wind</div>
-    <div class="row">
-      <span class="label">Strength</span>
-      <input type="range" id="windStrength" min="0" max="100" step="1" value="50">
-      <span class="val" id="v-windStrength">50</span>
+<div id="dim"></div>
+<div id="sheet">
+  <div class="sheet-head"><span class="stitle">Sound</span><button class="close" id="btn-close">✕</button></div>
+  <div id="sound-chips" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+  <div class="rec-row" id="rec-idle">
+    <button class="rec-btn" id="btn-record">Record</button>
+    <span class="rec-status" id="rec-status">Record a sound to use as the voice of the chimes.</span>
+  </div>
+  <div class="rec-panel" id="rec-panel">
+    <div class="meter"><div class="meter-fill" id="meter-fill"></div><div class="meter-mark" id="meter-mark"></div></div>
+    <div class="row" style="margin-top:8px;">
+      <span class="label">Trigger</span>
+      <input type="range" id="trigger" min="-60" max="0" step="1" value="-30">
+      <span class="val" id="v-trigger">-30</span>
     </div>
-    <div class="row">
-      <span class="label">Consistency</span>
-      <input type="range" id="windConsistency" min="0" max="100" step="1" value="40">
-      <span class="val" id="v-windConsistency">40</span>
-    </div>
-    <div class="row">
-      <span class="label">Wind sound</span>
-      <button class="schip active" id="wind-sound">On</button>
+    <div class="rec-status" id="rec-live"></div>
+    <div class="rec-row">
+      <button class="rec-btn" id="btn-arm">Arm</button>
+      <button class="rec-btn quiet" id="btn-cancel">Cancel</button>
     </div>
   </div>
-
-  <div class="section">
-    <div class="stitle">Chimes</div>
-    <div class="row">
-      <span class="label">Chimes</span>
-      <input type="range" id="tubeCount" min="3" max="12" step="1" value="6">
-      <span class="val" id="v-tubeCount">6</span>
-    </div>
-    <div class="row">
-      <span class="label">Register</span>
-      <input type="range" id="register" min="-2" max="2" step="0.1" value="0">
-      <span class="val" id="v-register">0</span>
-    </div>
-    <div class="row">
-      <span class="label">Scale</span>
-      <select class="select" id="scale"></select>
-    </div>
-    <div id="custom-keys" style="display:none;">
-      <div class="keys" id="keys"></div>
-      <div class="hint">Tap keys to choose the notes. Chimes take them low to high, then repeat an octave up.</div>
-    </div>
+  <div class="save-row" id="save-row">
+    <input class="name-input" id="sample-name" type="text" placeholder="Name this sound" maxlength="32" autocomplete="off">
+    <button class="rec-btn quiet" id="btn-save">Save</button>
   </div>
-
-  <div class="section">
-    <div class="stitle">Sound</div>
-    <div id="sound-chips" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
-    <div class="rec-row" id="rec-idle">
-      <button class="rec-btn" id="btn-record">Record</button>
-      <span class="rec-status" id="rec-status">Record a sound to use as the voice of the chimes.</span>
-    </div>
-    <div class="rec-panel" id="rec-panel">
-      <div class="meter"><div class="meter-fill" id="meter-fill"></div><div class="meter-mark" id="meter-mark"></div></div>
-      <div class="row" style="margin-top:8px;">
-        <span class="label">Trigger</span>
-        <input type="range" id="trigger" min="-60" max="0" step="1" value="-30">
-        <span class="val" id="v-trigger">-30</span>
-      </div>
-      <div class="rec-status" id="rec-live"></div>
-      <div class="rec-row">
-        <button class="rec-btn" id="btn-arm">Arm</button>
-        <button class="rec-btn quiet" id="btn-cancel">Cancel</button>
-      </div>
-    </div>
-    <div class="save-row" id="save-row">
-      <input class="name-input" id="sample-name" type="text" placeholder="Name this sound" maxlength="32" autocomplete="off">
-      <button class="rec-btn quiet" id="btn-save">Save</button>
-    </div>
-    <div class="bank" id="bank"></div>
-  </div>
-
-</div>
-
-<div class="float-bar">
-  <button class="fbtn off" id="btn-physics">Physics off</button>
-  <button class="fbtn" id="btn-gust">Gust</button>
+  <div class="bank" id="bank"></div>
+  <div class="hint">Swipe left or right for another scale. Circle a finger around the outside to change register, around the chimes to add or remove them. Tap for a gust; tap in rhythm to set how steady the wind is. Shake the phone to set how strong: harder is stronger.</div>
 </div>
 
 <script>
-// Pocket Chimes runs its physics and sound natively (the ChimeEngine plugin), so it keeps
-// chiming in the background and with the screen locked. This page is the controls and view.
+// Pocket Chimes, gesture edition: nothing on screen but the chimes. Physics and sound run
+// natively (the ChimeEngine plugin); this page draws the state and turns gestures into
+// settings. Everything is saved as it changes and restored on the next launch.
 var Engine = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.ChimeEngine;
 
-var TUBE_R = 0.035;       // tube radius in meters — matches ChimePhysics.tubeR
-var CORD_LENGTH = 0.53;   // fixed, matches ChimeParams.cordLength
-var GAP_MM = 15.25;       // fixed, matches ChimeParams.gap
-var SCALE_NAMES = ['Pentatonic', 'Major Pent', 'Major', 'Minor', 'Dorian', 'Lydian', 'Mixolydian',
-                   'Whole Tone', 'Blues', 'Hirajoshi', 'In Sen', 'Chord Seq', 'Custom'];
-// Semitones above A, as the engine counts them
-var KEY_NAMES = ['A', 'A#', 'B', 'C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#'];
-var currentScale = 'Pentatonic';
-var customScale = [0, 3, 5, 7, 10];
+var TUBE_R = 0.035;       // tube radius in meters, matches ChimePhysics.tubeR
+var CORD_LENGTH = 0.53;   // matches ChimeParams.cordLength
+var GAP_MM = 15.25;       // matches ChimeParams.gap
+var WIND_SOUND_GAIN = 0.1; // -20 dB when on
+
+// Each scale has its own hue, so the whole screen takes on its mood
+var SCALES = [
+  { name: 'Pentatonic',  hue: 150 },
+  { name: 'Major Pent',  hue: 45 },
+  { name: 'Minor',       hue: 225 },
+  { name: 'Lydian',      hue: 275 },
+  { name: 'Whole Tone',  hue: 305 },
+  { name: 'Hirajoshi',   hue: 350 },
+  { name: 'Chord Seq',   hue: 85 },
+];
+
+var scaleIndex = 0;
+var register = 0;        // octaves, -2..2
+var tubeCount = 6;       // 3..12
+var windSound = true;
 var currentSound = 'metal';   // 'metal' | 'recorded'
 var hasRecording = false;
-var physicsOn = false;
-var source = 'wind'; // 'wind' | 'phone'
-var S = null;        // latest engine state
-var _userChangedAt = 0; // ignore engine state briefly after a tap, so an in-flight poll can't undo it
-
-// ── Helpers ───────────────────────────────────────────────
-function gv(id) { return parseFloat(document.getElementById(id).value); }
-var windSound = true;
-var WIND_SOUND_GAIN = 0.1; // -20 dB when on
-function windSoundGain() { return windSound ? WIND_SOUND_GAIN : 0; }
+var activeSampleId = null;
+var windStrength = 0.3;    // engine value, set by shaking
+var windConsistency = 0.4; // 0–1, set by tapping in rhythm
+var S = null;            // latest engine state
+var hue = SCALES[0].hue, hueTarget = hue;
+var _userChangedAt = 0;  // ignore engine state briefly after a tap, so an in-flight poll can't undo it
 
 // ── Saved settings ────────────────────────────────────────
-// Everything on this page is written to localStorage whenever it changes and put back on
-// the next launch, so the app reopens the way it was left.
-var SETTINGS_KEY = 'pocketChimesSettings';
+var SETTINGS_KEY = 'pocketChimesGesture';
 
 function saveSettings() {
   try {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify({
-      windStrength: gv('windStrength'),
-      windConsistency: gv('windConsistency'),
-      windSound: windSound,
-      tubeCount: gv('tubeCount'),
-      register: gv('register'),
-      scale: currentScale,
-      customScale: customScale,
-      sound: currentSound,
-      sampleId: activeSampleId,
-      physicsOn: physicsOn
+      scale: SCALES[scaleIndex].name, register: register, tubeCount: tubeCount, windSound: windSound,
+      sound: currentSound, sampleId: activeSampleId, windStrength: windStrength, windConsistency: windConsistency
     }));
   } catch (e) {}
 }
 
 function loadSettings() {
-  try {
-    var s = JSON.parse(localStorage.getItem(SETTINGS_KEY));
-    return s && typeof s === 'object' ? s : null;
-  } catch (e) { return null; }
-}
-
-// Puts the sliders, scale and toggles back; the engine side is replayed in restoreEngine().
-function applySettings(s) {
-  if (!s) return;
-  ['windStrength', 'windConsistency', 'tubeCount', 'register'].forEach(function(id) {
-    if (typeof s[id] === 'number' && isFinite(s[id])) document.getElementById(id).value = s[id];
-  });
+  var s = null;
+  try { s = JSON.parse(localStorage.getItem(SETTINGS_KEY)); } catch (e) {}
+  if (!s || typeof s !== 'object') return;
+  var i = SCALES.findIndex(function(x) { return x.name === s.scale; });
+  if (i >= 0) scaleIndex = i;
+  if (isNum(s.register)) register = clamp(s.register, -2, 2);
+  if (isNum(s.tubeCount)) tubeCount = clamp(Math.round(s.tubeCount), 3, 12);
   if (typeof s.windSound === 'boolean') windSound = s.windSound;
-  if (SCALE_NAMES.indexOf(s.scale) >= 0) currentScale = s.scale;
-  if (Array.isArray(s.customScale)) {
-    var keys = s.customScale.filter(function(k) { return k === Math.floor(k) && k >= 0 && k < 12; });
-    if (keys.length) customScale = keys.sort(function(a, b) { return a - b; });
-  }
   if (s.sound === 'recorded') currentSound = 'recorded';
   if (typeof s.sampleId === 'string') activeSampleId = s.sampleId;
-  physicsOn = !!s.physicsOn;
+  if (isNum(s.windStrength)) windStrength = clamp(s.windStrength, 0.1, 0.5);
+  if (isNum(s.windConsistency)) windConsistency = clamp(s.windConsistency, 0, 1);
+  hue = hueTarget = SCALES[scaleIndex].hue;
 }
 
-// Replays the saved engine-side state: physics on, and the recorded voice (a bank sample
-// re-selected by id, or the last take the engine keeps on its own).
-function restoreEngine(s) {
-  if (!Engine || !s) return;
-  _userChangedAt = Date.now(); // the engine catches up over the next few polls
-  if (physicsOn) Engine.setPhysics({ on: true });
-  if (currentSound !== 'recorded') return;
-  var useTake = function() {
-    Engine.setSound({ mode: 'recorded' }); // the engine falls back to metal if there's no take
+function isNum(x) { return typeof x === 'number' && isFinite(x); }
+function clamp(x, lo, hi) { return Math.max(lo, Math.min(hi, x)); }
+
+// ── Engine ────────────────────────────────────────────────
+function sendParams(extra) {
+  var p = {
+    windConsistency: windConsistency,
+    tubeCount: tubeCount,
+    register: Math.round(register * 10) / 10,
+    scale: SCALES[scaleIndex].name,
+    windSoundGain: windSound ? WIND_SOUND_GAIN : 0,
+    shakeControl: true
   };
-  if (activeSampleId) {
-    Engine.selectSample({ id: activeSampleId }).then(function() {
-      showSound('recorded');
-      refreshBank(); // the next state poll fills in the sample's description
-    }, function() { activeSampleId = null; useTake(); });
-  } else {
-    useTake();
-  }
-}
-
-function sv(id) {
-  var n = gv(id), el = document.getElementById('v-' + id);
-  if (!el) return;
-  if (id === 'register') el.textContent = (n > 0 ? '+' : '') + n.toFixed(1);
-  else el.textContent = Math.round(n);
-}
-
-// Sliders are 0–100 on screen; map them onto the engine's ranges here
-function sendParams() {
-  if (!Engine) return;
-  Engine.setParams({
-    windStrength: 0.10 + gv('windStrength') / 100 * 0.40,
-    windConsistency: gv('windConsistency') / 100,
-    tubeCount: Math.round(gv('tubeCount')),
-    register: gv('register'),
-    scale: currentScale,
-    customScale: customScale,
-    windSoundGain: windSoundGain()
-  });
+  if (extra) for (var k in extra) p[k] = extra[k];
+  if (Engine) Engine.setParams(p);
   saveSettings();
 }
 
-function makeChips(containerId, names, getCurrent, setCurrent) {
-  var el = document.getElementById(containerId);
-  names.forEach(function(name) {
-    var b = document.createElement('button');
-    b.className = 'schip' + (name === getCurrent() ? ' active' : '');
-    b.textContent = name;
-    b.addEventListener('click', function() {
-      setCurrent(name);
-      el.querySelectorAll('.schip').forEach(function(c) { c.classList.remove('active'); });
-      b.classList.add('active');
-      sendParams();
-    });
-    el.appendChild(b);
-  });
+function keepPhysicsOn() {
+  _userChangedAt = Date.now();
+  if (Engine) Engine.setPhysics({ on: true });
 }
 
-function buildKeyboard() {
-  var el = document.getElementById('keys');
-  KEY_NAMES.forEach(function(name, semitone) {
-    var b = document.createElement('button');
-    b.className = 'key' + (name.length > 1 ? ' black' : '') + (customScale.indexOf(semitone) >= 0 ? ' active' : '');
-    b.textContent = name;
-    b.addEventListener('click', function() {
-      var i = customScale.indexOf(semitone);
-      if (i >= 0) customScale.splice(i, 1); else customScale.push(semitone);
-      customScale.sort(function(a, b) { return a - b; });
-      b.classList.toggle('active', i < 0);
-      sendParams();
-    });
-    el.appendChild(b);
-  });
+// ── HUD ───────────────────────────────────────────────────
+var _hudTimer = null, _hud2Timer = null;
+function hud(text, sub, hold) {
+  var el = document.getElementById('hud'), el2 = document.getElementById('hud2');
+  el.textContent = text; el.classList.add('show');
+  el2.textContent = sub || ''; el2.classList.toggle('show', !!sub);
+  clearTimeout(_hudTimer);
+  _hudTimer = setTimeout(function() { el.classList.remove('show'); el2.classList.remove('show'); }, hold || 1100);
 }
 
-window.addEventListener('load', function() {
-  var saved = loadSettings();
-  applySettings(saved);
-  showPhysics(physicsOn);
-  document.getElementById('custom-keys').style.display = currentScale === 'Custom' ? 'block' : 'none';
-  var ws = document.getElementById('wind-sound');
-  ws.textContent = windSound ? 'On' : 'Off';
-  ws.classList.toggle('active', windSound);
+function fmtRegister(r) { r = Math.round(r * 10) / 10; return (r > 0 ? '+' : r < 0 ? '−' : '') + Math.abs(r).toFixed(1) + ' oct'; }
 
-  document.querySelectorAll('input[type=range]').forEach(function(el) {
-    sv(el.id);
-    if (el.id === 'trigger') return; // wired separately below
-    el.addEventListener('input', function() {
-      sv(el.id);
-      sendParams();
-      draw();
-    });
-  });
+// ── Gestures ──────────────────────────────────────────────
+// One pointer at a time. A gesture starts undecided: it becomes a circular drag once the
+// finger's heading has turned enough, or on release a swipe (fast, straight, horizontal)
+// or a tap (short, still). Circling outside the ring sets the register, one octave per
+// turn; circling over the chimes adds one per sixth of a turn, clockwise to add.
+var G = null;
+var layout = { cx: 0, cy: 0, ringPx: 100, clapperX: 0, clapperY: 0, clapperR: 20 };
+var _clapperTapAt = 0, _gustTimer = null;
 
-  var scaleSelect = document.getElementById('scale');
-  SCALE_NAMES.forEach(function(name) {
-    var o = document.createElement('option');
-    o.value = name; o.textContent = name; o.selected = name === currentScale;
-    scaleSelect.appendChild(o);
-  });
-  scaleSelect.addEventListener('change', function() {
-    currentScale = this.value;
-    document.getElementById('custom-keys').style.display = currentScale === 'Custom' ? 'block' : 'none';
-    sendParams();
-  });
-  buildKeyboard();
+function pointerDown(e) {
+  if (G) return;
+  e.preventDefault();
+  var x = e.clientX, y = e.clientY;
+  G = { id: e.pointerId, x0: x, y0: y, t0: performance.now(), x: x, y: y, lastX: x, lastY: y,
+        mode: 'pending', heading: null, turn: 0, angle: Math.atan2(y - layout.cy, x - layout.cx),
+        r0: Math.hypot(x - layout.cx, y - layout.cy), acc: 0, pend: 0 };
+  if (S && !S.physicsOn) keepPhysicsOn();
+}
 
-  document.getElementById('wind-sound').addEventListener('click', function() {
-    windSound = !windSound;
-    this.textContent = windSound ? 'On' : 'Off';
-    this.classList.toggle('active', windSound);
-    sendParams();
-  });
+function pointerMove(e) {
+  if (!G || e.pointerId !== G.id) return;
+  e.preventDefault();
+  var x = e.clientX, y = e.clientY;
+  G.x = x; G.y = y;
+  var angle = Math.atan2(y - layout.cy, x - layout.cx);
+  var dAngle = angle - G.angle;
+  if (dAngle > Math.PI) dAngle -= Math.PI * 2; else if (dAngle < -Math.PI) dAngle += Math.PI * 2;
+  G.angle = angle;
 
-
-  makeChips('sound-chips', ['Metal', 'Recorded'],
-    function() { return currentSound === 'recorded' ? 'Recorded' : 'Metal'; },
-    function(n) { chooseSound(n === 'Recorded' ? 'recorded' : 'metal'); });
-  document.getElementById('btn-record').addEventListener('click', startRecording);
-  document.getElementById('btn-arm').addEventListener('click', armButton);
-  document.getElementById('btn-cancel').addEventListener('click', cancelRecording);
-  document.getElementById('trigger').addEventListener('input', function() {
-    sv('trigger');
-    if (Engine) Engine.setTriggerLevel({ dB: gv('trigger') });
-  });
-  document.getElementById('btn-save').addEventListener('click', saveSample);
-
-  if (Engine) {
-    Engine.addListener('recordingFinished', recordingFinished);
-    Engine.addListener('recordingFailed', recordingFailed);
-    refreshBank();
+  if (G.mode === 'pending') {
+    G.pend += dAngle; // the turn made before the gesture is recognised counts too
+    // Heading change tells a curve from a straight swipe, in steps of at least 8 px
+    var sx = x - G.lastX, sy = y - G.lastY;
+    if (Math.hypot(sx, sy) >= 8) {
+      var h = Math.atan2(sy, sx);
+      if (G.heading !== null) {
+        var dh = h - G.heading;
+        if (dh > Math.PI) dh -= Math.PI * 2; else if (dh < -Math.PI) dh += Math.PI * 2;
+        G.turn += dh;
+      }
+      G.heading = h; G.lastX = x; G.lastY = y;
+      if (Math.abs(G.turn) > 0.4 && Math.hypot(x - layout.cx, y - layout.cy) > 30) {
+        G.mode = G.r0 < layout.ringPx * 1.3 ? 'chimes' : 'register';
+        G.acc = 0;
+        dAngle = G.pend;
+      }
+    }
+    if (G.mode === 'pending') return;
   }
+  if (Math.hypot(x - layout.cx, y - layout.cy) < 30) return; // too near the center to read an angle
 
-  document.getElementById('btn-gust').addEventListener('click', function() {
-    _userChangedAt = Date.now();
-    if (Engine) Engine.gust();
-    showPhysics(true);
-  });
-  document.getElementById('btn-physics').addEventListener('click', function() {
-    _userChangedAt = Date.now();
-    showPhysics(!physicsOn);
-    if (Engine) Engine.setPhysics({ on: physicsOn });
-    saveSettings();
-  });
-
-  if (!Engine) {
-    document.getElementById('motion-status').textContent = 'Open Pocket Chimes on your phone to play';
+  if (G.mode === 'register') {
+    register = clamp(register + dAngle / (Math.PI * 2), -2, 2);
+    sendParams();
+    hud('Register', fmtRegister(register), 900);
+  } else if (G.mode === 'chimes') {
+    G.acc += dAngle / (Math.PI / 3);
+    while (Math.abs(G.acc) >= 1) {
+      var step = G.acc > 0 ? 1 : -1;
+      G.acc -= step;
+      var next = clamp(tubeCount + step, 3, 12);
+      if (next !== tubeCount) { tubeCount = next; sendParams(); }
+    }
+    hud(tubeCount + ' chimes', '', 900);
   }
+}
+
+function pointerUp(e) {
+  if (!G || e.pointerId !== G.id) return;
+  e.preventDefault();
+  var g = G; G = null;
+  if (g.mode !== 'pending') return;
+  var dt = performance.now() - g.t0;
+  var dx = g.x - g.x0, dy = g.y - g.y0, dist = Math.hypot(dx, dy);
+  if (dt < 350 && dist > 60 && Math.abs(dx) > 1.5 * Math.abs(dy)) {
+    changeScale(dx < 0 ? 1 : -1); // swipe left goes forward
+  } else if (dt < 300 && dist < 12) {
+    tap(g.x, g.y);
+  }
+}
+
+function tap(x, y) {
+  var onClapper = Math.hypot(x - layout.clapperX, y - layout.clapperY) < Math.max(layout.clapperR + 10, 28);
+  var now = performance.now();
+  if (onClapper && now - _clapperTapAt < 320) {
+    _clapperTapAt = 0;
+    clearTimeout(_gustTimer); _gustTimer = null;
+    openSheet();
+    return;
+  }
+  if (onClapper) {
+    // Hold the gust briefly in case a second tap follows
+    _clapperTapAt = now;
+    clearTimeout(_gustTimer);
+    _gustTimer = setTimeout(gust, 320);
+  } else {
+    _clapperTapAt = 0;
+    gust();
+  }
+}
+
+// Every tap is a gust. Taps in a row also set Consistency from their rhythm: slow taps
+// a second apart make the wind gusty and shifting, a quick patter makes it steady.
+// It takes three taps to count as a rhythm, so a lone gust changes nothing.
+var _tapTimes = [];
+function gust() {
+  _gustTimer = null;
+  _userChangedAt = Date.now();
+  if (Engine) Engine.gust();
+  var now = performance.now();
+  if (_tapTimes.length && now - _tapTimes[_tapTimes.length - 1] > 1200) _tapTimes = [];
+  _tapTimes.push(now);
+  if (_tapTimes.length > 6) _tapTimes.shift();
+  if (_tapTimes.length >= 3) {
+    var mean = (_tapTimes[_tapTimes.length - 1] - _tapTimes[0]) / (_tapTimes.length - 1) / 1000;
+    windConsistency = clamp((1.0 - mean) / 0.85, 0, 1); // 1 s apart → 0, 150 ms apart → 1
+    sendParams();
+    hud('Steady ' + Math.round(windConsistency * 100), '', 1100);
+  }
+}
+
+function changeScale(dir) {
+  scaleIndex = (scaleIndex + dir + SCALES.length) % SCALES.length;
+  hueTarget = SCALES[scaleIndex].hue;
   sendParams();
-  restoreEngine(saved);
-  requestAnimationFrame(loop);
-});
-
-// ── Controls ──────────────────────────────────────────────
-function showPhysics(on) {
-  physicsOn = on;
-  var btn = document.getElementById('btn-physics');
-  btn.textContent = on ? 'Physics on' : 'Physics off';
-  btn.classList.toggle('off', !on);
-  btn.classList.toggle('on', on);
+  hud(SCALES[scaleIndex].name, '', 1300);
 }
 
-// The phone drives the chimes when it hangs upside down; the engine decides.
-function showSource(src) {
-  source = src;
-  document.getElementById('motion-status').textContent = src === 'phone' ? 'Phone mode — swinging with you' : '';
+// ── Wind sound ────────────────────────────────────────────
+function showWindSound() {
+  document.getElementById('wind-btn').classList.toggle('off', !windSound);
 }
 
-// ── Sound ─────────────────────────────────────────────────
+// ── Sound sheet ───────────────────────────────────────────
+function openSheet() {
+  document.getElementById('sheet').classList.add('open');
+  document.getElementById('dim').classList.add('open');
+  refreshBank();
+}
+function closeSheet() {
+  document.getElementById('sheet').classList.remove('open');
+  document.getElementById('dim').classList.remove('open');
+  if (recState !== 'idle') cancelRecording();
+}
+
 function showSound(mode) {
   currentSound = mode;
   var chips = document.querySelectorAll('#sound-chips .schip');
@@ -409,11 +364,28 @@ function chooseSound(mode) {
   saveSettings();
 }
 
+function makeChips(containerId, names, getCurrent, setCurrent) {
+  var el = document.getElementById(containerId);
+  names.forEach(function(name) {
+    var b = document.createElement('button');
+    b.className = 'schip' + (name === getCurrent() ? ' active' : '');
+    b.textContent = name;
+    b.addEventListener('click', function() {
+      setCurrent(name);
+      el.querySelectorAll('.schip').forEach(function(c) { c.classList.remove('active'); });
+      b.classList.add('active');
+    });
+    el.appendChild(b);
+  });
+}
+
 // Recording: Record opens the mic (standby, with a level meter and a trigger level),
 // Arm waits for the level to cross the trigger, then Stop (or the 10 s cap) keeps it.
 var REC_MAX = 10;
 var recState = 'idle';
-var _meterShown = -60;
+var _meterShown = -60, _meterAt = 0;
+
+function gv(id) { return parseFloat(document.getElementById(id).value); }
 
 function showRecordState(state) {
   recState = state;
@@ -480,13 +452,12 @@ function recordingFinished(sample) {
   activeSampleId = null;
   _userChangedAt = Date.now();
   showRecordState('idle');
-  currentSound = 'recorded';
-  saveSettings();
   showSaveRow(true);
   renderBank();
   document.getElementById('rec-status').textContent = describeSample(sample);
   document.getElementById('btn-record').textContent = 'Re-record';
   showSound('recorded');
+  saveSettings();
 }
 
 function recordingFailed(err) {
@@ -499,11 +470,8 @@ function recordingFailed(err) {
                              'Recording failed. Try again.';
 }
 
-var _meterAt = 0;
 function updateMeter() {
   if (!S || recState === 'idle') return;
-  // The engine's meter rises instantly and falls at 40 dB/s; between its updates the
-  // bar keeps falling at the same rate on the clock, so it never looks stuck
   var now = performance.now();
   var dt = _meterAt ? Math.min(0.1, (now - _meterAt) / 1000) : 0;
   _meterAt = now;
@@ -530,13 +498,12 @@ function describeSample(sample) {
 
 function noteName(hz) {
   var names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-  var n = Math.round(12 * Math.log2(hz / 440)) + 69; // MIDI number
+  var n = Math.round(12 * Math.log2(hz / 440)) + 69;
   return names[((n % 12) + 12) % 12] + (Math.floor(n / 12) - 1);
 }
 
 // ── Sample bank ───────────────────────────────────────────
 var bankList = [];
-var activeSampleId = null;
 
 function refreshBank() {
   if (!Engine) return;
@@ -605,10 +572,67 @@ function saveSample() {
   });
 }
 
-// ── State polling ──────────────────────────────
-// One state request in flight at a time; if the bridge ever drops one, give up on it
-// after half a second rather than freezing the page's view of the engine
-var _polling = 0;
+// ── Startup ───────────────────────────────────────────────
+window.addEventListener('load', function() {
+  loadSettings();
+  showWindSound();
+
+  var canvas = document.getElementById('viz');
+  canvas.addEventListener('pointerdown', pointerDown);
+  canvas.addEventListener('pointermove', pointerMove);
+  canvas.addEventListener('pointerup', pointerUp);
+  canvas.addEventListener('pointercancel', function() { G = null; });
+
+  document.getElementById('wind-btn').addEventListener('click', function() {
+    windSound = !windSound;
+    showWindSound();
+    sendParams();
+    hud('Wind sound ' + (windSound ? 'on' : 'off'), '', 900);
+  });
+
+  document.getElementById('dim').addEventListener('click', closeSheet);
+  document.getElementById('btn-close').addEventListener('click', closeSheet);
+  makeChips('sound-chips', ['Metal', 'Recorded'],
+    function() { return currentSound === 'recorded' ? 'Recorded' : 'Metal'; },
+    function(n) { chooseSound(n === 'Recorded' ? 'recorded' : 'metal'); });
+  document.getElementById('btn-record').addEventListener('click', startRecording);
+  document.getElementById('btn-arm').addEventListener('click', armButton);
+  document.getElementById('btn-cancel').addEventListener('click', cancelRecording);
+  document.getElementById('trigger').addEventListener('input', function() {
+    document.getElementById('v-trigger').textContent = Math.round(gv('trigger'));
+    if (Engine) Engine.setTriggerLevel({ dB: gv('trigger') });
+  });
+  document.getElementById('btn-save').addEventListener('click', saveSample);
+
+  if (Engine) {
+    Engine.addListener('recordingFinished', recordingFinished);
+    Engine.addListener('recordingFailed', recordingFailed);
+    refreshBank();
+  }
+
+  // Saved wind goes in with the first params; after that the shake detector owns it
+  sendParams({ windStrength: windStrength });
+  restoreSound();
+  keepPhysicsOn();
+  requestAnimationFrame(loop);
+});
+
+// Replays the saved voice: a bank sample re-selected by id, or the last take the
+// engine keeps on its own. If a saved sample is gone, the take stands in.
+function restoreSound() {
+  if (!Engine || currentSound !== 'recorded') return;
+  _userChangedAt = Date.now();
+  var useTake = function() { Engine.setSound({ mode: 'recorded' }); };
+  if (activeSampleId) {
+    Engine.selectSample({ id: activeSampleId }).then(function() { showSound('recorded'); },
+                                                    function() { activeSampleId = null; useTake(); });
+  } else {
+    useTake();
+  }
+}
+
+// ── State polling ─────────────────────────────────────────
+var _polling = 0, _lastShakeShown = 0, _source = 'wind';
 function loop() {
   if (Engine && (!_polling || Date.now() - _polling > 500) && document.visibilityState === 'visible') {
     _polling = Date.now();
@@ -616,9 +640,18 @@ function loop() {
       _polling = 0;
       S = state;
       if (Date.now() - _userChangedAt > 500) {
-        if (S.physicsOn !== physicsOn) showPhysics(S.physicsOn);
-        if (S.source !== source) showSource(S.source);
         if (S.sound !== currentSound) showSound(S.sound);
+      }
+      if (S.source !== _source) {
+        _source = S.source;
+        if (_source === 'phone') hud('Phone mode', 'swinging with you', 1600);
+      }
+      // A shake just set the wind: show what it chose, and remember it
+      if (isNum(S.lastShakeAgo) && S.lastShakeAgo >= 0 && S.lastShakeAgo < 0.5 && _lastShakeShown !== S.windStrength) {
+        _lastShakeShown = S.windStrength;
+        windStrength = S.windStrength;
+        hud('Wind ' + Math.round((windStrength - 0.1) / 0.4 * 100), '', 1400);
+        saveSettings();
       }
       updateMeter();
       if (S.sample && !hasRecording) {
@@ -629,81 +662,73 @@ function loop() {
         showSaveRow(!!S.takeUnsaved);
         renderBank();
       }
-      draw();
     }, function() { _polling = 0; });
   }
+  draw();
   requestAnimationFrame(loop);
 }
 
 // ── Drawing ───────────────────────────────────────────────
+function hsla(h, s, l, a) { return 'hsla(' + h + ',' + s + '%,' + l + '%,' + a + ')'; }
+
 function draw() {
   var canvas = document.getElementById('viz');
   var c = canvas.getContext('2d');
-  var W = canvas.offsetWidth  > 0 ? canvas.offsetWidth  : canvas.parentElement.offsetWidth || 340;
-  var H = canvas.offsetHeight > 0 ? canvas.offsetHeight : 340;
-  canvas.width  = W;
-  canvas.height = H;
+  var dpr = window.devicePixelRatio || 1;
+  var W = window.innerWidth, H = window.innerHeight;
+  if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) {
+    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+  }
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-  c.fillStyle = '#0e1210';
+  // Ease the hue toward the scale's colour
+  var dh = hueTarget - hue;
+  if (dh > 180) dh -= 360; else if (dh < -180) dh += 360;
+  hue = (hue + dh * 0.08 + 360) % 360;
+
+  var bg = c.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * 0.7);
+  bg.addColorStop(0, hsla(hue, 30, 11, 1));
+  bg.addColorStop(1, hsla(hue, 35, 4, 1));
+  c.fillStyle = bg;
   c.fillRect(0, 0, W, H);
 
-  if (!S) return;
+  if (!S || !S.ta) return;
   var n = S.ta.length;
   if (n === 0) return;
 
-  var cord   = CORD_LENGTH;
-  var scale  = Math.min(W, H) * 1.1; // fixed scale — 1m = 110% of canvas short side
-  var cx = W / 2;
-  var cy = H / 2;
+  var cord = CORD_LENGTH;
+  var scale = Math.min(W, H) * 2.2; // 1 m = 220% of the short side: the chimes fill the screen
+  var cx = W / 2, cy = H / 2;
   var ringRadius = S.ringRadius;
 
-  // Ring center world position
   var rcx = Math.sin(S.ring[0]) * (cord * 0.30);
   var rcy = Math.sin(S.ring[1]) * (cord * 0.30);
-
   function wx(x) { return cx + x * scale; }
   function wy(y) { return cy + y * scale; }
 
-  // Fixed mount point (ceiling)
-  c.beginPath();
-  c.arc(cx, cy, 4, 0, Math.PI*2);
-  c.fillStyle = '#3a5040'; c.fill();
-
-  // Housing cord
-  c.beginPath();
-  c.strokeStyle = 'rgba(100,130,110,0.4)';
-  c.lineWidth = 1;
-  c.moveTo(cx, cy);
-  c.lineTo(wx(rcx), wy(rcy));
-  c.stroke();
+  // Mount and housing cord
+  c.beginPath(); c.arc(cx, cy, 4, 0, Math.PI * 2); c.fillStyle = hsla(hue, 25, 35, 1); c.fill();
+  c.beginPath(); c.strokeStyle = hsla(hue, 25, 55, 0.35); c.lineWidth = 1;
+  c.moveTo(cx, cy); c.lineTo(wx(rcx), wy(rcy)); c.stroke();
 
   // Ring
-  c.beginPath();
-  c.arc(wx(rcx), wy(rcy), ringRadius * scale, 0, Math.PI*2);
-  c.strokeStyle = 'rgba(180,162,140,0.5)';
-  c.lineWidth = 2;
-  c.stroke();
+  c.beginPath(); c.arc(wx(rcx), wy(rcy), ringRadius * scale, 0, Math.PI * 2);
+  c.strokeStyle = hsla(hue, 20, 70, 0.45); c.lineWidth = 2; c.stroke();
 
-  // Clapper disc
+  // Clapper
   var strikerL = cord * 0.76;
   var dScx = rcx + Math.sin(S.striker[0]) * strikerL;
   var dScy = rcy + Math.sin(S.striker[1]) * strikerL;
-  c.beginPath();
-  c.strokeStyle = 'rgba(160,148,130,0.4)';
-  c.lineWidth = 0.8;
-  c.moveTo(wx(rcx), wy(rcy));
-  c.lineTo(wx(dScx), wy(dScy));
-  c.stroke();
+  c.beginPath(); c.strokeStyle = hsla(hue, 20, 60, 0.35); c.lineWidth = 0.8;
+  c.moveTo(wx(rcx), wy(rcy)); c.lineTo(wx(dScx), wy(dScy)); c.stroke();
   var clapperR = Math.max(4, (ringRadius - TUBE_R - (GAP_MM / 1000)) * scale);
-  c.beginPath();
-  c.arc(wx(dScx), wy(dScy), clapperR, 0, Math.PI*2);
-  c.fillStyle = '#c8b8a4';
-  c.fill();
-  c.strokeStyle = 'rgba(160,145,125,0.8)';
-  c.lineWidth = 1.5; c.stroke();
-  c.beginPath();
-  c.arc(wx(dScx)-clapperR*0.3, wy(dScy)-clapperR*0.3, clapperR*0.35, 0, Math.PI*2);
+  c.beginPath(); c.arc(wx(dScx), wy(dScy), clapperR, 0, Math.PI * 2);
+  c.fillStyle = hsla(hue, 18, 72, 1); c.fill();
+  c.strokeStyle = hsla(hue, 20, 55, 0.8); c.lineWidth = 1.5; c.stroke();
+  c.beginPath(); c.arc(wx(dScx) - clapperR * 0.3, wy(dScy) - clapperR * 0.3, clapperR * 0.35, 0, Math.PI * 2);
   c.fillStyle = 'rgba(255,252,240,0.25)'; c.fill();
+
+  layout = { cx: wx(rcx), cy: wy(rcy), ringPx: ringRadius * scale, clapperX: wx(dScx), clapperY: wy(dScy), clapperR: clapperR };
 
   // Tubes
   for (var i = 0; i < n; i++) {
@@ -714,45 +739,33 @@ function draw() {
     var my = rcy + Math.sin(mountAngle) * ringRadius;
     var radX = -Math.cos(mountAngle), radY = -Math.sin(mountAngle);
     var tanX = -Math.sin(mountAngle), tanY = Math.cos(mountAngle);
-    var tx   = mx + Math.sin(ta)*tLen*radX + Math.sin(tt)*tLen*tanX;
-    var ty   = my + Math.sin(ta)*tLen*radY + Math.sin(tt)*tLen*tanY;
-    var midX = mx + Math.sin(ta)*(tLen*0.5)*radX + Math.sin(tt)*(tLen*0.5)*tanX;
-    var midY = my + Math.sin(ta)*(tLen*0.5)*radY + Math.sin(tt)*(tLen*0.5)*tanY;
-
+    var tx = mx + Math.sin(ta) * tLen * radX + Math.sin(tt) * tLen * tanX;
+    var ty = my + Math.sin(ta) * tLen * radY + Math.sin(tt) * tLen * tanY;
+    var midX = mx + Math.sin(ta) * (tLen * 0.5) * radX + Math.sin(tt) * (tLen * 0.5) * tanX;
+    var midY = my + Math.sin(ta) * (tLen * 0.5) * radY + Math.sin(tt) * (tLen * 0.5) * tanY;
     var flash = S.flash[i] || 0;
-
-    // Cord from mount to tube
-    c.beginPath();
-    c.strokeStyle = flash > 0.05 ? 'rgba(140,200,150,0.5)' : 'rgba(160,148,130,0.4)';
-    c.lineWidth = 0.8;
-    c.moveTo(wx(mx), wy(my));
-    c.lineTo(wx(tx), wy(ty));
-    c.stroke();
-
-    // Mount dot on ring
-    c.beginPath();
-    c.arc(wx(mx), wy(my), 2.5, 0, Math.PI*2);
-    c.fillStyle = '#8a7a6a'; c.fill();
-
-    // Tube circle drawn at midpoint — matches physical collision boundary
-    var r = Math.max(4, TUBE_R * scale);
-    c.beginPath();
-    c.arc(wx(midX), wy(midY), r, 0, Math.PI*2);
     var absFlash = Math.abs(flash);
-    if (flash < -0.01) {
-      // Red — tube hit another tube
-      c.fillStyle = 'rgba(' + Math.round(180+absFlash*70) + ',80,80,0.95)';
-    } else if (flash > 0.01) {
-      // Green — tube hit clapper
-      c.fillStyle = 'rgba(' + Math.round(80+absFlash*150) + ',' + Math.round(160+absFlash*80) + ',80,0.95)';
-    } else {
-      c.fillStyle = 'rgba(140,128,112,0.9)';
-    }
-    c.fill();
+
     c.beginPath();
-    c.arc(wx(midX)-r*0.3, wy(midY)-r*0.3, r*0.4, 0, Math.PI*2);
-    c.fillStyle = 'rgba(255,252,240,' + (0.08 + absFlash*0.25) + ')';
+    c.strokeStyle = flash > 0.05 ? hsla(hue, 60, 75, 0.6) : hsla(hue, 20, 60, 0.35);
+    c.lineWidth = 0.8;
+    c.moveTo(wx(mx), wy(my)); c.lineTo(wx(tx), wy(ty)); c.stroke();
+
+    c.beginPath(); c.arc(wx(mx), wy(my), 2.5, 0, Math.PI * 2); c.fillStyle = hsla(hue, 20, 50, 1); c.fill();
+
+    var r = Math.max(4, TUBE_R * scale);
+    if (absFlash > 0.01) {
+      // A glow that fades with the strike
+      c.beginPath(); c.arc(wx(midX), wy(midY), r * (1.6 + absFlash * 1.2), 0, Math.PI * 2);
+      c.fillStyle = hsla(hue, 80, 70, absFlash * 0.25); c.fill();
+    }
+    c.beginPath(); c.arc(wx(midX), wy(midY), r, 0, Math.PI * 2);
+    if (flash < -0.01) c.fillStyle = hsla((hue + 180) % 360, 55, 55 + absFlash * 15, 0.95); // tube on tube
+    else if (flash > 0.01) c.fillStyle = hsla(hue, 70, 60 + absFlash * 25, 0.95);          // clapper strike
+    else c.fillStyle = hsla(hue, 18, 48, 0.9);
     c.fill();
+    c.beginPath(); c.arc(wx(midX) - r * 0.3, wy(midY) - r * 0.3, r * 0.4, 0, Math.PI * 2);
+    c.fillStyle = 'rgba(255,252,240,' + (0.08 + absFlash * 0.25) + ')'; c.fill();
   }
 }
 </script>
