@@ -21,6 +21,7 @@ final class ChimeEngine {
     private var lastStepTime: UInt64 = 0
     private var accumulator = 0.0
     private var physicsOn = false
+    private var resumeAfterInterruption = false // physics was on when another app took the audio
     private var windSoundEnvelope = 0.0
     private var source = "wind"
     private var sound = "metal" // "metal" | "recorded"
@@ -32,7 +33,7 @@ final class ChimeEngine {
     // level to cross the threshold) → recording (until stopped or capped) → idle
     enum RecordState: String { case idle, standby, armed, recording }
     private(set) var recordState = RecordState.idle
-    private var micLevel = -60.0          // dBFS, latest input buffer
+    private var micLevel = -60.0          // dBFS meter: instant rise, steady fall, see handleInput
     private var triggerLevel = -30.0      // dBFS
     private var preRoll: [Float] = []     // last ~150 ms of input while armed
     private var recording: [Float] = []
@@ -48,15 +49,24 @@ final class ChimeEngine {
 
     private init() {
         physics.onStrike = { [unowned self] strike in
+            guard self.recordState == .idle else { return } // the mic has the room to itself
             let sample = self.sound == "recorded" ? self.userSample : nil
             self.synth.enqueue(ChimeVoices.make(for: strike, sample: sample, tuning: self.voiceParams, sampleRate: self.synth.sampleRate))
         }
 
         let center = NotificationCenter.default
         center.addObserver(forName: AVAudioSession.interruptionNotification, object: nil, queue: nil) { [weak self] note in
-            guard let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
-                  AVAudioSession.InterruptionType(rawValue: raw) == .ended else { return }
-            self?.queue.async { self?.restartAudioIfNeeded() }
+            guard let self, let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+                  let type = AVAudioSession.InterruptionType(rawValue: raw) else { return }
+            let optionsRaw = note.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
+            let shouldResume = AVAudioSession.InterruptionOptions(rawValue: optionsRaw).contains(.shouldResume)
+            self.queue.async {
+                switch type {
+                case .began: self.interruptionBegan()
+                case .ended: self.interruptionEnded(shouldResume: shouldResume)
+                @unknown default: break
+                }
+            }
         }
         center.addObserver(forName: .AVAudioEngineConfigurationChange, object: nil, queue: nil) { [weak self] _ in
             self?.queue.async { self?.restartAudioIfNeeded() }
@@ -233,8 +243,13 @@ final class ChimeEngine {
 
     private func openMicrophone() throws {
         let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.playAndRecord, mode: .default, options: [.mixWithOthers, .defaultToSpeaker])
+        try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker])
+        // Small input buffers so the level meter and the trigger see the sound promptly
+        try? session.setPreferredIOBufferDuration(0.01)
         try session.setActive(true)
+
+        // Nothing else sounds while the mic is open: no chimes, no wind
+        synth.muted = true
 
         // A fresh engine, because an engine that has used its input node can't run
         // again on a playback-only session later
@@ -253,18 +268,32 @@ final class ChimeEngine {
         try audioEngine.start()
     }
 
+    /// The meter is measured in 5 ms blocks: it jumps up to the loudest block in the
+    /// chunk and falls back at a steady 40 dB/s, so it reads the same whether iOS
+    /// delivers the input in 10 ms or 100 ms pieces. The trigger looks at the loudest
+    /// block too, so a short transient fires it.
     private func handleInput(_ chunk: [Float]) {
-        var sum = 0.0
-        for x in chunk { sum += Double(x * x) }
-        let rms = chunk.isEmpty ? 0 : (sum / Double(chunk.count)).squareRoot()
-        micLevel = max(-60, min(0, 20 * log10(max(rms, 1e-6))))
+        let block = max(1, Int(recordingSampleRate * 0.005))
+        var loudest = -60.0
+        var start = 0
+        while start < chunk.count {
+            let end = min(chunk.count, start + block)
+            var sum = 0.0
+            for i in start..<end { sum += Double(chunk[i] * chunk[i]) }
+            let rms = (sum / Double(end - start)).squareRoot()
+            loudest = max(loudest, 20 * log10(max(rms, 1e-6)))
+            start = end
+        }
+        loudest = min(0, loudest)
+        let elapsed = Double(chunk.count) / recordingSampleRate
+        micLevel = max(loudest, max(-60, micLevel - 40 * elapsed))
 
         switch recordState {
         case .armed:
             preRoll.append(contentsOf: chunk)
             let keep = Int(recordingSampleRate * 0.15)
             if preRoll.count > keep { preRoll.removeFirst(preRoll.count - keep) }
-            if micLevel >= triggerLevel {
+            if loudest >= triggerLevel {
                 recording = preRoll
                 recording.reserveCapacity(Int(recordingSampleRate * Self.maxRecordSeconds) + chunk.count)
                 preRoll = []
@@ -318,9 +347,37 @@ final class ChimeEngine {
         preRoll = []
         micLevel = -60
         audioEngine.stop()
-        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.mixWithOthers])
+        synth.muted = false
+        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
         replaceEngine()
         restartAudioIfNeeded()
+    }
+
+    // MARK: - Interruptions
+
+    /// Another app (a call, music, a video) has taken the audio. A recording in progress
+    /// is lost, and the chimes stop; physics turns off so the app reads as paused and
+    /// can go idle, remembering whether to come back.
+    private func interruptionBegan() {
+        if recordState != .idle {
+            closeMicrophone()
+            onRecordingEvent?("recordingFailed", ["code": "interrupted"])
+        }
+        resumeAfterInterruption = physicsOn
+        if physicsOn { applyPhysics(false) }
+        idleTimer?.cancel()
+        idleTimer = nil
+        audioEngine.stop()
+        try? AVAudioSession.sharedInstance().setActive(false)
+    }
+
+    /// iOS says to resume after a transient interruption such as a call. When another
+    /// app simply kept the audio, it doesn't, and the chimes stay off until tapped.
+    private func interruptionEnded(shouldResume: Bool) {
+        let resume = resumeAfterInterruption
+        resumeAfterInterruption = false
+        guard shouldResume else { return }
+        if resume { applyPhysics(true) } else { restartAudioIfNeeded() }
     }
 
     // MARK: - Physics
@@ -412,10 +469,11 @@ final class ChimeEngine {
     private func startAudio() {
         if recordState == .idle {
             do {
-                // .playback ignores the silent switch and keeps playing when locked;
-                // .mixWithOthers lets music or podcasts keep playing alongside.
+                // .playback ignores the silent switch and keeps playing when locked.
+                // No mixing: starting the chimes pauses whatever else was playing, and
+                // another app starting playback interrupts the chimes.
                 let session = AVAudioSession.sharedInstance()
-                try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+                try session.setCategory(.playback, mode: .default)
                 try session.setActive(true)
             } catch {
                 NSLog("Pocket Chimes: audio session error: \(error)")

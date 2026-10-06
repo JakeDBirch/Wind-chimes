@@ -243,6 +243,10 @@ final class ChimeSynth {
 
     private static let maxVoices = 384
 
+    /// While the microphone is open nothing else may sound: the output is silence and
+    /// every voice, ringing or waiting, is dropped so nothing bursts out afterwards.
+    var muted = false
+
     private var voices: [SynthVoice] = []
     private var pending: [SynthVoice] = []
     private var incoming: [SynthVoice] = []
@@ -281,6 +285,24 @@ final class ChimeSynth {
         guard buffers.count > 0, let raw = buffers[0].mData else { return }
         let out = raw.assumingMemoryBound(to: Float.self)
         out.update(repeating: 0, count: frameCount)
+
+        if muted {
+            if os_unfair_lock_trylock(lock) {
+                pending.removeAll(keepingCapacity: true)
+                os_unfair_lock_unlock(lock)
+            }
+            voices.removeAll(keepingCapacity: true)
+            incoming.removeAll(keepingCapacity: true)
+            renderedVoiceCount = 0
+            windSmoothed = 0
+            windFront = 0
+            for b in 1..<max(1, buffers.count) {
+                if let dst = buffers[b].mData {
+                    dst.copyMemory(from: raw, byteCount: frameCount * MemoryLayout<Float>.size)
+                }
+            }
+            return
+        }
 
         if os_unfair_lock_trylock(lock) {
             if !pending.isEmpty { swap(&pending, &incoming) }
