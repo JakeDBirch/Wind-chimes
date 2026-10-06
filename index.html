@@ -9,16 +9,16 @@
 <title>Pocket Chimes</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { background: #0b0c0e; color: #c8d0c8; font-family: 'Courier New', monospace; font-size: 12px; overflow: hidden; height: 100%; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+html, body { background: #0b0c0e; color: #c8d0c8; font-family: 'Courier New', monospace; font-size: 24px; overflow: hidden; height: 100%; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 #viz { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
 /* A line of text that fades in on a gesture and out again */
-.hud { position: fixed; left: 0; right: 0; top: calc(26px + env(safe-area-inset-top)); text-align: center; font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase; color: rgba(255,255,255,0.85); opacity: 0; transition: opacity 0.6s; pointer-events: none; text-shadow: 0 1px 8px rgba(0,0,0,0.6); }
+.hud { position: fixed; left: 0; right: 0; top: calc(26px + env(safe-area-inset-top)); text-align: center; font-size: 22px; letter-spacing: 0.3em; text-transform: uppercase; color: rgba(255,255,255,0.85); opacity: 0; transition: opacity 0.6s; pointer-events: none; text-shadow: 0 1px 8px rgba(0,0,0,0.6); }
 .hud.show { opacity: 1; transition: opacity 0.12s; }
-.hud.sub { top: calc(46px + env(safe-area-inset-top)); font-size: 9px; letter-spacing: 0.2em; color: rgba(255,255,255,0.55); }
+.hud.sub { top: calc(62px + env(safe-area-inset-top)); font-size: 18px; letter-spacing: 0.2em; color: rgba(255,255,255,0.55); }
 /* Wind sound toggle */
-#wind-btn { position: fixed; top: calc(14px + env(safe-area-inset-top)); right: calc(14px + env(safe-area-inset-right)); width: 44px; height: 44px; border: none; background: none; padding: 10px; outline: none; -webkit-tap-highlight-color: transparent; opacity: 0.85; }
+#wind-btn { position: fixed; top: calc(14px + env(safe-area-inset-top)); right: calc(14px + env(safe-area-inset-right)); width: 52px; height: 52px; border: none; background: none; padding: 10px; outline: none; -webkit-tap-highlight-color: transparent; opacity: 0.85; }
 #wind-btn.off { opacity: 0.3; }
-#wind-btn svg { width: 24px; height: 24px; display: block; }
+#wind-btn svg { width: 32px; height: 32px; display: block; }
 #wind-btn.off svg path { stroke-dasharray: 3 3; }
 /* Sound sheet: opened by a double tap on the clapper */
 #dim { position: fixed; inset: 0; background: rgba(0,0,0,0.45); opacity: 0; pointer-events: none; transition: opacity 0.25s; }
@@ -26,20 +26,20 @@ html, body { background: #0b0c0e; color: #c8d0c8; font-family: 'Courier New', mo
 #sheet { position: fixed; left: 0; right: 0; bottom: 0; background: rgba(12,14,16,0.97); border-top: 1px solid rgba(255,255,255,0.08); border-radius: 16px 16px 0 0; padding: 14px 18px calc(18px + env(safe-area-inset-bottom)); transform: translateY(105%); transition: transform 0.3s cubic-bezier(.2,.8,.2,1); max-height: 80vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 #sheet.open { transform: none; }
 .sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-.stitle { font-size: 8px; letter-spacing: 0.22em; text-transform: uppercase; color: #9ab; }
-.close { border: none; background: none; color: #789; font-family: inherit; font-size: 14px; padding: 6px 10px; outline: none; }
+.stitle { font-size: 16px; letter-spacing: 0.22em; text-transform: uppercase; color: #9ab; }
+.close { border: none; background: none; color: #789; font-family: inherit; font-size: 28px; padding: 6px 10px; outline: none; }
 .row { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
-.label { width: 60px; flex-shrink: 0; font-size: 9px; color: #678; }
-.val { width: 40px; text-align: right; flex-shrink: 0; font-size: 10px; color: #9ab; font-variant-numeric: tabular-nums; }
+.label { width: 100px; flex-shrink: 0; font-size: 18px; color: #678; }
+.val { width: 56px; text-align: right; flex-shrink: 0; font-size: 20px; color: #9ab; font-variant-numeric: tabular-nums; }
 input[type=range] { flex: 1; -webkit-appearance: none; height: 2px; background: #243; border-radius: 1px; outline: none; }
 input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #0b0c0e; border: 1.5px solid #9ab; }
-.schip { padding: 6px 12px; border-radius: 6px; border: 1px solid #2a3338; background: none; color: #678; font-family: inherit; font-size: 9px; outline: none; letter-spacing: 0.08em; text-transform: uppercase; }
+.schip { padding: 6px 12px; border-radius: 6px; border: 1px solid #2a3338; background: none; color: #678; font-family: inherit; font-size: 18px; outline: none; letter-spacing: 0.08em; text-transform: uppercase; }
 .schip.active { border-color: #cde; color: #cde; background: rgba(255,255,255,0.06); }
 .rec-row { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
-.rec-btn { white-space: nowrap; padding: 8px 14px; border-radius: 6px; border: 1px solid #c87a7a; background: rgba(200,122,122,0.07); color: #c87a7a; font-family: inherit; font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; outline: none; }
+.rec-btn { white-space: nowrap; padding: 8px 14px; border-radius: 6px; border: 1px solid #c87a7a; background: rgba(200,122,122,0.07); color: #c87a7a; font-family: inherit; font-size: 18px; letter-spacing: 0.16em; text-transform: uppercase; outline: none; }
 .rec-btn.quiet { border-color: #2a3338; color: #678; background: none; }
 .rec-btn.live { background: rgba(200,122,122,0.3); }
-.rec-status { font-size: 8px; letter-spacing: 0.08em; color: #678; }
+.rec-status { font-size: 16px; letter-spacing: 0.08em; color: #678; }
 .meter { position: relative; height: 10px; background: #0e1012; border: 1px solid #243; border-radius: 3px; margin-top: 12px; overflow: hidden; }
 .meter-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: #4a7058; transition: width 0.05s linear; }
 .meter-fill.hot { background: #c87a7a; }
@@ -48,16 +48,16 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px;
 .rec-panel.open { display: block; }
 .save-row { display: none; align-items: center; gap: 8px; margin-top: 10px; }
 .save-row.open { display: flex; }
-.name-input { flex: 1; min-width: 0; padding: 8px 9px; border-radius: 6px; border: 1px solid #2a3338; background: #0e1012; color: #c8d0c8; font-family: inherit; font-size: 11px; outline: none; -webkit-user-select: text; user-select: text; }
+.name-input { flex: 1; min-width: 0; padding: 8px 9px; border-radius: 6px; border: 1px solid #2a3338; background: #0e1012; color: #c8d0c8; font-family: inherit; font-size: 22px; outline: none; -webkit-user-select: text; user-select: text; }
 .bank { margin-top: 10px; }
 .bank-row { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border: 1px solid #243; border-radius: 6px; margin-bottom: 5px; }
 .bank-row.active { border-color: #9ab; background: rgba(255,255,255,0.04); }
-.bank-name { flex: 1; min-width: 0; font-size: 10px; color: #c8d0c8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.bank-meta { font-size: 8px; color: #678; white-space: nowrap; }
-.bank-btn { padding: 5px 9px; border-radius: 4px; border: 1px solid #2a3338; background: none; color: #789; font-family: inherit; font-size: 8px; outline: none; letter-spacing: 0.08em; text-transform: uppercase; }
+.bank-name { flex: 1; min-width: 0; font-size: 20px; color: #c8d0c8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bank-meta { font-size: 16px; color: #678; white-space: nowrap; }
+.bank-btn { padding: 5px 9px; border-radius: 4px; border: 1px solid #2a3338; background: none; color: #789; font-family: inherit; font-size: 16px; outline: none; letter-spacing: 0.08em; text-transform: uppercase; }
 .bank-btn.use { border-color: #9ab; color: #cde; }
 .bank-btn.del { color: #c87a7a; border-color: #3a2424; }
-.hint { font-size: 8px; color: #567; margin-top: 10px; letter-spacing: 0.05em; line-height: 1.6; }
+.hint { font-size: 16px; color: #567; margin-top: 10px; letter-spacing: 0.05em; line-height: 1.6; }
 </style>
 </head>
 <body>
@@ -100,7 +100,7 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px;
     <button class="rec-btn quiet" id="btn-save">Save</button>
   </div>
   <div class="bank" id="bank"></div>
-  <div class="hint">Swipe left or right for another scale. Circle a finger around the outside to change register, around the chimes to add or remove them. Tap for a gust; tap in rhythm to set how steady the wind is. Shake the phone to set how strong: harder is stronger.</div>
+  <div class="hint">Swipe in from the left or right edge for another scale. Circle a finger around the outside to change register, around the chimes to add or remove them. Press and hold for a gust; tap in rhythm to set how steady the wind is. Shake the phone to set how strong: harder is stronger.</div>
 </div>
 
 <script>
@@ -203,20 +203,28 @@ function fmtRegister(r) { r = Math.round(r * 10) / 10; return (r > 0 ? '+' : r <
 
 // ── Gestures ──────────────────────────────────────────────
 // One pointer at a time. A gesture starts undecided: it becomes a circular drag once the
-// finger's heading has turned enough, or on release a swipe (fast, straight, horizontal)
-// or a tap (short, still). Circling outside the ring sets the register, one octave per
-// turn; circling over the chimes adds one per sixth of a turn, clockwise to add.
+// finger's heading has turned enough, a swipe when it starts at the left or right edge
+// of the screen and moves across (or, from anywhere, ends as a straight horizontal
+// stroke), or a tap (short, still). Circling outside the ring sets the register, one
+// octave per turn; circling over the chimes adds one per sixth of a turn, clockwise to add.
 var G = null;
+var EDGE = 36; // px from the left or right edge where a swipe can start
 var layout = { cx: 0, cy: 0, ringPx: 100, clapperX: 0, clapperY: 0, clapperR: 20 };
-var _clapperTapAt = 0, _gustTimer = null;
+var _clapperTapAt = 0, _holdTimer = null;
+var HOLD_MS = 380; // press and hold this long, without moving, for a gust
 
 function pointerDown(e) {
   if (G) return;
   e.preventDefault();
   var x = e.clientX, y = e.clientY;
+  clearTimeout(_holdTimer);
+  _holdTimer = setTimeout(function() {
+    if (G && G.mode === 'pending' && Math.hypot(G.x - G.x0, G.y - G.y0) < 12) { G.mode = 'done'; gust(); }
+  }, HOLD_MS);
   G = { id: e.pointerId, x0: x, y0: y, t0: performance.now(), x: x, y: y, lastX: x, lastY: y,
         mode: 'pending', heading: null, turn: 0, angle: Math.atan2(y - layout.cy, x - layout.cx),
-        r0: Math.hypot(x - layout.cx, y - layout.cy), acc: 0, pend: 0 };
+        r0: Math.hypot(x - layout.cx, y - layout.cy), acc: 0, pend: 0,
+        edge: x < EDGE || x > window.innerWidth - EDGE };
   if (S && !S.physicsOn) keepPhysicsOn();
 }
 
@@ -232,6 +240,13 @@ function pointerMove(e) {
 
   if (G.mode === 'pending') {
     G.pend += dAngle; // the turn made before the gesture is recognised counts too
+    // From an edge, a horizontal move is a swipe as soon as it's clearly one
+    var ex = x - G.x0, ey = y - G.y0;
+    if (G.edge && Math.abs(ex) > 50 && Math.abs(ex) > 1.5 * Math.abs(ey)) {
+      G.mode = 'done';
+      changeScale(ex < 0 ? 1 : -1);
+      return;
+    }
     // Heading change tells a curve from a straight swipe, in steps of at least 8 px
     var sx = x - G.lastX, sy = y - G.lastY;
     if (Math.hypot(sx, sy) >= 8) {
@@ -242,7 +257,7 @@ function pointerMove(e) {
         G.turn += dh;
       }
       G.heading = h; G.lastX = x; G.lastY = y;
-      if (Math.abs(G.turn) > 0.4 && Math.hypot(x - layout.cx, y - layout.cy) > 30) {
+      if (Math.abs(G.turn) > 0.8 && Math.hypot(x - layout.cx, y - layout.cy) > 30) {
         G.mode = G.r0 < layout.ringPx * 1.3 ? 'chimes' : 'register';
         G.acc = 0;
         dAngle = G.pend;
@@ -272,44 +287,41 @@ function pointerUp(e) {
   if (!G || e.pointerId !== G.id) return;
   e.preventDefault();
   var g = G; G = null;
+  clearTimeout(_holdTimer);
   if (g.mode !== 'pending') return;
   var dt = performance.now() - g.t0;
   var dx = g.x - g.x0, dy = g.y - g.y0, dist = Math.hypot(dx, dy);
-  if (dt < 350 && dist > 60 && Math.abs(dx) > 1.5 * Math.abs(dy)) {
-    changeScale(dx < 0 ? 1 : -1); // swipe left goes forward
+  if (dist > 70 && Math.abs(dx) > 2.5 * Math.abs(dy) && Math.abs(g.turn) < 0.5) {
+    changeScale(dx < 0 ? 1 : -1); // a straight horizontal stroke from anywhere; swipe left goes forward
   } else if (dt < 300 && dist < 12) {
     tap(g.x, g.y);
   }
 }
 
+// A double tap on the clapper opens the sound sheet. Any other taps are rhythm: from
+// the third tap in a row, the spacing sets Consistency (slow taps a second apart make
+// the wind gusty and shifting, a quick patter makes it steady). A lone tap does nothing.
 function tap(x, y) {
   var onClapper = Math.hypot(x - layout.clapperX, y - layout.clapperY) < Math.max(layout.clapperR + 10, 28);
   var now = performance.now();
   if (onClapper && now - _clapperTapAt < 320) {
     _clapperTapAt = 0;
-    clearTimeout(_gustTimer); _gustTimer = null;
+    _tapTimes = [];
     openSheet();
     return;
   }
-  if (onClapper) {
-    // Hold the gust briefly in case a second tap follows
-    _clapperTapAt = now;
-    clearTimeout(_gustTimer);
-    _gustTimer = setTimeout(gust, 320);
-  } else {
-    _clapperTapAt = 0;
-    gust();
-  }
+  _clapperTapAt = onClapper ? now : 0;
+  tapRhythm();
 }
 
-// Every tap is a gust. Taps in a row also set Consistency from their rhythm: slow taps
-// a second apart make the wind gusty and shifting, a quick patter makes it steady.
-// It takes three taps to count as a rhythm, so a lone gust changes nothing.
-var _tapTimes = [];
 function gust() {
-  _gustTimer = null;
   _userChangedAt = Date.now();
   if (Engine) Engine.gust();
+  hud('Gust', '', 800);
+}
+
+var _tapTimes = [];
+function tapRhythm() {
   var now = performance.now();
   if (_tapTimes.length && now - _tapTimes[_tapTimes.length - 1] > 1200) _tapTimes = [];
   _tapTimes.push(now);

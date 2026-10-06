@@ -10,10 +10,10 @@ Nothing on screen but the chimes. Physics is always on; everything is a gesture.
 
 | Gesture | What it does |
 | --- | --- |
-| **Swipe left / right** | Next or previous scale: Pentatonic, Major Pent, Minor, Lydian, Whole Tone, Hirajoshi, Chord Seq. Each has its own colour, so the screen takes on the scale's mood |
+| **Swipe in from the left or right edge** | Next or previous scale (a straight horizontal stroke anywhere works too): Pentatonic, Major Pent, Minor, Lydian, Whole Tone, Hirajoshi, Chord Seq. Each has its own colour, so the screen takes on the scale's mood |
 | **Circle a finger around the outside** | Register, one octave per turn, clockwise up, ±2 octaves |
 | **Circle a finger over the chimes** | Add a chime per sixth of a turn clockwise, remove one anticlockwise, 3–12 |
-| **Tap** | A two-second gust |
+| **Press and hold** | A two-second gust |
 | **Tap in rhythm** | From the third tap in a row, the spacing sets Consistency: taps a second apart make the wind gusty and shifting, a quick patter makes it a steady breeze |
 | **Shake** | Strength: a light shake is a light wind, a hard one a strong wind. Within a burst the value settles on the burst's average |
 | **Double-tap the clapper** | Opens the sound sheet: Metal or Recorded, the recorder (standby, trigger, arm, stop, 10 s cap) and the sample bank |
