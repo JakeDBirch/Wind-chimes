@@ -17,9 +17,11 @@ Pocket Chimes is an iOS app built with [Capacitor](https://capacitorjs.com). The
 | **Register** | Pitch, ±2 octaves |
 | **Scale** | Dropdown of tunings (default Pentatonic). *Chord Seq* cycles through a chord progression; *Custom* shows an octave of keys to pick notes from |
 | **Sound** | *Metal* is the synthesized tube. *Recorded* uses a sound you record with the mic. Each chime plays it at its own pitch, shaped with the same decay and filter sweep as a struck tube, so even a sustained note rings and dies away |
-| **Record** | Opens the mic in standby with a level meter. Set **Trigger** just below your sound's level, tap **Arm**, and recording starts the moment the level crosses it (with 150 ms of pre-roll). Tap **Stop** when done; it caps at 10 s |
+| **Record** | Opens the mic in standby with a level meter. Set **Trigger** just below your sound's level, tap **Arm**, and recording starts the moment the level crosses it (with 150 ms of pre-roll). Tap **Stop** when done; it caps at 10 s. Chimes and wind are silent while the mic is open |
 | **Save / bank** | After a take, name it and tap **Save** to keep it. Saved sounds are listed under the recorder: **Use** switches to one, ✕ deletes it. The last take is kept between launches even if unsaved |
 | **Gust** | A two-second push of wind |
+
+Pocket Chimes takes the audio for itself: turning physics on pauses whatever else was playing, and another app starting playback (or a call) stops the chimes. After a call they come back on their own; after music they stay off until you tap Physics again.
 
 Every setting (sliders, wind sound, scale and custom keys, sound mode, the sample in use, physics on or off) is saved as you change it and restored the next time the app opens.
 

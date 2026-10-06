@@ -442,6 +442,7 @@ function startRecording() {
   Engine.startStandby().then(function() {
     Engine.setTriggerLevel({ dB: gv('trigger') });
     _userChangedAt = Date.now();
+    _meterShown = -60; _meterAt = 0;
     showRecordState('standby');
   }, function(err) {
     var code = err && err.code;
@@ -498,11 +499,16 @@ function recordingFailed(err) {
                              'Recording failed. Try again.';
 }
 
+var _meterAt = 0;
 function updateMeter() {
   if (!S || recState === 'idle') return;
-  // Fast rise, slow fall so the meter is readable
+  // The engine's meter rises instantly and falls at 40 dB/s; between its updates the
+  // bar keeps falling at the same rate on the clock, so it never looks stuck
+  var now = performance.now();
+  var dt = _meterAt ? Math.min(0.1, (now - _meterAt) / 1000) : 0;
+  _meterAt = now;
   var level = S.micLevel;
-  _meterShown = level > _meterShown ? level : Math.max(level, _meterShown - 1.5);
+  _meterShown = level > _meterShown ? level : Math.max(level, _meterShown - 40 * dt);
   var pct = function(dB) { return Math.max(0, Math.min(100, (dB + 60) / 60 * 100)); };
   var fill = document.getElementById('meter-fill');
   fill.style.width = pct(_meterShown) + '%';
@@ -600,12 +606,14 @@ function saveSample() {
 }
 
 // ── State polling ──────────────────────────────
-var _polling = false;
+// One state request in flight at a time; if the bridge ever drops one, give up on it
+// after half a second rather than freezing the page's view of the engine
+var _polling = 0;
 function loop() {
-  if (Engine && !_polling && document.visibilityState === 'visible') {
-    _polling = true;
+  if (Engine && (!_polling || Date.now() - _polling > 500) && document.visibilityState === 'visible') {
+    _polling = Date.now();
     Engine.getState().then(function(state) {
-      _polling = false;
+      _polling = 0;
       S = state;
       if (Date.now() - _userChangedAt > 500) {
         if (S.physicsOn !== physicsOn) showPhysics(S.physicsOn);
@@ -622,7 +630,7 @@ function loop() {
         renderBank();
       }
       draw();
-    }, function() { _polling = false; });
+    }, function() { _polling = 0; });
   }
   requestAnimationFrame(loop);
 }
