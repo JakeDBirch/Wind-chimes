@@ -16,6 +16,18 @@ html, body { background: #0b0c0e; color: #c8d0c8; font-family: ui-rounded, -appl
 .hud.show { opacity: 1; transition: opacity 0.12s; }
 .hud.sub { top: calc(64px + env(safe-area-inset-top)); font-size: 19px; letter-spacing: 0.02em; color: rgba(255,255,255,0.55); }
 /* Wind sound toggle */
+/* Help: a question mark top left, opening a guide to the gestures */
+#help-btn { position: fixed; top: calc(14px + env(safe-area-inset-top)); left: calc(14px + env(safe-area-inset-left)); width: 52px; height: 52px; border: none; background: none; padding: 10px; outline: none; -webkit-tap-highlight-color: transparent; opacity: 0.6; }
+#help-btn svg { width: 32px; height: 32px; display: block; }
+#help { position: fixed; inset: 0; z-index: 60; background: rgba(8,10,12,0.9); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); opacity: 0; pointer-events: none; transition: opacity 0.25s; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: calc(22px + env(safe-area-inset-top)) 22px calc(30px + env(safe-area-inset-bottom)); }
+#help.open { opacity: 1; pointer-events: auto; }
+.help-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+.help-title { font-size: 26px; font-weight: 700; color: #e8eef2; }
+.help-row { display: flex; align-items: center; gap: 18px; padding: 14px 0; border-bottom: 1px solid rgba(255,255,255,0.07); }
+.help-row:last-child { border-bottom: none; }
+.help-row svg { width: 56px; height: 56px; flex-shrink: 0; }
+.help-name { font-size: 20px; font-weight: 700; color: #e8eef2; margin-bottom: 3px; }
+.help-what { font-size: 16px; font-weight: 500; color: #9aa6ae; line-height: 1.4; }
 #wind-btn { position: fixed; top: calc(14px + env(safe-area-inset-top)); right: calc(14px + env(safe-area-inset-right)); width: 52px; height: 52px; border: none; background: none; padding: 10px; outline: none; -webkit-tap-highlight-color: transparent; opacity: 0.85; }
 #wind-btn.off { opacity: 0.3; }
 #wind-btn svg { width: 32px; height: 32px; display: block; }
@@ -88,6 +100,42 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px;
 <div class="hud" id="hud"></div>
 <div class="hud sub" id="hud2"></div>
 
+<button id="help-btn" aria-label="How to play">
+  <svg viewBox="0 0 24 24" fill="none" stroke="#dfe6ea" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="9.5"/>
+    <path d="M9.2 9.3a2.9 2.9 0 1 1 4.1 2.6c-.9.5-1.3 1-1.3 2"/>
+    <circle cx="12" cy="17.2" r="0.6" fill="#dfe6ea"/>
+  </svg>
+</button>
+
+<div id="help">
+  <div class="help-head"><span class="help-title">How to play</span><button class="close" id="help-close">✕</button></div>
+  <div class="help-row">
+    <svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="48" height="36" rx="6" opacity="0.35"/><path d="M8 28h26"/><path d="M28 21l7 7-7 7"/><circle cx="8" cy="28" r="3.5" fill="currentColor"/></svg>
+    <div><div class="help-name">Swipe in from the edge</div><div class="help-what">Left or right for the next scale. Each one has its own colour. Custom brings up a keyboard to pick your notes.</div></div>
+  </div>
+  <div class="help-row">
+    <svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="28" cy="28" r="9" opacity="0.35"/><circle cx="28" cy="28" r="4" opacity="0.35"/><path d="M28 6a22 22 0 1 1-18 9.4"/><path d="M6 10l4 6 6-3"/></svg>
+    <div><div class="help-name">Circle around the outside</div><div class="help-what">Register. Clockwise raises the pitch, one octave per turn.</div></div>
+  </div>
+  <div class="help-row">
+    <svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="28" cy="28" r="22" opacity="0.35"/><circle cx="28" cy="12" r="4" opacity="0.35"/><circle cx="42" cy="36" r="4" opacity="0.35"/><circle cx="14" cy="36" r="4" opacity="0.35"/><path d="M28 19a9 9 0 1 1-7.8 4.5"/><path d="M18 20l2.5 5 5-2"/></svg>
+    <div><div class="help-name">Circle over the chimes</div><div class="help-what">Clockwise adds a chime, anticlockwise takes one away. Three to twelve.</div></div>
+  </div>
+  <div class="help-row">
+    <svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="28" cy="28" r="6" fill="currentColor"/><circle cx="28" cy="28" r="13" opacity="0.5"/><circle cx="28" cy="28" r="20" opacity="0.25"/></svg>
+    <div><div class="help-name">Press and hold</div><div class="help-what">A gust of wind.</div></div>
+  </div>
+  <div class="help-row">
+    <svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="28" cy="30" r="10" fill="currentColor" opacity="0.9"/><circle cx="28" cy="30" r="20" opacity="0.3"/><path d="M20 10l3 4M36 10l-3 4" opacity="0.8"/><path d="M28 6v6"/></svg>
+    <div><div class="help-name">Double-tap the clapper</div><div class="help-what">Choose the sound: metal, or something you record with the mic and keep in your bank.</div></div>
+  </div>
+  <div class="help-row">
+    <svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 20h22a5 5 0 1 0-5-5"/><path d="M8 28h32a6 6 0 1 1-6 6"/><path d="M8 36h16a4 4 0 1 1-4 4"/></svg>
+    <div><div class="help-name">Wind icon</div><div class="help-what">Wind sound on or off, and how strong and how steady the wind blows.</div></div>
+  </div>
+</div>
+
 <button id="wind-btn" aria-label="Wind sound">
   <svg viewBox="0 0 24 24" fill="none" stroke="#dfe6ea" stroke-width="1.6" stroke-linecap="round">
     <path d="M3 8h10a2.5 2.5 0 1 0-2.5-2.5"/>
@@ -137,7 +185,6 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px;
     <button class="rec-btn quiet" id="btn-save">Save</button>
   </div>
   <div class="bank" id="bank"></div>
-  <div class="hint">Swipe in from the left or right edge for another scale; Custom brings up a keyboard to pick your own notes. Circle a finger around the outside to change register, around the chimes to add or remove them. Press and hold for a gust. The wind icon opens the wind: its sound, how strong it blows and how steady it is.</div>
 </div>
 
 <script>
@@ -411,6 +458,12 @@ function showWind() {
   document.getElementById('v-consistency').textContent = windConsistency;
 }
 
+function openHelp(open) {
+  var el = document.getElementById('help');
+  el.classList.toggle('open', open);
+  el.style.color = hsla(hue, 60, 72, 1); // icons in the scale's colour
+}
+
 function openDrawer(open) {
   document.getElementById('drawer').classList.toggle('open', open);
   document.getElementById('catch').classList.toggle('open', open);
@@ -671,6 +724,8 @@ window.addEventListener('load', function() {
     openDrawer(!document.getElementById('drawer').classList.contains('open'));
   });
   document.getElementById('catch').addEventListener('click', function() { openDrawer(false); });
+  document.getElementById('help-btn').addEventListener('click', function() { openHelp(true); });
+  document.getElementById('help').addEventListener('click', function() { openHelp(false); });
   document.getElementById('wind-switch').addEventListener('click', function() {
     windSound = !windSound;
     showWind();

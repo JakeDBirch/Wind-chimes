@@ -15,6 +15,7 @@ Nothing on screen but the chimes. Physics is always on; everything is a gesture.
 | **Circle a finger over the chimes** | Add a chime per sixth of a turn clockwise, remove one anticlockwise, 3–12 |
 | **Press and hold** | A two-second gust |
 | **Double-tap the clapper** | Opens the sound sheet: Metal or Recorded, the recorder (standby, trigger, arm, stop, 10 s cap) and the sample bank |
+| **? icon** (top left) | A guide to these gestures |
 | **Wind icon** (top right) | Opens the wind drawer: wind sound on or off, **Strength** and **Consistency** sliders |
 | *(hidden)* Phone mode | Hang the phone upside down for a second and its own motion drives the chimes; upright again returns to wind |
 
