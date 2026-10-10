@@ -4,26 +4,24 @@ A wind chime simulator. It plays the sound of wind chimes, and if you hang your 
 
 Pocket Chimes is an iOS app built with [Capacitor](https://capacitorjs.com). The chime itself (physics, motion input and sound) runs natively in Swift so it keeps playing in the background and with the screen locked. The controls and the top-down view are a web page (`index.html`) shown inside the app. It no longer runs in a desktop or mobile browser.
 
-## Controls
+## Controls (gesture branch)
 
-| Control | What it does |
+Nothing on screen but the chimes. Physics is always on; everything is a gesture.
+
+| Gesture | What it does |
 | --- | --- |
-| *(hidden)* Phone mode | Simulated wind drives the chimes. Hang the phone upside down (top edge toward the ground) for a second and its own motion takes over; turn it upright again to go back to wind |
-| **Strength** | How hard the wind blows |
-| **Consistency** | Low: gusty and shifting, long lulls, half of them truly still, big wander within each gust. High: long steady holds, short lulls that stay a breeze, little wander. Strength scales all of it |
-| **Wind sound** | The sound of the wind itself, following the same gusts that move the chimes. On or off; silent in phone mode |
-| *(tuning branch)* Wind tightness | How closely the wind sound tracks the force on the chimes: 0 is a smooth, lagging impression; 1 follows every gust and jiggle almost directly, for judging the physics by ear. Fixed at 0.6 in the main build |
-| **Chimes** | Number of tubes, 3–12 |
-| **Register** | Pitch, ±2 octaves |
-| **Scale** | Dropdown of tunings (default Pentatonic). *Chord Seq* cycles through a chord progression; *Custom* shows an octave of keys to pick notes from |
-| **Sound** | *Metal* is the synthesized tube. *Recorded* uses a sound you record with the mic. Each chime plays it at its own pitch, shaped with the same decay and filter sweep as a struck tube, so even a sustained note rings and dies away |
-| **Record** | Opens the mic in standby with a level meter. Set **Trigger** just below your sound's level, tap **Arm**, and recording starts the moment the level crosses it (with 150 ms of pre-roll). Tap **Stop** when done; it caps at 10 s. Chimes and wind are silent while the mic is open |
-| **Save / bank** | After a take, name it and tap **Save** to keep it. Saved sounds are listed under the recorder: **Use** switches to one, ✕ deletes it. The last take is kept between launches even if unsaved |
-| **Gust** | A two-second push of wind |
+| **Swipe in from the left or right edge** | Next or previous scale (a straight horizontal stroke anywhere works too): Pentatonic, Major Pent, Minor, Lydian, Whole Tone, Hirajoshi, Slendro, Pelog (both Javanese gamelan tunings, off the piano's grid), Chord Seq, Custom. Each has its own colour, so the screen takes on the scale's mood. Custom brings up an octave of keys along the bottom to pick the notes |
+| **Circle a finger around the outside** | Register, one octave per turn, clockwise up, ±2 octaves |
+| **Circle a finger over the chimes** | Add a chime per sixth of a turn clockwise, remove one anticlockwise, 3–12 |
+| **Press and hold** | A two-second gust |
+| **Double-tap the clapper** | Opens the sound sheet: Metal or Recorded, the recorder (standby, trigger, arm, stop, 10 s cap) and the sample bank |
+| **? icon** (top left) | A guide to these gestures |
+| **Wind icon** (top right) | Opens the wind drawer: wind sound on or off, **Strength** and **Consistency** sliders |
+| *(hidden)* Phone mode | Hang the phone upside down for a second and its own motion drives the chimes; upright again returns to wind |
 
-Pocket Chimes takes the audio for itself: turning physics on pauses whatever else was playing, and another app starting playback (or a call) stops the chimes. After a call they come back on their own; after music they stay off until you tap Physics again.
+Pocket Chimes takes the audio for itself: it pauses whatever else was playing, and another app starting playback (or a call) stops the chimes. After a call they come back on their own; after music, tap the screen.
 
-Every setting (sliders, wind sound, scale and custom keys, sound mode, the sample in use, physics on or off) is saved as you change it and restored the next time the app opens.
+Every setting is saved as it changes and restored the next time the app opens.
 
 ## Project layout
 

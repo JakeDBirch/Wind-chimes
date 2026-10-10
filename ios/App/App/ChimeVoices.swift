@@ -124,6 +124,7 @@ enum ChimeVoices {
                 let v = SynthVoice()
                 v.startTime = now
                 v.sample = sample.samples
+                v.loopStart = sample.loopStart
                 let detuneCents = (rand() - 0.5) * t.detuneCents
                 v.sampleStep = ratio * octave * pow(2, detuneCents / 1200) * sample.sampleRate / sr
                 // Hard hits start a little sharp and settle, as a struck object does

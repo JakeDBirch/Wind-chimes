@@ -45,9 +45,10 @@ final class ChimePhysics {
     static let dt = 1.0 / 120.0
     static let tubeR = 0.035 // tube radius in meters
 
-    /// Semitone offsets above A4. "Chord Seq" cycles through chordProgression instead,
-    /// and "Custom" uses params.customScale.
-    static let scales: [String: [Int]] = [
+    /// Semitone offsets above A4, fractional where a tuning falls between the piano's
+    /// keys. "Chord Seq" cycles through chordProgression instead, and "Custom" uses
+    /// params.customScale.
+    static let scales: [String: [Double]] = [
         "Pentatonic": [0, 3, 5, 7, 10],
         "Major Pent": [0, 2, 4, 7, 9],
         "Major": [0, 2, 4, 5, 7, 9, 11],
@@ -59,6 +60,11 @@ final class ChimePhysics {
         "Blues": [0, 3, 5, 6, 7, 10],
         "Hirajoshi": [0, 2, 3, 7, 8],
         "In Sen": [0, 1, 5, 7, 10],
+        // Javanese gamelan. Slendro divides the octave into five near-equal steps of
+        // 240 cents; pelog's steps are uneven, here the five-note bem selection of a
+        // typical seven-note tuning (0, 120, 258, 675, 785 cents).
+        "Slendro": [0, 2.4, 4.8, 7.2, 9.6],
+        "Pelog": [0, 1.2, 2.58, 6.75, 7.85],
     ]
     // Each chord is a set of semitone offsets from root
     static let chordProgression: [[Int]] = [
@@ -189,21 +195,21 @@ final class ChimePhysics {
     }
 
     func tubeFrequency(_ index: Int) -> Double {
-        let semitone: Int
+        let semitone: Double
         if params.scale == "Chord Seq" {
             let chord = Self.chordProgression[chordIndex % Self.chordProgression.count]
-            semitone = chord[index % chord.count] + (index / chord.count) * 12
+            semitone = Double(chord[index % chord.count] + (index / chord.count) * 12)
         } else {
-            let scale: [Int]
+            let scale: [Double]
             if params.scale == "Custom" {
                 let custom = params.customScale.filter { (0..<12).contains($0) }.sorted()
-                scale = custom.isEmpty ? [0] : custom
+                scale = (custom.isEmpty ? [0] : custom).map(Double.init)
             } else {
                 scale = Self.scales[params.scale] ?? Self.scales["Pentatonic"]!
             }
-            semitone = scale[index % scale.count] + (index / scale.count) * 12
+            semitone = scale[index % scale.count] + Double(index / scale.count) * 12
         }
-        return 440 * pow(2, (Double(semitone) + params.register * 12) / 12)
+        return 440 * pow(2, (semitone + params.register * 12) / 12)
     }
 
     func snapshot() -> [String: Any] {
