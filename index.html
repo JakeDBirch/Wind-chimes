@@ -940,16 +940,16 @@ function draw() {
   var P = D ? {
     bg0: hsla(hue, 30, 11, 1), bg1: hsla(hue, 35, 4, 1),
     mount: hsla(hue, 25, 35, 1), cord: hsla(hue, 25, 55, 0.35), ring: hsla(hue, 20, 70, 0.45),
-    clapper: hsla(hue, 18, 72, 1), clapperEdge: hsla(hue, 20, 55, 0.8), sheen: 'rgba(255,252,240,0.25)',
+    clapper: hsla(hue, 18, 72, 1), clapperEdge: hsla(hue, 20, 55, 0.8),
     tubeCord: hsla(hue, 20, 60, 0.35), tubeCordLit: hsla(hue, 60, 75, 0.6), dot: hsla(hue, 20, 50, 1),
-    bore: hsla(hue, 30, 6, 0.55), wallL: 52, wallS: 18, wallLit: 25, rim: 0.18, rimLit: 0.3,
+    bore: hsla(hue, 30, 6, 0.55), wallL: 52, wallS: 18, wallLit: 25,
     glow: function(h, a) { return [hsla(h, 85, 85, Math.min(1, a * 1.1)), hsla(h, 85, 65, a * 0.8), hsla(h, 85, 55, a * 0.25)]; }
   } : {
     bg0: hsla(hue, 42, 88, 1), bg1: hsla(hue, 36, 74, 1),
     mount: hsla(hue, 25, 42, 1), cord: hsla(hue, 25, 35, 0.4), ring: hsla(hue, 25, 38, 0.5),
-    clapper: hsla(hue, 30, 86, 1), clapperEdge: hsla(hue, 25, 45, 0.8), sheen: 'rgba(255,252,240,0.55)',
+    clapper: hsla(hue, 30, 86, 1), clapperEdge: hsla(hue, 25, 45, 0.8),
     tubeCord: hsla(hue, 25, 38, 0.4), tubeCordLit: hsla(hue, 70, 45, 0.7), dot: hsla(hue, 25, 42, 1),
-    bore: hsla(hue, 40, 93, 0.7), wallL: 44, wallS: 28, wallLit: -10, rim: 0.55, rimLit: 0.4,
+    bore: hsla(hue, 40, 93, 0.7), wallL: 44, wallS: 28, wallLit: -10,
     glow: function(h, a) { return [hsla(h, 95, 78, Math.min(1, a * 1.1)), hsla(h, 95, 62, a * 0.9), hsla(h, 95, 50, a * 0.4)]; }
   };
 
@@ -996,8 +996,6 @@ function draw() {
   c.beginPath(); c.arc(wx(dScx), wy(dScy), clapperR, 0, Math.PI * 2);
   c.fillStyle = P.clapper; c.fill();
   c.strokeStyle = P.clapperEdge; c.lineWidth = 1.5; c.stroke();
-  c.beginPath(); c.arc(wx(dScx) - clapperR * 0.3, wy(dScy) - clapperR * 0.3, clapperR * 0.35, 0, Math.PI * 2);
-  c.fillStyle = P.sheen; c.fill();
 
   layout = { cx: wx(rcx), cy: wy(rcy), ringPx: ringRadius * scale, clapperX: wx(dScx), clapperY: wy(dScy), clapperR: clapperR };
 
@@ -1024,8 +1022,8 @@ function draw() {
 
     c.beginPath(); c.arc(wx(mx), wy(my), 2.5, 0, Math.PI * 2); c.fillStyle = P.dot; c.fill();
 
-    // A tube seen end-on: a hollow ring, dark inside until a strike lights it up from
-    // within and the light fades back out
+    // A tube seen end-on: a plain hollow ring, dark inside until a strike lights it up
+    // from within and the light fades back out
     var r = Math.max(4, TUBE_R * scale);
     var wall = Math.max(2, r * 0.24);
     var sx = wx(midX), sy = wy(midY);
@@ -1047,10 +1045,6 @@ function draw() {
     c.lineWidth = wall;
     c.strokeStyle = hsla(hue, P.wallS + absFlash * 30, P.wallL + absFlash * P.wallLit, 0.95);
     c.stroke();
-    // Rim highlight, the way light catches the top of a polished tube
-    c.beginPath(); c.arc(sx, sy, r - wall / 2, Math.PI * 1.1, Math.PI * 1.6);
-    c.lineWidth = wall * 0.45;
-    c.strokeStyle = 'rgba(255,252,240,' + (P.rim + absFlash * P.rimLit) + ')'; c.stroke();
   }
 
   // Vignette over everything: the corners fall away into shade
