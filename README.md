@@ -10,7 +10,7 @@ Nothing on screen but the chimes. Physics is always on; everything is a gesture.
 
 | Gesture | What it does |
 | --- | --- |
-| **Swipe in from the left or right edge** | Next or previous scale (a straight horizontal stroke anywhere works too): Pentatonic, Major Pent, Minor, Lydian, Whole Tone, Hirajoshi, Chord Seq, Custom. Each has its own colour, so the screen takes on the scale's mood. Custom brings up an octave of keys along the bottom to pick the notes |
+| **Swipe in from the left or right edge** | Next or previous scale (a straight horizontal stroke anywhere works too): Pentatonic, Major Pent, Minor, Lydian, Whole Tone, Hirajoshi, Slendro, Pelog (both Javanese gamelan tunings, off the piano's grid), Chord Seq, Custom. Each has its own colour, so the screen takes on the scale's mood. Custom brings up an octave of keys along the bottom to pick the notes |
 | **Circle a finger around the outside** | Register, one octave per turn, clockwise up, ±2 octaves |
 | **Circle a finger over the chimes** | Add a chime per sixth of a turn clockwise, remove one anticlockwise, 3–12 |
 | **Press and hold** | A two-second gust |
