@@ -17,7 +17,7 @@ Nothing on screen but the chimes, with a scatter of dust that drifts with the wi
 | **Double-tap the clapper** | Opens the sound sheet: Metal or Recorded, the recorder (standby, trigger, arm, stop, 10 s cap) and the sample bank |
 | **? icon** (top left) | A guide to these gestures |
 | **Sun / moon icon** (top right) | Light mode (the default) or dark mode |
-| **Wind icon** (top right) | Opens the wind drawer: wind sound on or off, **Strength** and **Consistency** sliders |
+| **Wind icon** (top right) | Opens the wind drawer: wind sound on or off, **Strength** and **Constancy** sliders |
 | *(hidden)* Phone mode | Hang the phone upside down for a second and its own motion drives the chimes; upright again returns to wind |
 
 Pocket Chimes takes the audio for itself: it pauses whatever else was playing, and another app starting playback (or a call) stops the chimes. After a call they come back on their own; after music, tap the screen.

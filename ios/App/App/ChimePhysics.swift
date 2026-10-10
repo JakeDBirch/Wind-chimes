@@ -3,7 +3,7 @@ import Foundation
 /// Settings the web controls send down. Defaults match the slider defaults in index.html.
 struct ChimeParams {
     var windStrength = 0.3
-    var windConsistency = 0.4 // 0 = gusty and shifting with long calms, 1 = a steady breeze
+    var windConsistency = 0.4 // "Constancy" on screen: 0 = gusty and shifting with long calms, 1 = a steady breeze
     let sensitivity = 0.5     // how much wind force reaches the chimes (the old slider's default)
     var tubeCount = 6
     var register = 0.0
@@ -18,7 +18,7 @@ struct ChimeParams {
     /// Velocity damping per step; the old slider's default, kept fixed
     let damping = 0.0015 * pow(6.667, 0.42)
     var windSteady: Double { windConsistency * 0.35 }
-    var windTurb: Double { 0.5 - windConsistency * 0.4 }
+    var windTurb: Double { 0.5 - windConsistency * 0.4 - windConsistency * windConsistency * 0.08 } // ~0 at 1
     /// Scales the lulls between wind events: 1.5× at consistency 0, 0.3× at 1
     var lullScale: Double { 1.5 - windConsistency * 1.2 }
     /// Chance a lull goes truly still rather than settling to a breeze: 50% at 0, none at 1
@@ -27,8 +27,18 @@ struct ChimeParams {
     var breezeSpeed: Double { 0.15 + windConsistency * 0.45 }
     /// Holds last up to twice as long at consistency 1
     var holdScale: Double { 1 + windConsistency }
-    /// How much the speed wanders within a gust: 0.25 at consistency 1, 0.75 at 0
-    var gustVariation: Double { 0.25 + (1 - windConsistency) * 0.5 }
+    /// How much the speed wanders within a gust (sub-gusts, drops, wander): 0.75 at
+    /// constancy 0, 0.5 at the default 0.4, none at 1
+    var gustVariation: Double { (1 - windConsistency) * 0.5 + 0.25 * (1 - windConsistency * windConsistency) }
+    /// At full constancy every event blows at the same strength; lower down the peaks
+    /// are random (weighted toward lighter events)
+    var peakBlend: Double { windConsistency * windConsistency }
+    /// Scales the wobble and the chance of a spike while a gust holds: gone at 1
+    var holdWobble: Double { 1 - windConsistency * windConsistency * 0.9 }
+    var spikeChance: Double { 1 - windConsistency * windConsistency }
+    /// The wind never falls below this between events: nothing at 0, the breeze at 1,
+    /// so a constant wind stays up instead of dipping to zero before each gust
+    var speedFloor: Double { breezeSpeed * windConsistency }
 }
 
 struct ChimeStrike {
@@ -238,7 +248,8 @@ final class ChimePhysics {
         // Most lulls are a light breeze; some go truly still, and those are shorter
         evtLullStill = rand() < params.stillLullChance
         evtLullDur = (evtLullStill ? 5 + rand() * 10 : 10 + rand() * 40) * params.lullScale
-        evtPeak = 0.2 + pow(rand(), 1.8) * 0.8               // weighted toward lighter events
+        let randomPeak = 0.2 + pow(rand(), 1.8) * 0.8         // weighted toward lighter events
+        evtPeak = randomPeak + (0.75 - randomPeak) * params.peakBlend
         evtRiseDur = 0.8 + (1 - evtPeak) * 5 + rand() * 2    // stronger events rise faster
         evtHoldDur = (2 + rand() * 10) * params.holdScale
         evtFallDur = 1.5 + rand() * 8.5
@@ -507,26 +518,24 @@ final class ChimePhysics {
             case .rise:
                 calmDamp = 1.0
                 let progress = min(1, evtT / evtRiseDur)
-                targetSpeed = evtPeak * progress * progress // ease in
+                targetSpeed = max(p.speedFloor, evtPeak * progress * progress) // ease in
                 windSpeed += (targetSpeed - windSpeed) * 0.08
                 if evtT >= evtRiseDur { evtPhase = .hold; evtT = 0 }
             case .hold:
                 calmDamp = 1.0
                 // Small internal variation — wind is never perfectly steady
-                targetSpeed = evtPeak * (0.75 + sin(evtT * 1.3) * 0.15 + sin(evtT * 2.7) * 0.10)
-                if rand() < 0.005 { targetSpeed *= 1.4 + rand() * 0.6 } // occasional spike
+                let wobble = p.holdWobble
+                targetSpeed = evtPeak * (0.75 + 0.25 * (1 - wobble) + (sin(evtT * 1.3) * 0.15 + sin(evtT * 2.7) * 0.10) * wobble)
+                if rand() < 0.005 * p.spikeChance { targetSpeed *= 1.4 + rand() * 0.6 } // occasional spike
                 windSpeed += (targetSpeed - windSpeed) * 0.05
                 windAngle += (rand() - 0.5) * (1 - wSteady) * 0.04     // slow angle drift
                 if evtT >= evtHoldDur { evtPhase = .fall; evtT = 0 }
             case .fall:
                 calmDamp = 1.0
                 let progress = max(0, 1 - evtT / evtFallDur)
-                targetSpeed = evtPeak * progress
+                targetSpeed = max(p.speedFloor, evtPeak * progress)
                 windSpeed += (targetSpeed - windSpeed) * 0.06
-                if evtT >= evtFallDur {
-                    windSpeed = 0
-                    scheduleNextEvent()
-                }
+                if evtT >= evtFallDur { scheduleNextEvent() }
             }
 
             // Texture: an Ornstein-Uhlenbeck wander (τ 2.5 s) and sub-gusts (half-sine,
