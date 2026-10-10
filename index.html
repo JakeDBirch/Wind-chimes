@@ -4,92 +4,128 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#0b0c0e">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#e9e3d2">
 <title>Pocket Chimes</title>
 <style>
+/* Theme: light is the default, dark is the option. Every colour on the page comes from here;
+   the canvas has its own table in draw(). */
+:root {
+  --bg: #e9e3d2; --text: #1f262b; --text-dim: #5a6670; --text-faint: #8a949c;
+  --hud: rgba(28,34,38,0.88); --hud-sub: rgba(28,34,38,0.55); --hud-shadow: 0 1px 10px rgba(255,255,255,0.6);
+  --icon: #2a3338;
+  --panel: rgba(247,242,230,0.96); --panel-border: rgba(0,0,0,0.08); --panel-shadow: 0 12px 40px rgba(0,0,0,0.18);
+  --overlay: rgba(238,232,218,0.9); --dim: rgba(60,50,30,0.25);
+  --line: rgba(0,0,0,0.12); --track: rgba(0,0,0,0.12); --knob: #fffaf0; --knob-shadow: 0 2px 6px rgba(0,0,0,0.25);
+  --chip-text: #5a6670; --chip-active: #1f262b; --chip-active-bg: rgba(0,0,0,0.06);
+  --switch-off: rgba(0,0,0,0.18); --switch-knob: #fffaf0; --accent: #4f9a6e;
+  --keys-fade: rgba(60,50,30,0.22); --key-bg: rgba(255,250,236,0.65); --key-border: rgba(0,0,0,0.12); --key-text: rgba(0,0,0,0.5);
+  --key-black-bg: rgba(0,0,0,0.3); --key-black-text: rgba(255,255,255,0.75); --key-active-bg: #1f262b; --key-active-text: #ffffff;
+  --input-bg: rgba(255,250,236,0.7); --meter-bg: rgba(0,0,0,0.06); --meter-fill: #6fae8c; --meter-mark: #1f262b;
+  --rec: #c25a5a; --rec-bg: rgba(194,90,90,0.08); --rec-live: rgba(194,90,90,0.3);
+}
+html[data-theme="dark"] {
+  --bg: #0b0c0e; --text: #c8d0c8; --text-dim: #9aa6ae; --text-faint: #678;
+  --hud: rgba(255,255,255,0.88); --hud-sub: rgba(255,255,255,0.55); --hud-shadow: 0 1px 8px rgba(0,0,0,0.6);
+  --icon: #dfe6ea;
+  --panel: rgba(16,18,20,0.96); --panel-border: rgba(255,255,255,0.08); --panel-shadow: 0 12px 40px rgba(0,0,0,0.45);
+  --overlay: rgba(8,10,12,0.9); --dim: rgba(0,0,0,0.45);
+  --line: rgba(255,255,255,0.1); --track: #2a3338; --knob: #e6ecf0; --knob-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  --chip-text: #678; --chip-active: #cde; --chip-active-bg: rgba(255,255,255,0.06);
+  --switch-off: #2a3338; --switch-knob: #e6ecf0; --accent: #5aa37a;
+  --keys-fade: rgba(0,0,0,0.5); --key-bg: rgba(255,255,255,0.05); --key-border: rgba(255,255,255,0.14); --key-text: rgba(255,255,255,0.55);
+  --key-black-bg: rgba(0,0,0,0.35); --key-black-text: rgba(255,255,255,0.4); --key-active-bg: rgba(255,255,255,0.85); --key-active-text: #16181c;
+  --input-bg: #0e1012; --meter-bg: #0e1012; --meter-fill: #4a7058; --meter-mark: #cde;
+  --rec: #c87a7a; --rec-bg: rgba(200,122,122,0.07); --rec-live: rgba(200,122,122,0.3);
+}
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { background: #0b0c0e; color: #c8d0c8; font-family: ui-rounded, -apple-system, sans-serif; /* SF Pro Rounded on iOS; this page only runs there */ font-weight: 600; font-size: 22px; overflow: hidden; height: 100%; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+html, body { background: var(--bg); color: var(--text); font-family: ui-rounded, -apple-system, sans-serif; /* SF Pro Rounded on iOS; this page only runs there */ font-weight: 600; font-size: 22px; overflow: hidden; height: 100%; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 #viz { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
 /* A line of text that fades in on a gesture and out again */
-.hud { position: fixed; left: 0; right: 0; top: calc(26px + env(safe-area-inset-top)); text-align: center; font-size: 26px; font-weight: 700; letter-spacing: 0.02em; color: rgba(255,255,255,0.88); opacity: 0; transition: opacity 0.6s; pointer-events: none; text-shadow: 0 1px 8px rgba(0,0,0,0.6); }
+.hud { position: fixed; left: 0; right: 0; top: calc(26px + env(safe-area-inset-top)); text-align: center; font-size: 26px; font-weight: 700; letter-spacing: 0.02em; color: var(--hud); opacity: 0; transition: opacity 0.6s; pointer-events: none; text-shadow: var(--hud-shadow); }
 .hud.show { opacity: 1; transition: opacity 0.12s; }
-.hud.sub { top: calc(64px + env(safe-area-inset-top)); font-size: 19px; letter-spacing: 0.02em; color: rgba(255,255,255,0.55); }
+.hud.sub { top: calc(64px + env(safe-area-inset-top)); font-size: 19px; letter-spacing: 0.02em; color: var(--hud-sub); }
 /* Wind sound toggle */
 /* Help: a question mark top left, opening a guide to the gestures */
+#help-btn, #wind-btn, #theme-btn { color: var(--icon); }
 #help-btn { position: fixed; top: calc(14px + env(safe-area-inset-top)); left: calc(14px + env(safe-area-inset-left)); width: 52px; height: 52px; border: none; background: none; padding: 10px; outline: none; -webkit-tap-highlight-color: transparent; opacity: 0.6; }
 #help-btn svg { width: 32px; height: 32px; display: block; }
-#help { position: fixed; inset: 0; z-index: 60; background: rgba(8,10,12,0.9); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); opacity: 0; pointer-events: none; transition: opacity 0.25s; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: calc(22px + env(safe-area-inset-top)) 22px calc(30px + env(safe-area-inset-bottom)); }
+#help { position: fixed; inset: 0; z-index: 60; background: var(--overlay); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); opacity: 0; pointer-events: none; transition: opacity 0.25s; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: calc(22px + env(safe-area-inset-top)) 22px calc(30px + env(safe-area-inset-bottom)); }
 #help.open { opacity: 1; pointer-events: auto; }
 .help-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
-.help-title { font-size: 26px; font-weight: 700; color: #e8eef2; }
-.help-row { display: flex; align-items: center; gap: 18px; padding: 14px 0; border-bottom: 1px solid rgba(255,255,255,0.07); }
+.help-title { font-size: 26px; font-weight: 700; color: var(--text); }
+.help-row { display: flex; align-items: center; gap: 18px; padding: 14px 0; border-bottom: 1px solid var(--line); }
 .help-row:last-child { border-bottom: none; }
 .help-row svg { width: 56px; height: 56px; flex-shrink: 0; }
-.help-name { font-size: 20px; font-weight: 700; color: #e8eef2; margin-bottom: 3px; }
-.help-what { font-size: 16px; font-weight: 500; color: #9aa6ae; line-height: 1.4; }
+.help-name { font-size: 20px; font-weight: 700; color: var(--text); margin-bottom: 3px; }
+.help-what { font-size: 16px; font-weight: 500; color: var(--text-dim); line-height: 1.4; }
 #wind-btn { position: fixed; top: calc(14px + env(safe-area-inset-top)); right: calc(14px + env(safe-area-inset-right)); width: 52px; height: 52px; border: none; background: none; padding: 10px; outline: none; -webkit-tap-highlight-color: transparent; opacity: 0.85; }
 #wind-btn.off { opacity: 0.3; }
+#theme-btn { position: fixed; top: calc(14px + env(safe-area-inset-top)); right: calc(62px + env(safe-area-inset-right)); width: 52px; height: 52px; border: none; background: none; padding: 10px; outline: none; -webkit-tap-highlight-color: transparent; opacity: 0.6; }
+#theme-btn svg { width: 30px; height: 30px; display: block; }
+#theme-btn .sun, #theme-btn .moon { display: none; }
+html[data-theme="dark"] #theme-btn .sun { display: block; }
+html:not([data-theme="dark"]) #theme-btn .moon { display: block; }
 #wind-btn svg { width: 32px; height: 32px; display: block; }
 #wind-btn.off svg path { stroke-dasharray: 3 3; }
 /* Wind drawer: drops down from the icon */
 #catch { position: fixed; inset: 0; display: none; }
 #catch.open { display: block; }
-#drawer { position: fixed; top: calc(66px + env(safe-area-inset-top)); right: calc(14px + env(safe-area-inset-right)); width: min(320px, calc(100vw - 28px)); background: rgba(16,18,20,0.96); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 18px 20px 14px; transform: translateY(-12px) scale(0.96); transform-origin: top right; opacity: 0; pointer-events: none; transition: transform 0.22s cubic-bezier(.2,.8,.2,1), opacity 0.18s; box-shadow: 0 12px 40px rgba(0,0,0,0.45); }
+#drawer { position: fixed; top: calc(66px + env(safe-area-inset-top)); right: calc(14px + env(safe-area-inset-right)); width: min(320px, calc(100vw - 28px)); background: var(--panel); border: 1px solid var(--panel-border); border-radius: 20px; padding: 18px 20px 14px; transform: translateY(-12px) scale(0.96); transform-origin: top right; opacity: 0; pointer-events: none; transition: transform 0.22s cubic-bezier(.2,.8,.2,1), opacity 0.18s; box-shadow: var(--panel-shadow); }
 #drawer.open { transform: none; opacity: 1; pointer-events: auto; }
 .drow { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 .drow:last-child { margin-bottom: 4px; }
-.dlabel { font-size: 18px; color: #d4dce2; }
-.dval { font-size: 16px; color: #8a96a0; min-width: 36px; text-align: right; font-variant-numeric: tabular-nums; }
+.dlabel { font-size: 18px; color: var(--text); }
+.dval { font-size: 16px; color: var(--text-dim); min-width: 36px; text-align: right; font-variant-numeric: tabular-nums; }
 .dslider { display: block; width: 100%; margin-top: 8px; }
 .dgroup { margin-bottom: 14px; }
 /* Custom scale keyboard: an octave of keys along the bottom, shown while Custom is the scale */
-#keys { position: fixed; left: 0; right: 0; bottom: 0; display: flex; gap: 6px; align-items: flex-end; padding: 10px 12px calc(14px + env(safe-area-inset-bottom)); background: linear-gradient(to top, rgba(0,0,0,0.5), rgba(0,0,0,0)); transform: translateY(110%); transition: transform 0.3s cubic-bezier(.2,.8,.2,1); }
+#keys { position: fixed; left: 0; right: 0; bottom: 0; display: flex; gap: 6px; align-items: flex-end; padding: 10px 12px calc(14px + env(safe-area-inset-bottom)); background: linear-gradient(to top, var(--keys-fade), transparent); transform: translateY(110%); transition: transform 0.3s cubic-bezier(.2,.8,.2,1); }
 #keys.open { transform: none; }
-.key { flex: 1; min-width: 0; height: 72px; border-radius: 14px; border: 1.5px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.55); font-family: inherit; font-weight: 700; font-size: 17px; outline: none; padding: 0; -webkit-tap-highlight-color: transparent; transition: background 0.15s, color 0.15s; }
-.key.black { height: 50px; background: rgba(0,0,0,0.35); color: rgba(255,255,255,0.4); }
-.key.active { background: rgba(255,255,255,0.85); color: #16181c; border-color: rgba(255,255,255,0.9); }
+.key { flex: 1; min-width: 0; height: 72px; border-radius: 14px; border: 1.5px solid var(--key-border); background: var(--key-bg); color: var(--key-text); font-family: inherit; font-weight: 700; font-size: 17px; outline: none; padding: 0; -webkit-tap-highlight-color: transparent; transition: background 0.15s, color 0.15s; }
+.key.black { height: 50px; background: var(--key-black-bg); color: var(--key-black-text); }
+.key.active { background: var(--key-active-bg); color: var(--key-active-text); border-color: var(--key-active-bg); }
 /* Toggle switch */
-.switch { position: relative; width: 52px; height: 30px; border-radius: 15px; background: #2a3338; border: none; outline: none; padding: 0; transition: background 0.2s; -webkit-tap-highlight-color: transparent; flex-shrink: 0; }
-.switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #e6ecf0; transition: transform 0.2s; }
-.switch.on { background: #5aa37a; }
+.switch { position: relative; width: 52px; height: 30px; border-radius: 15px; background: var(--switch-off); border: none; outline: none; padding: 0; transition: background 0.2s; -webkit-tap-highlight-color: transparent; flex-shrink: 0; }
+.switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: var(--switch-knob); transition: transform 0.2s; }
+.switch.on { background: var(--accent); }
 .switch.on::after { transform: translateX(22px); }
 /* Sound sheet: opened by a double tap on the clapper */
-#dim { position: fixed; inset: 0; background: rgba(0,0,0,0.45); opacity: 0; pointer-events: none; transition: opacity 0.25s; }
+#dim { position: fixed; inset: 0; background: var(--dim); opacity: 0; pointer-events: none; transition: opacity 0.25s; }
 #dim.open { opacity: 1; pointer-events: auto; }
-#sheet { position: fixed; left: 0; right: 0; bottom: 0; background: rgba(12,14,16,0.97); border-top: 1px solid rgba(255,255,255,0.08); border-radius: 16px 16px 0 0; padding: 14px 18px calc(18px + env(safe-area-inset-bottom)); transform: translateY(105%); transition: transform 0.3s cubic-bezier(.2,.8,.2,1); max-height: 80vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+#sheet { position: fixed; left: 0; right: 0; bottom: 0; background: var(--panel); border-top: 1px solid var(--panel-border); border-radius: 16px 16px 0 0; padding: 14px 18px calc(18px + env(safe-area-inset-bottom)); transform: translateY(105%); transition: transform 0.3s cubic-bezier(.2,.8,.2,1); max-height: 80vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 #sheet.open { transform: none; }
 .sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-.stitle { font-size: 18px; font-weight: 700; letter-spacing: 0.02em; color: #b8c4cc; }
-.close { border: none; background: none; color: #789; font-family: inherit; font-size: 28px; padding: 6px 10px; outline: none; }
+.stitle { font-size: 18px; font-weight: 700; letter-spacing: 0.02em; color: var(--text); }
+.close { border: none; background: none; color: var(--text-dim); font-family: inherit; font-size: 28px; padding: 6px 10px; outline: none; }
 .row { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
-.label { width: 100px; flex-shrink: 0; font-size: 18px; color: #678; }
-.val { width: 56px; text-align: right; flex-shrink: 0; font-size: 20px; color: #9ab; font-variant-numeric: tabular-nums; }
-input[type=range] { flex: 1; -webkit-appearance: none; height: 4px; background: #2a3338; border-radius: 2px; outline: none; }
-input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px; height: 26px; border-radius: 50%; background: #e6ecf0; border: none; box-shadow: 0 2px 6px rgba(0,0,0,0.4); }
-.schip { padding: 8px 16px; border-radius: 12px; border: 1px solid #2a3338; background: none; color: #678; font-family: inherit; font-size: 18px; outline: none; letter-spacing: 0.01em;  }
-.schip.active { border-color: #cde; color: #cde; background: rgba(255,255,255,0.06); }
+.label { width: 100px; flex-shrink: 0; font-size: 18px; color: var(--text-dim); }
+.val { width: 56px; text-align: right; flex-shrink: 0; font-size: 20px; color: var(--text); font-variant-numeric: tabular-nums; }
+input[type=range] { flex: 1; -webkit-appearance: none; height: 4px; background: var(--track); border-radius: 2px; outline: none; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px; height: 26px; border-radius: 50%; background: var(--knob); border: none; box-shadow: var(--knob-shadow); }
+.schip { padding: 8px 16px; border-radius: 12px; border: 1px solid var(--line); background: none; color: var(--chip-text); font-family: inherit; font-size: 18px; outline: none; letter-spacing: 0.01em; }
+.schip.active { border-color: var(--chip-active); color: var(--chip-active); background: var(--chip-active-bg); }
 .rec-row { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
-.rec-btn { white-space: nowrap; padding: 9px 16px; border-radius: 12px; border: 1px solid #c87a7a; background: rgba(200,122,122,0.07); color: #c87a7a; font-family: inherit; font-size: 18px; letter-spacing: 0.16em;  outline: none; }
-.rec-btn.quiet { border-color: #2a3338; color: #678; background: none; }
-.rec-btn.live { background: rgba(200,122,122,0.3); }
-.rec-status { font-size: 16px; letter-spacing: 0.01em; color: #678; }
-.meter { position: relative; height: 12px; background: #0e1012; border: 1px solid #243; border-radius: 6px; margin-top: 12px; overflow: hidden; }
-.meter-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: #4a7058; transition: width 0.05s linear; }
-.meter-fill.hot { background: #c87a7a; }
-.meter-mark { position: absolute; top: -1px; bottom: -1px; width: 2px; background: #cde; }
+.rec-btn { white-space: nowrap; padding: 9px 16px; border-radius: 12px; border: 1px solid var(--rec); background: var(--rec-bg); color: var(--rec); font-family: inherit; font-size: 18px; letter-spacing: 0.16em;  outline: none; }
+.rec-btn.quiet { border-color: var(--line); color: var(--text-dim); background: none; }
+.rec-btn.live { background: var(--rec-live); }
+.rec-status { font-size: 16px; letter-spacing: 0.01em; color: var(--text-dim); }
+.meter { position: relative; height: 12px; background: var(--meter-bg); border: 1px solid var(--line); border-radius: 6px; margin-top: 12px; overflow: hidden; }
+.meter-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--meter-fill); transition: width 0.05s linear; }
+.meter-fill.hot { background: var(--rec); }
+.meter-mark { position: absolute; top: -1px; bottom: -1px; width: 2px; background: var(--meter-mark); }
 .rec-panel { display: none; }
 .rec-panel.open { display: block; }
 .save-row { display: none; align-items: center; gap: 8px; margin-top: 10px; }
 .save-row.open { display: flex; }
-.name-input { flex: 1; min-width: 0; padding: 9px 11px; border-radius: 12px; border: 1px solid #2a3338; background: #0e1012; color: #c8d0c8; font-family: inherit; font-size: 22px; outline: none; -webkit-user-select: text; user-select: text; }
+.name-input { flex: 1; min-width: 0; padding: 9px 11px; border-radius: 12px; border: 1px solid var(--line); background: var(--input-bg); color: var(--text); font-family: inherit; font-size: 22px; outline: none; -webkit-user-select: text; user-select: text; }
 .bank { margin-top: 10px; }
-.bank-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid #243; border-radius: 12px; margin-bottom: 5px; }
-.bank-row.active { border-color: #9ab; background: rgba(255,255,255,0.04); }
-.bank-name { flex: 1; min-width: 0; font-size: 20px; color: #c8d0c8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.bank-meta { font-size: 16px; color: #678; white-space: nowrap; }
-.bank-btn { padding: 6px 11px; border-radius: 10px; border: 1px solid #2a3338; background: none; color: #789; font-family: inherit; font-size: 16px; outline: none; letter-spacing: 0.01em;  }
-.bank-btn.use { border-color: #9ab; color: #cde; }
+.bank-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 12px; margin-bottom: 5px; }
+.bank-row.active { border-color: var(--chip-active); background: var(--chip-active-bg); }
+.bank-name { flex: 1; min-width: 0; font-size: 20px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bank-meta { font-size: 16px; color: var(--text-dim); white-space: nowrap; }
+.bank-btn { padding: 6px 11px; border-radius: 10px; border: 1px solid var(--line); background: none; color: var(--text-dim); font-family: inherit; font-size: 16px; outline: none; letter-spacing: 0.01em;  }
+.bank-btn.use { border-color: var(--chip-active); color: var(--chip-active); }
 .bank-btn.del { color: #c87a7a; border-color: #3a2424; }
 .hint { font-size: 16px; color: #567; margin-top: 10px; letter-spacing: 0.01em; line-height: 1.6; }
 </style>
@@ -101,10 +137,10 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px;
 <div class="hud sub" id="hud2"></div>
 
 <button id="help-btn" aria-label="How to play">
-  <svg viewBox="0 0 24 24" fill="none" stroke="#dfe6ea" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
     <circle cx="12" cy="12" r="9.5"/>
     <path d="M9.2 9.3a2.9 2.9 0 1 1 4.1 2.6c-.9.5-1.3 1-1.3 2"/>
-    <circle cx="12" cy="17.2" r="0.6" fill="#dfe6ea"/>
+    <circle cx="12" cy="17.2" r="0.6" fill="currentColor"/>
   </svg>
 </button>
 
@@ -136,8 +172,13 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px;
   </div>
 </div>
 
+<button id="theme-btn" aria-label="Light or dark">
+  <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>
+  <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/></svg>
+</button>
+
 <button id="wind-btn" aria-label="Wind sound">
-  <svg viewBox="0 0 24 24" fill="none" stroke="#dfe6ea" stroke-width="1.6" stroke-linecap="round">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
     <path d="M3 8h10a2.5 2.5 0 1 0-2.5-2.5"/>
     <path d="M3 12h14a3 3 0 1 1-3 3"/>
     <path d="M3 16h7a2 2 0 1 1-2 2"/>
@@ -226,6 +267,7 @@ var windStrength = 50;     // 0–100, the drawer's Strength slider
 var windConsistency = 40;  // 0–100, the drawer's Consistency slider
 var S = null;            // latest engine state
 var hue = SCALES[0].hue, hueTarget = hue;
+var theme = 'light';     // 'light' | 'dark'
 var _userChangedAt = 0;  // ignore engine state briefly after a tap, so an in-flight poll can't undo it
 
 // ── Saved settings ────────────────────────────────────────
@@ -234,8 +276,7 @@ var SETTINGS_KEY = 'pocketChimesGesture';
 function saveSettings() {
   try {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify({
-      scale: SCALES[scaleIndex].name,
-    customScale: customScale, customScale: customScale, register: register, tubeCount: tubeCount, windSound: windSound,
+      theme: theme, scale: SCALES[scaleIndex].name, customScale: customScale, register: register, tubeCount: tubeCount, windSound: windSound,
       sound: currentSound, sampleId: activeSampleId, windStrength: windStrength, windConsistency: windConsistency
     }));
   } catch (e) {}
@@ -247,6 +288,7 @@ function loadSettings() {
   if (!s || typeof s !== 'object') return;
   var i = SCALES.findIndex(function(x) { return x.name === s.scale; });
   if (i >= 0) scaleIndex = i;
+  if (s.theme === 'dark' || s.theme === 'light') theme = s.theme;
   if (Array.isArray(s.customScale)) {
     var keys = s.customScale.filter(function(k) { return k === Math.floor(k) && k >= 0 && k < 12; });
     if (keys.length) customScale = keys.sort(function(a, b) { return a - b; });
@@ -458,10 +500,16 @@ function showWind() {
   document.getElementById('v-consistency').textContent = windConsistency;
 }
 
+// ── Theme ─────────────────────────────────────────────────
+function applyTheme() {
+  document.documentElement.setAttribute('data-theme', theme);
+  document.querySelector('meta[name=theme-color]').setAttribute('content', theme === 'dark' ? '#0b0c0e' : '#e9e3d2');
+}
+
 function openHelp(open) {
   var el = document.getElementById('help');
   el.classList.toggle('open', open);
-  el.style.color = hsla(hue, 60, 72, 1); // icons in the scale's colour
+  el.style.color = theme === 'dark' ? hsla(hue, 60, 72, 1) : hsla(hue, 55, 38, 1); // icons in the scale's colour
 }
 
 function openDrawer(open) {
@@ -710,6 +758,7 @@ function saveSample() {
 // ── Startup ───────────────────────────────────────────────
 window.addEventListener('load', function() {
   loadSettings();
+  applyTheme();
   showWind();
   buildKeyboard();
   showKeyboard();
@@ -725,6 +774,11 @@ window.addEventListener('load', function() {
   });
   document.getElementById('catch').addEventListener('click', function() { openDrawer(false); });
   document.getElementById('help-btn').addEventListener('click', function() { openHelp(true); });
+  document.getElementById('theme-btn').addEventListener('click', function() {
+    theme = theme === 'dark' ? 'light' : 'dark';
+    applyTheme();
+    saveSettings();
+  });
   document.getElementById('help').addEventListener('click', function() { openHelp(false); });
   document.getElementById('wind-switch').addEventListener('click', function() {
     windSound = !windSound;
@@ -815,6 +869,56 @@ function loop() {
 // ── Drawing ───────────────────────────────────────────────
 function hsla(h, s, l, a) { return 'hsla(' + h + ',' + s + '%,' + l + '%,' + a + ')'; }
 
+// Dust: a scatter of motes carried by the wind, so you can see it blow. Each mote has
+// its own depth (nearer ones move faster and draw larger) and a little wander of its
+// own; they drift slowly in still air and streak when a gust comes through.
+var DUST_COUNT = 70;
+var dust = [], _dustAt = 0;
+function initDust() {
+  for (var i = 0; i < DUST_COUNT; i++) {
+    dust.push({ x: Math.random(), y: Math.random(), depth: 0.5 + Math.random() * 0.9,
+                wx: 0, wy: 0, seed: Math.random() * Math.PI * 2 });
+  }
+}
+function updateDust(W, H, wind) {
+  var now = performance.now();
+  var dt = _dustAt ? Math.min(0.05, (now - _dustAt) / 1000) : 0;
+  _dustAt = now;
+  var t = now / 1000;
+  var K = 520; // px/s per unit of wind at depth 1
+  for (var i = 0; i < dust.length; i++) {
+    var d = dust[i];
+    // Own wander: a slow circling that keeps still air from looking frozen
+    var wander = 14 * d.depth;
+    var ax = Math.cos(t * 0.7 + d.seed) * wander, ay = Math.sin(t * 0.9 + d.seed * 1.3) * wander;
+    var tx = wind[0] * K * d.depth + ax, ty = wind[1] * K * d.depth + ay;
+    // Motes have a little inertia
+    d.wx += (tx - d.wx) * Math.min(1, dt * 6);
+    d.wy += (ty - d.wy) * Math.min(1, dt * 6);
+    d.x += d.wx * dt / W; d.y += d.wy * dt / H;
+    if (d.x < -0.02) d.x += 1.04; else if (d.x > 1.02) d.x -= 1.04;
+    if (d.y < -0.02) d.y += 1.04; else if (d.y > 1.02) d.y -= 1.04;
+  }
+}
+function drawDust(c, W, H, P, D) {
+  for (var i = 0; i < dust.length; i++) {
+    var d = dust[i];
+    var speed = Math.hypot(d.wx, d.wy);
+    var x = d.x * W, y = d.y * H;
+    var r = 0.6 + d.depth * 0.9;
+    var a = (D ? 0.14 : 0.12) + Math.min(0.22, speed / 900) * d.depth;
+    c.fillStyle = D ? 'rgba(255,250,235,' + a + ')' : hsla(hue, 35, 28, a);
+    if (speed > 60) {
+      // Fast motes streak along their motion
+      var len = Math.min(16, speed * 0.035) * d.depth;
+      c.strokeStyle = c.fillStyle; c.lineWidth = r * 1.1; c.lineCap = 'round';
+      c.beginPath(); c.moveTo(x, y); c.lineTo(x - d.wx / speed * len, y - d.wy / speed * len); c.stroke();
+    } else {
+      c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill();
+    }
+  }
+}
+
 function draw() {
   var canvas = document.getElementById('viz');
   var c = canvas.getContext('2d');
@@ -830,11 +934,34 @@ function draw() {
   if (dh > 180) dh -= 360; else if (dh < -180) dh += 360;
   hue = (hue + dh * 0.08 + 360) % 360;
 
+  // The two palettes. Dark: pale metal on a deep tinted ground. Light: a sunlit, pale
+  // ground with the metal drawn darker, and strikes glowing in saturated colour.
+  var D = theme === 'dark';
+  var P = D ? {
+    bg0: hsla(hue, 30, 11, 1), bg1: hsla(hue, 35, 4, 1),
+    mount: hsla(hue, 25, 35, 1), cord: hsla(hue, 25, 55, 0.35), ring: hsla(hue, 20, 70, 0.45),
+    clapper: hsla(hue, 18, 72, 1), clapperEdge: hsla(hue, 20, 55, 0.8), sheen: 'rgba(255,252,240,0.25)',
+    tubeCord: hsla(hue, 20, 60, 0.35), tubeCordLit: hsla(hue, 60, 75, 0.6), dot: hsla(hue, 20, 50, 1),
+    bore: hsla(hue, 30, 6, 0.55), wallL: 52, wallS: 18, wallLit: 25, rim: 0.18, rimLit: 0.3,
+    glow: function(h, a) { return [hsla(h, 85, 85, Math.min(1, a * 1.1)), hsla(h, 85, 65, a * 0.8), hsla(h, 85, 55, a * 0.25)]; }
+  } : {
+    bg0: hsla(hue, 42, 88, 1), bg1: hsla(hue, 36, 74, 1),
+    mount: hsla(hue, 25, 42, 1), cord: hsla(hue, 25, 35, 0.4), ring: hsla(hue, 25, 38, 0.5),
+    clapper: hsla(hue, 30, 86, 1), clapperEdge: hsla(hue, 25, 45, 0.8), sheen: 'rgba(255,252,240,0.55)',
+    tubeCord: hsla(hue, 25, 38, 0.4), tubeCordLit: hsla(hue, 70, 45, 0.7), dot: hsla(hue, 25, 42, 1),
+    bore: hsla(hue, 40, 93, 0.7), wallL: 44, wallS: 28, wallLit: -10, rim: 0.55, rimLit: 0.4,
+    glow: function(h, a) { return [hsla(h, 95, 78, Math.min(1, a * 1.1)), hsla(h, 95, 62, a * 0.9), hsla(h, 95, 50, a * 0.4)]; }
+  };
+
   var bg = c.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * 0.7);
-  bg.addColorStop(0, hsla(hue, 30, 11, 1));
-  bg.addColorStop(1, hsla(hue, 35, 4, 1));
+  bg.addColorStop(0, P.bg0);
+  bg.addColorStop(1, P.bg1);
   c.fillStyle = bg;
   c.fillRect(0, 0, W, H);
+
+  if (!dust.length) initDust();
+  updateDust(W, H, (S && S.wind) || [0, 0]);
+  drawDust(c, W, H, P, D);
 
   if (!S || !S.ta) return;
   var n = S.ta.length;
@@ -851,26 +978,26 @@ function draw() {
   function wy(y) { return cy + y * scale; }
 
   // Mount and housing cord
-  c.beginPath(); c.arc(cx, cy, 4, 0, Math.PI * 2); c.fillStyle = hsla(hue, 25, 35, 1); c.fill();
-  c.beginPath(); c.strokeStyle = hsla(hue, 25, 55, 0.35); c.lineWidth = 1;
+  c.beginPath(); c.arc(cx, cy, 4, 0, Math.PI * 2); c.fillStyle = P.mount; c.fill();
+  c.beginPath(); c.strokeStyle = P.cord; c.lineWidth = 1;
   c.moveTo(cx, cy); c.lineTo(wx(rcx), wy(rcy)); c.stroke();
 
   // Ring
   c.beginPath(); c.arc(wx(rcx), wy(rcy), ringRadius * scale, 0, Math.PI * 2);
-  c.strokeStyle = hsla(hue, 20, 70, 0.45); c.lineWidth = 2; c.stroke();
+  c.strokeStyle = P.ring; c.lineWidth = 2; c.stroke();
 
   // Clapper
   var strikerL = cord * 0.76;
   var dScx = rcx + Math.sin(S.striker[0]) * strikerL;
   var dScy = rcy + Math.sin(S.striker[1]) * strikerL;
-  c.beginPath(); c.strokeStyle = hsla(hue, 20, 60, 0.35); c.lineWidth = 0.8;
+  c.beginPath(); c.strokeStyle = P.tubeCord; c.lineWidth = 0.8;
   c.moveTo(wx(rcx), wy(rcy)); c.lineTo(wx(dScx), wy(dScy)); c.stroke();
   var clapperR = Math.max(4, (ringRadius - TUBE_R - (GAP_MM / 1000)) * scale);
   c.beginPath(); c.arc(wx(dScx), wy(dScy), clapperR, 0, Math.PI * 2);
-  c.fillStyle = hsla(hue, 18, 72, 1); c.fill();
-  c.strokeStyle = hsla(hue, 20, 55, 0.8); c.lineWidth = 1.5; c.stroke();
+  c.fillStyle = P.clapper; c.fill();
+  c.strokeStyle = P.clapperEdge; c.lineWidth = 1.5; c.stroke();
   c.beginPath(); c.arc(wx(dScx) - clapperR * 0.3, wy(dScy) - clapperR * 0.3, clapperR * 0.35, 0, Math.PI * 2);
-  c.fillStyle = 'rgba(255,252,240,0.25)'; c.fill();
+  c.fillStyle = P.sheen; c.fill();
 
   layout = { cx: wx(rcx), cy: wy(rcy), ringPx: ringRadius * scale, clapperX: wx(dScx), clapperY: wy(dScy), clapperR: clapperR };
 
@@ -891,11 +1018,11 @@ function draw() {
     var absFlash = Math.abs(flash);
 
     c.beginPath();
-    c.strokeStyle = flash > 0.05 ? hsla(hue, 60, 75, 0.6) : hsla(hue, 20, 60, 0.35);
+    c.strokeStyle = flash > 0.05 ? P.tubeCordLit : P.tubeCord;
     c.lineWidth = 0.8;
     c.moveTo(wx(mx), wy(my)); c.lineTo(wx(tx), wy(ty)); c.stroke();
 
-    c.beginPath(); c.arc(wx(mx), wy(my), 2.5, 0, Math.PI * 2); c.fillStyle = hsla(hue, 20, 50, 1); c.fill();
+    c.beginPath(); c.arc(wx(mx), wy(my), 2.5, 0, Math.PI * 2); c.fillStyle = P.dot; c.fill();
 
     // A tube seen end-on: a hollow ring, dark inside until a strike lights it up from
     // within and the light fades back out
@@ -905,25 +1032,33 @@ function draw() {
     var inner = r - wall / 2;
     if (absFlash > 0.01) {
       var litHue = flash < 0 ? (hue + 180) % 360 : hue; // tube on tube glows the opposite colour
+      var stops = P.glow(litHue, absFlash);
       var glow = c.createRadialGradient(sx, sy, 0, sx, sy, inner);
-      glow.addColorStop(0, hsla(litHue, 85, 85, Math.min(1, absFlash * 1.1)));
-      glow.addColorStop(0.55, hsla(litHue, 85, 65, absFlash * 0.8));
-      glow.addColorStop(1, hsla(litHue, 85, 55, absFlash * 0.25));
+      glow.addColorStop(0, stops[0]);
+      glow.addColorStop(0.55, stops[1]);
+      glow.addColorStop(1, stops[2]);
       c.beginPath(); c.arc(sx, sy, inner, 0, Math.PI * 2);
       c.fillStyle = glow; c.fill();
     } else {
       c.beginPath(); c.arc(sx, sy, inner, 0, Math.PI * 2);
-      c.fillStyle = hsla(hue, 30, 6, 0.55); c.fill();
+      c.fillStyle = P.bore; c.fill();
     }
     c.beginPath(); c.arc(sx, sy, r - wall / 2, 0, Math.PI * 2);
     c.lineWidth = wall;
-    c.strokeStyle = hsla(hue, 18, 52 + absFlash * 25, 0.95);
+    c.strokeStyle = hsla(hue, P.wallS + absFlash * 30, P.wallL + absFlash * P.wallLit, 0.95);
     c.stroke();
     // Rim highlight, the way light catches the top of a polished tube
     c.beginPath(); c.arc(sx, sy, r - wall / 2, Math.PI * 1.1, Math.PI * 1.6);
     c.lineWidth = wall * 0.45;
-    c.strokeStyle = 'rgba(255,252,240,' + (0.18 + absFlash * 0.3) + ')'; c.stroke();
+    c.strokeStyle = 'rgba(255,252,240,' + (P.rim + absFlash * P.rimLit) + ')'; c.stroke();
   }
+
+  // Vignette over everything: the corners fall away into shade
+  var vig = c.createRadialGradient(cx, cy, Math.min(W, H) * 0.35, cx, cy, Math.hypot(W, H) * 0.6);
+  vig.addColorStop(0, D ? 'rgba(0,0,0,0)' : hsla(hue, 40, 18, 0));
+  vig.addColorStop(1, D ? 'rgba(0,0,0,0.55)' : hsla(hue, 40, 18, 0.38));
+  c.fillStyle = vig;
+  c.fillRect(0, 0, W, H);
 }
 </script>
 </body>

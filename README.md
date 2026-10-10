@@ -6,7 +6,7 @@ Pocket Chimes is an iOS app built with [Capacitor](https://capacitorjs.com). The
 
 ## Controls (gesture branch)
 
-Nothing on screen but the chimes. Physics is always on; everything is a gesture.
+Nothing on screen but the chimes, with a scatter of dust that drifts with the wind so you can see it blow. Physics is always on; everything is a gesture. Light mode (a tinted cream) is the default, dark mode the option; both take the current scale's colour and fall away into shade at the edges.
 
 | Gesture | What it does |
 | --- | --- |
@@ -16,6 +16,7 @@ Nothing on screen but the chimes. Physics is always on; everything is a gesture.
 | **Press and hold** | A two-second gust |
 | **Double-tap the clapper** | Opens the sound sheet: Metal or Recorded, the recorder (standby, trigger, arm, stop, 10 s cap) and the sample bank |
 | **? icon** (top left) | A guide to these gestures |
+| **Sun / moon icon** (top right) | Light mode (the default) or dark mode |
 | **Wind icon** (top right) | Opens the wind drawer: wind sound on or off, **Strength** and **Consistency** sliders |
 | *(hidden)* Phone mode | Hang the phone upside down for a second and its own motion drives the chimes; upright again returns to wind |
 
