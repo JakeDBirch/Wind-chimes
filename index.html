@@ -941,14 +941,14 @@ function draw() {
     bg0: hsla(hue, 30, 11, 1), bg1: hsla(hue, 35, 4, 1),
     mount: hsla(hue, 25, 35, 1), cord: hsla(hue, 25, 55, 0.35), ring: hsla(hue, 20, 70, 0.45),
     clapper: hsla(hue, 18, 72, 1), clapperEdge: hsla(hue, 20, 55, 0.8),
-    tubeCord: hsla(hue, 20, 60, 0.35), tubeCordLit: hsla(hue, 60, 75, 0.6), dot: hsla(hue, 20, 50, 1),
+    dot: hsla(hue, 20, 50, 1),
     bore: hsla(hue, 30, 6, 0.55), wallL: 52, wallS: 18, wallLit: 25,
     glow: function(h, a) { return [hsla(h, 85, 85, Math.min(1, a * 1.1)), hsla(h, 85, 65, a * 0.8), hsla(h, 85, 55, a * 0.25)]; }
   } : {
     bg0: hsla(hue, 42, 88, 1), bg1: hsla(hue, 36, 74, 1),
     mount: hsla(hue, 25, 42, 1), cord: hsla(hue, 25, 35, 0.4), ring: hsla(hue, 25, 38, 0.5),
     clapper: hsla(hue, 30, 86, 1), clapperEdge: hsla(hue, 25, 45, 0.8),
-    tubeCord: hsla(hue, 25, 38, 0.4), tubeCordLit: hsla(hue, 70, 45, 0.7), dot: hsla(hue, 25, 42, 1),
+    dot: hsla(hue, 25, 42, 1),
     bore: hsla(hue, 40, 93, 0.7), wallL: 44, wallS: 28, wallLit: -10,
     glow: function(h, a) { return [hsla(h, 95, 78, Math.min(1, a * 1.1)), hsla(h, 95, 62, a * 0.9), hsla(h, 95, 50, a * 0.4)]; }
   };
@@ -1008,17 +1008,10 @@ function draw() {
     var my = rcy + Math.sin(mountAngle) * ringRadius;
     var radX = -Math.cos(mountAngle), radY = -Math.sin(mountAngle);
     var tanX = -Math.sin(mountAngle), tanY = Math.cos(mountAngle);
-    var tx = mx + Math.sin(ta) * tLen * radX + Math.sin(tt) * tLen * tanX;
-    var ty = my + Math.sin(ta) * tLen * radY + Math.sin(tt) * tLen * tanY;
     var midX = mx + Math.sin(ta) * (tLen * 0.5) * radX + Math.sin(tt) * (tLen * 0.5) * tanX;
     var midY = my + Math.sin(ta) * (tLen * 0.5) * radY + Math.sin(tt) * (tLen * 0.5) * tanY;
     var flash = S.flash[i] || 0;
     var absFlash = Math.abs(flash);
-
-    c.beginPath();
-    c.strokeStyle = flash > 0.05 ? P.tubeCordLit : P.tubeCord;
-    c.lineWidth = 0.8;
-    c.moveTo(wx(mx), wy(my)); c.lineTo(wx(tx), wy(ty)); c.stroke();
 
     c.beginPath(); c.arc(wx(mx), wy(my), 2.5, 0, Math.PI * 2); c.fillStyle = P.dot; c.fill();
 
