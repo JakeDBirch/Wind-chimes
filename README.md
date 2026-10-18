@@ -6,18 +6,19 @@ Pocket Chimes is an iOS app built with [Capacitor](https://capacitorjs.com). The
 
 ## Controls (gesture branch)
 
-Nothing on screen but the chimes, with a scatter of dust that drifts with the wind so you can see it blow. Physics is always on; everything is a gesture. Light mode (a tinted cream) is the default, dark mode the option; both take the current scale's colour and fall away into shade at the edges.
+Nothing on screen but the chimes, with a scatter of dust that drifts with the wind so you can see it blow. The chimes start quiet; a power button at the bottom turns the wind on and off, and a sleep timer in the wind drawer turns it off after 15 to 90 minutes. Everything else is a gesture. Light mode (a tinted cream) is the default, dark mode the option; both take the current scale's colour and fall away into shade at the edges.
 
 | Gesture | What it does |
 | --- | --- |
 | **Swipe in from the left or right edge** | Next or previous scale (a straight horizontal stroke anywhere works too): Pentatonic, Major Pent, Minor, Lydian, Whole Tone, Hirajoshi, Slendro, Pelog (both Javanese gamelan tunings, off the piano's grid), Chord Seq, Custom. Each has its own colour, so the screen takes on the scale's mood. Custom brings up an octave of keys along the bottom to pick the notes |
 | **Circle a finger around the outside** | Register, one octave per turn, clockwise up, ±2 octaves |
 | **Circle a finger over the chimes** | Add a chime per sixth of a turn clockwise, remove one anticlockwise, 3–12 |
-| **Press and hold** | A two-second gust |
+| **Press and hold** | A two-second gust (while the chimes are on) |
 | **Double-tap the clapper** | Opens the sound sheet: Metal or Recorded, the recorder (standby, trigger, arm, stop, 10 s cap) and the sample bank |
 | **? icon** (top left) | A guide to these gestures |
 | **Sun / moon icon** (top right) | Light mode (the default) or dark mode |
-| **Wind icon** (top right) | Opens the wind drawer: wind sound on or off, **Strength** and **Constancy** sliders |
+| **Power** (bottom) | Starts and stops the wind. Off at launch |
+| **Wind icon** (top right) | Opens the wind drawer: wind sound on or off, **Strength** and **Constancy** sliders, and a **Sleep** timer (off, 15, 30, 60 or 90 min) |
 | *(hidden)* Phone mode | Hang the phone upside down for a second and its own motion drives the chimes; upright again returns to wind |
 
 Pocket Chimes takes the audio for itself: it pauses whatever else was playing, and another app starting playback (or a call) stops the chimes. After a call they come back on their own; after music, tap the screen.

@@ -80,7 +80,15 @@ html:not([data-theme="dark"]) #theme-btn .moon { display: block; }
 .dslider { display: block; width: 100%; margin-top: 8px; }
 .dgroup { margin-bottom: 14px; }
 /* Custom scale keyboard: an octave of keys along the bottom, shown while Custom is the scale */
-#keys { position: fixed; left: 0; right: 0; bottom: 0; display: flex; gap: 6px; align-items: flex-end; padding: 10px 12px calc(14px + env(safe-area-inset-bottom)); background: linear-gradient(to top, var(--keys-fade), transparent); transform: translateY(110%); transition: transform 0.3s cubic-bezier(.2,.8,.2,1); }
+/* Power: the chimes start off; a round button at the bottom turns them on and off */
+#power { position: fixed; left: 50%; bottom: calc(22px + env(safe-area-inset-bottom)); transform: translateX(-50%); width: 64px; height: 64px; border-radius: 50%; border: 2px solid var(--icon); background: none; color: var(--icon); padding: 0; outline: none; -webkit-tap-highlight-color: transparent; opacity: 0.55; transition: opacity 0.2s, background 0.2s, color 0.2s; z-index: 5; }
+#power svg { width: 28px; height: 28px; display: block; margin: 0 auto; }
+#power.on { opacity: 1; background: var(--icon); color: var(--bg); }
+#sleep-left { position: fixed; left: 0; right: 0; bottom: calc(96px + env(safe-area-inset-bottom)); text-align: center; font-size: 15px; color: var(--text-dim); pointer-events: none; opacity: 0; transition: opacity 0.3s; }
+#sleep-left.show { opacity: 1; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.chips .schip { padding: 6px 12px; font-size: 16px; }
+#keys { position: fixed; left: 0; right: 0; bottom: calc(92px + env(safe-area-inset-bottom)); display: flex; gap: 6px; align-items: flex-end; padding: 10px 12px calc(14px + env(safe-area-inset-bottom)); background: linear-gradient(to top, var(--keys-fade), transparent); transform: translateY(140%); transition: transform 0.3s cubic-bezier(.2,.8,.2,1); }
 #keys.open { transform: none; }
 .key { flex: 1; min-width: 0; height: 72px; border-radius: 14px; border: 1.5px solid var(--key-border); background: var(--key-bg); color: var(--key-text); font-family: inherit; font-weight: 700; font-size: 17px; outline: none; padding: 0; -webkit-tap-highlight-color: transparent; transition: background 0.15s, color 0.15s; }
 .key.black { height: 50px; background: var(--key-black-bg); color: var(--key-black-text); }
@@ -168,7 +176,11 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px;
   </div>
   <div class="help-row">
     <svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 20h22a5 5 0 1 0-5-5"/><path d="M8 28h32a6 6 0 1 1-6 6"/><path d="M8 36h16a4 4 0 1 1-4 4"/></svg>
-    <div><div class="help-name">Wind icon</div><div class="help-what">Wind sound on or off, and how strong and how steady the wind blows.</div></div>
+    <div><div class="help-name">Wind icon</div><div class="help-what">Wind sound on or off, how strong and how steady the wind blows, and a sleep timer.</div></div>
+  </div>
+  <div class="help-row">
+    <svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M28 12v16"/><path d="M17.5 18.5a15 15 0 1 0 21 0"/></svg>
+    <div><div class="help-name">Power</div><div class="help-what">Starts and stops the wind. The chimes wait quietly until you turn them on.</div></div>
   </div>
 </div>
 
@@ -196,7 +208,16 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px;
     <div class="drow" style="margin-bottom:0;"><span class="dlabel">Constancy</span><span class="dval" id="v-consistency">40</span></div>
     <input class="dslider" type="range" id="consistency" min="0" max="100" step="1" value="40">
   </div>
+  <div class="dgroup">
+    <div class="drow" style="margin-bottom:0;"><span class="dlabel">Sleep</span><span class="dval" id="v-sleep"></span></div>
+    <div class="chips" id="sleep-chips"></div>
+  </div>
 </div>
+
+<div id="sleep-left"></div>
+<button id="power" aria-label="Chimes on or off">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v8"/><path d="M6.6 6.6a8 8 0 1 0 10.8 0"/></svg>
+</button>
 
 <div id="keys"></div>
 
@@ -268,6 +289,9 @@ var windConsistency = 40;  // 0–100, the drawer's Constancy slider
 var S = null;            // latest engine state
 var hue = SCALES[0].hue, hueTarget = hue;
 var theme = 'light';     // 'light' | 'dark'
+var physicsOn = false;   // the chimes start off; the power button turns them on
+var SLEEP_CHOICES = [0, 15, 30, 60, 90]; // minutes; 0 = off
+var sleepMinutes = 0;
 var _userChangedAt = 0;  // ignore engine state briefly after a tap, so an in-flight poll can't undo it
 
 // ── Saved settings ────────────────────────────────────────
@@ -322,9 +346,25 @@ function sendParams(extra) {
   saveSettings();
 }
 
-function keepPhysicsOn() {
+function setPower(on) {
+  physicsOn = on;
   _userChangedAt = Date.now();
-  if (Engine) Engine.setPhysics({ on: true });
+  document.getElementById('power').classList.toggle('on', on);
+  if (Engine) Engine.setPhysics({ on: on });
+  if (!on) { sleepMinutes = 0; showSleep(); }
+}
+
+function showSleep() {
+  var chips = document.querySelectorAll('#sleep-chips .schip');
+  chips.forEach(function(c, i) { c.classList.toggle('active', SLEEP_CHOICES[i] === sleepMinutes); });
+}
+
+function setSleep(minutes) {
+  sleepMinutes = minutes;
+  showSleep();
+  if (Engine) Engine.setSleepTimer({ seconds: minutes * 60 });
+  if (minutes > 0 && !physicsOn) setPower(true);
+  hud(minutes > 0 ? 'Sleep in ' + minutes + ' min' : 'Sleep timer off', '', 1100);
 }
 
 // ── HUD ───────────────────────────────────────────────────
@@ -363,7 +403,6 @@ function pointerDown(e) {
         mode: 'pending', heading: null, turn: 0, angle: Math.atan2(y - layout.cy, x - layout.cx),
         r0: Math.hypot(x - layout.cx, y - layout.cy), acc: 0, pend: 0,
         edge: x < EDGE || x > window.innerWidth - EDGE };
-  if (S && !S.physicsOn) keepPhysicsOn();
 }
 
 function pointerMove(e) {
@@ -449,6 +488,7 @@ function tap(x, y) {
 }
 
 function gust() {
+  if (!physicsOn) { hud('Chimes are off', '', 900); return; }
   _userChangedAt = Date.now();
   if (Engine) Engine.gust();
   hud('Gust', '', 800);
@@ -816,9 +856,19 @@ window.addEventListener('load', function() {
     refreshBank();
   }
 
+  document.getElementById('power').addEventListener('click', function() { setPower(!physicsOn); });
+  var sleepChips = document.getElementById('sleep-chips');
+  SLEEP_CHOICES.forEach(function(m) {
+    var b = document.createElement('button');
+    b.className = 'schip' + (m === sleepMinutes ? ' active' : '');
+    b.textContent = m === 0 ? 'Off' : m + ' min';
+    b.addEventListener('click', function() { setSleep(m); });
+    sleepChips.appendChild(b);
+  });
+
   sendParams();
   restoreSound();
-  keepPhysicsOn();
+  if (Engine) Engine.setPhysics({ on: false }); // the chimes wait for the power button
   requestAnimationFrame(loop);
 });
 
@@ -846,6 +896,19 @@ function loop() {
       S = state;
       if (Date.now() - _userChangedAt > 500) {
         if (S.sound !== currentSound) showSound(S.sound);
+        if (S.physicsOn !== physicsOn) {
+          physicsOn = S.physicsOn; // the sleep timer, or an interruption, turned it off
+          document.getElementById('power').classList.toggle('on', physicsOn);
+          if (!physicsOn && sleepMinutes > 0) { sleepMinutes = 0; showSleep(); hud('Goodnight', '', 2000); }
+        }
+      }
+      var left = document.getElementById('sleep-left');
+      if (isNum(S.sleepRemaining) && S.sleepRemaining >= 0 && physicsOn) {
+        var m = Math.ceil(S.sleepRemaining / 60);
+        left.textContent = m <= 1 ? 'Sleep in under a minute' : 'Sleep in ' + m + ' min';
+        left.classList.add('show');
+      } else {
+        left.classList.remove('show');
       }
       if (S.source !== _source) {
         _source = S.source;

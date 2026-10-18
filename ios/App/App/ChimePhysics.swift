@@ -122,7 +122,9 @@ final class ChimePhysics {
     private var motionBaseX = 0.0, motionBaseY = 0.0
     private let motionGain = 1.0
 
-    // Wind event model: discrete events separated by lulls
+    // Wind event model: discrete events separated by lulls. The wind has a prevailing
+    // direction that veers only slowly, over minutes; each event blows from near it.
+    private var prevailingAngle = Double.random(in: 0..<(2 * .pi))
     private var windAngle = 0.0, windSpeed = 0.0
     private var windMeanX = 0.0, windMeanY = 0.0
     private var noiseX = 0.0, noiseY = 0.0
@@ -161,7 +163,7 @@ final class ChimePhysics {
 
     func startWind(resetState: Bool) {
         windOn = true
-        windAngle = rand() * .pi * 2
+        windAngle = prevailingAngle
         if resetState {
             windSpeed = 0; noiseX = 0; noiseY = 0
             calmDamp = 1.0
@@ -253,7 +255,8 @@ final class ChimePhysics {
         evtRiseDur = 0.8 + (1 - evtPeak) * 5 + rand() * 2    // stronger events rise faster
         evtHoldDur = (2 + rand() * 10) * params.holdScale
         evtFallDur = 1.5 + rand() * 8.5
-        evtAngle = windAngle + (rand() - 0.5) * .pi * 0.6    // drift from previous direction
+        // From near the prevailing direction: within ~20° typically, tighter when constant
+        evtAngle = prevailingAngle + gaussian() * (0.35 - params.windConsistency * 0.2)
         evtPhase = .lull
         evtT = 0
     }
@@ -423,13 +426,14 @@ final class ChimePhysics {
             }
         }
 
-        // ── Tube-tube collisions, using fresh tip positions and velocities
+        // ── Tube-tube collisions at the tubes' midpoints, where the clapper meets them
+        // and where the screen draws them, so a clash shows as the circles touching
         var tips: [Tip] = []
         tips.reserveCapacity(n)
         let collisionDist = tubeR * 2
         for i in 0..<n {
             let t = tubes[i]
-            let tL = tubeL * t.lenFactor
+            let tL = tubeL * t.lenFactor * 0.5
             let mAng = Double(i) / Double(n) * .pi * 2
             let mx = rcx + cos(mAng) * ringRadius
             let my = rcy + sin(mAng) * ringRadius
@@ -494,6 +498,8 @@ final class ChimePhysics {
 
         // ── Wind / motion forcing
         if windOn {
+            // The prevailing direction veers slowly: a random walk of a few degrees a minute
+            prevailingAngle += gaussian() * DT.squareRoot() * 0.02
             let wStr = p.windStrength
             let wSteady = p.windSteady
             let wTurb = p.windTurb
@@ -528,7 +534,8 @@ final class ChimePhysics {
                 targetSpeed = evtPeak * (0.75 + 0.25 * (1 - wobble) + (sin(evtT * 1.3) * 0.15 + sin(evtT * 2.7) * 0.10) * wobble)
                 if rand() < 0.005 * p.spikeChance { targetSpeed *= 1.4 + rand() * 0.6 } // occasional spike
                 windSpeed += (targetSpeed - windSpeed) * 0.05
-                windAngle += (rand() - 0.5) * (1 - wSteady) * 0.04     // slow angle drift
+                // Wander about the event's direction without walking away from it
+                windAngle += (evtAngle - windAngle) * 0.003 + (rand() - 0.5) * (1 - wSteady) * 0.04
                 if evtT >= evtHoldDur { evtPhase = .fall; evtT = 0 }
             case .fall:
                 calmDamp = 1.0

@@ -114,8 +114,34 @@ final class ChimeEngine {
 
     func gust() {
         queue.async {
-            self.physics.gust()
-            if !self.physicsOn { self.applyPhysics(true) }
+            if self.physicsOn { self.physics.gust() }
+        }
+    }
+
+    // MARK: - Sleep timer
+
+    private var sleepTimer: DispatchSourceTimer?
+    private var sleepAt = 0.0 // CACurrentMediaTime when the chimes go quiet, 0 if no timer
+
+    /// Turns the chimes off after `seconds`; 0 cancels. Runs on the engine's own queue,
+    /// so it fires with the screen locked, which the page's own timers would not.
+    func setSleepTimer(seconds: Double) {
+        queue.async {
+            self.sleepTimer?.cancel()
+            self.sleepTimer = nil
+            self.sleepAt = 0
+            guard seconds > 0 else { return }
+            self.sleepAt = CACurrentMediaTime() + seconds
+            let timer = DispatchSource.makeTimerSource(queue: self.queue)
+            timer.schedule(deadline: .now() + seconds)
+            timer.setEventHandler { [weak self] in
+                guard let self else { return }
+                self.sleepTimer = nil
+                self.sleepAt = 0
+                if self.physicsOn { self.applyPhysics(false) }
+            }
+            timer.resume()
+            self.sleepTimer = timer
         }
     }
 
@@ -169,6 +195,7 @@ final class ChimeEngine {
         queue.sync {
             var state = physics.snapshot()
             state["physicsOn"] = physicsOn
+            state["sleepRemaining"] = sleepAt > 0 ? max(0, sleepAt - CACurrentMediaTime()) : -1
             state["source"] = source
             state["sound"] = sound
             state["recordState"] = recordState.rawValue
@@ -392,6 +419,9 @@ final class ChimeEngine {
             startAudio()
             startPhysicsTimer()
         } else {
+            sleepTimer?.cancel()
+            sleepTimer = nil
+            sleepAt = 0
             stopPhysicsTimer()
             physics.stopWind()
             windSoundEnvelope = 0
