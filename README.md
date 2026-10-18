@@ -38,7 +38,7 @@ Every setting is saved as it changes and restored the next time the app opens.
 | `ios/App/App/ChimeEnginePlugin.swift` | Capacitor plugin the page calls (`setParams`, `setPhysics`, `setSound`, `startStandby`, `setTriggerLevel`, `arm`, `disarm`, `stopRecording`, `cancelRecording`, `listSamples`, `saveSample`, `selectSample`, `deleteSample`, `gust`, `getState`) |
 | `ios/App/App/MainViewController.swift` | Registers the plugin with Capacitor |
 | `ios/App/App/Info.plist` | Background audio mode, microphone and motion usage strings, portrait-only on iPhone, light status bar, no-encryption declaration |
-| `ios/App/App/Assets.xcassets` | App icon (1024×1024, placeholder) and launch screen |
+| `ios/App/App/Assets.xcassets` | App icon (1024×1024, rendered from `scripts/app-icon.html`: the chimes in the light palette with one struck tube lit gold) and launch screen |
 | `capacitor.config.json` | App name, bundle ID (`com.jakedbirch.windchimes`) and web directory |
 | `.github/workflows/ios-build.yml` | Compiles the app on every push, so build errors show up early |
 | `.github/workflows/testflight.yml` | Builds, signs and uploads a build to TestFlight |
