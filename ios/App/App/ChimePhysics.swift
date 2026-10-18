@@ -224,6 +224,18 @@ final class ChimePhysics {
         return 440 * pow(2, (semitone + params.register * 12) / 12)
     }
 
+    /// True once nothing is moving: no wind or gust pushing, every pendulum near rest,
+    /// and no strike in the last few seconds. Lets the engine go quiet with the wind off.
+    var isSettled: Bool {
+        if windOn || motionOn || gustT < Self.gustDuration { return false }
+        if abs(ring.vx) + abs(ring.vy) + abs(striker.vx) + abs(striker.vy) > 0.02 { return false }
+        for t in tubes {
+            if abs(t.tv) + abs(t.tvT) > 0.02 || abs(t.ta) + abs(t.tt) > 0.02 { return false }
+            if simTime - t.lastStrike < 4 { return false }
+        }
+        return true
+    }
+
     func snapshot() -> [String: Any] {
         [
             "ring": [ring.ax, ring.ay],

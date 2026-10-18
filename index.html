@@ -98,6 +98,15 @@ html:not([data-theme="dark"]) #theme-btn .moon { display: block; }
 .switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: var(--switch-knob); transition: transform 0.2s; }
 .switch.on { background: var(--accent); }
 .switch.on::after { transform: translateX(22px); }
+/* Hang mode reveal */
+#egg { position: fixed; inset: 0; z-index: 70; background: var(--overlay); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); opacity: 0; pointer-events: none; transition: opacity 0.4s; display: flex; align-items: center; justify-content: center; padding: 24px; }
+#egg.open { opacity: 1; pointer-events: auto; }
+.egg-card { width: min(360px, 100%); background: var(--panel); border: 1px solid var(--panel-border); border-radius: 24px; padding: 26px 24px 22px; box-shadow: var(--panel-shadow); text-align: center; }
+.egg-title { font-size: 26px; font-weight: 700; color: var(--text); margin-bottom: 10px; }
+.egg-text { font-size: 17px; font-weight: 500; color: var(--text-dim); line-height: 1.45; margin-bottom: 18px; }
+.egg-code { font-size: 24px; font-weight: 700; letter-spacing: 0.08em; color: var(--text); background: var(--chip-active-bg); border-radius: 14px; padding: 12px 10px; margin-bottom: 18px; font-variant-numeric: tabular-nums; -webkit-user-select: text; user-select: text; }
+.egg-btn { display: block; width: 100%; padding: 14px; border-radius: 16px; border: none; background: var(--key-active-bg); color: var(--key-active-text); font-family: inherit; font-weight: 700; font-size: 18px; text-decoration: none; outline: none; margin-bottom: 10px; }
+.egg-later { border: none; background: none; color: var(--text-dim); font-family: inherit; font-weight: 600; font-size: 16px; padding: 8px; outline: none; }
 /* Sound sheet: opened by a double tap on the clapper */
 #dim { position: fixed; inset: 0; background: var(--dim); opacity: 0; pointer-events: none; transition: opacity 0.25s; }
 #dim.open { opacity: 1; pointer-events: auto; }
@@ -176,7 +185,7 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px;
   </div>
   <div class="help-row">
     <svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 20h22a5 5 0 1 0-5-5"/><path d="M8 28h32a6 6 0 1 1-6 6"/><path d="M8 36h16a4 4 0 1 1-4 4"/></svg>
-    <div><div class="help-name">Wind icon</div><div class="help-what">Turns the wind on and off, and sets its sound, how strong it blows and how steady it is. The chimes wait quietly until you turn the wind on.</div></div>
+    <div><div class="help-name">Wind icon</div><div class="help-what">Turns the wind on and off, and sets its sound, how strong it blows and how steady it is. With the wind off the chimes swing down and settle; a gust still pushes them.</div></div>
   </div>
   <div class="help-row">
     <svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="24" cy="32" r="16"/><path d="M24 22v10l7 4"/><path d="M36 8h10l-10 10h10"/></svg>
@@ -220,6 +229,16 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px;
 </div>
 
 <div id="keys"></div>
+
+<div id="egg">
+  <div class="egg-card">
+    <div class="egg-title">You found hang mode</div>
+    <div class="egg-text">Hung outside, your phone is a real wind chime. The first ten people to find this get a 3D-printed harness to hang theirs in a tree. This code is yours.</div>
+    <div class="egg-code" id="egg-code"></div>
+    <a class="egg-btn" id="egg-claim" href="#" target="_blank" rel="noopener">Claim a harness</a>
+    <button class="egg-later" id="egg-later">Later</button>
+  </div>
+</div>
 
 <div id="dim"></div>
 <div id="sheet">
@@ -289,7 +308,7 @@ var windConsistency = 40;  // 0–100, the drawer's Constancy slider
 var S = null;            // latest engine state
 var hue = SCALES[0].hue, hueTarget = hue;
 var theme = 'light';     // 'light' | 'dark'
-var physicsOn = false;   // the chimes start off; the power button turns them on
+var windOn = false;      // the Wind switch; off at launch, the chimes hang still until it's on
 var SLEEP_CHOICES = [0, 15, 30, 60, 90]; // minutes; 0 = off
 var sleepMinutes = 0;
 var _userChangedAt = 0;  // ignore engine state briefly after a tap, so an in-flight poll can't undo it
@@ -347,16 +366,16 @@ function sendParams(extra) {
 }
 
 function setPower(on) {
-  physicsOn = on;
+  windOn = on;
   _userChangedAt = Date.now();
   showPower();
-  if (Engine) Engine.setPhysics({ on: on });
+  if (Engine) Engine.setWind({ on: on });
   if (!on) { sleepMinutes = 0; showSleep(); }
 }
 
 function showPower() {
-  document.getElementById('power-switch').classList.toggle('on', physicsOn);
-  document.getElementById('wind-btn').classList.toggle('off', !physicsOn);
+  document.getElementById('power-switch').classList.toggle('on', windOn);
+  document.getElementById('wind-btn').classList.toggle('off', !windOn);
 }
 
 function showSleep(remaining) {
@@ -376,7 +395,7 @@ function setSleep(minutes) {
   sleepMinutes = minutes;
   showSleep();
   if (Engine) Engine.setSleepTimer({ seconds: minutes * 60 });
-  if (minutes > 0 && !physicsOn) setPower(true);
+  if (minutes > 0 && !windOn) setPower(true);
   hud(minutes > 0 ? 'Sleep in ' + minutes + ' min' : 'Sleep timer off', '', 1100);
 }
 
@@ -501,7 +520,6 @@ function tap(x, y) {
 }
 
 function gust() {
-  if (!physicsOn) { hud('Chimes are off', '', 900); return; }
   _userChangedAt = Date.now();
   if (Engine) Engine.gust();
   hud('Gust', '', 800);
@@ -557,6 +575,67 @@ function showWind() {
 function applyTheme() {
   document.documentElement.setAttribute('data-theme', theme);
   document.querySelector('meta[name=theme-color]').setAttribute('content', theme === 'dark' ? '#0b0c0e' : '#e9e3d2');
+}
+
+// ── Hang mode ─────────────────────────────────────────────
+// Hanging the phone upside down hands the chimes to its own motion. Nothing in the app
+// mentions it; this is where it is noticed. The engine counts how long the phone has
+// hung, so a brief tumble doesn't count and a long hang does even with the screen off.
+var HANG_SECONDS = 10;
+var CLAIM_FORM_URL = '';           // Google Form "pre-filled link", with the code field as CLAIM_CODE_FIELD
+var CLAIM_CODE_FIELD = '';         // e.g. 'entry.123456789'
+var hang = { found: 0, code: '' }; // found = time the reveal was earned, 0 if not yet
+
+function loadHang() {
+  try { var h = JSON.parse(localStorage.getItem('pocketChimesHang')); if (h && h.code) hang = h; } catch (e) {}
+}
+function saveHang() { try { localStorage.setItem('pocketChimesHang', JSON.stringify(hang)); } catch (e) {} }
+
+// A claim code: ten random characters from an alphabet without look-alikes, then two
+// check characters, so a code someone typed up can be told from one the app made.
+var CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+function makeClaimCode() {
+  var bytes = new Uint8Array(10);
+  (window.crypto || window.msCrypto).getRandomValues(bytes);
+  var body = '';
+  for (var i = 0; i < 10; i++) body += CODE_ALPHABET[bytes[i] % 32];
+  return formatCode(body + checkChars(body));
+}
+function checkChars(body) {
+  var h = 0x9e37, salt = 'pocket-chimes-in-a-tree';
+  var str = body + salt;
+  for (var i = 0; i < str.length; i++) { h = ((h << 5) - h + str.charCodeAt(i)) | 0; }
+  h = Math.abs(h);
+  return CODE_ALPHABET[h % 32] + CODE_ALPHABET[(h >> 5) % 32];
+}
+function formatCode(raw) { return raw.slice(0, 4) + '-' + raw.slice(4, 8) + '-' + raw.slice(8, 12); }
+function claimURL() {
+  if (!CLAIM_FORM_URL) return '#';
+  return CLAIM_FORM_URL + (CLAIM_FORM_URL.indexOf('?') >= 0 ? '&' : '?') + 'usp=pp_url&' + CLAIM_CODE_FIELD + '=' + encodeURIComponent(hang.code);
+}
+
+function revealHang() {
+  if (!hang.found) {
+    hang.found = Date.now();
+    hang.code = makeClaimCode();
+    saveHang();
+    addHangHelpRow();
+  }
+  document.getElementById('egg-code').textContent = hang.code;
+  document.getElementById('egg-claim').setAttribute('href', claimURL());
+  document.getElementById('egg').classList.add('open');
+}
+
+// Once found, the help guide gains a row so the code and the claim link can be reached again
+function addHangHelpRow() {
+  if (!hang.found || document.getElementById('help-hang')) return;
+  var row = document.createElement('div');
+  row.className = 'help-row'; row.id = 'help-hang';
+  row.innerHTML = '<svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M28 4v10"/><rect x="18" y="14" width="20" height="34" rx="5"/><path d="M8 50c8-8 32-8 40 0" opacity="0.4"/></svg>' +
+    '<div><div class="help-name">Hang mode</div><div class="help-what">You found it. Your code is <b>' + hang.code + '</b>. <a id="help-claim" href="#" target="_blank" rel="noopener" style="color:inherit;font-weight:700">Claim a harness</a></div></div>';
+  document.getElementById('help').appendChild(row);
+  document.getElementById('help-claim').setAttribute('href', claimURL());
+  document.getElementById('help-claim').addEventListener('click', function(e) { e.stopPropagation(); });
 }
 
 function openHelp(open) {
@@ -818,6 +897,8 @@ function saveSample() {
 // ── Startup ───────────────────────────────────────────────
 window.addEventListener('load', function() {
   loadSettings();
+  loadHang();
+  addHangHelpRow();
   applyTheme();
   showWind();
   buildKeyboard();
@@ -836,7 +917,7 @@ window.addEventListener('load', function() {
   document.getElementById('sleep-btn').addEventListener('click', function() {
     openSleepDrawer(!document.getElementById('sleep-drawer').classList.contains('open'));
   });
-  document.getElementById('power-switch').addEventListener('click', function() { setPower(!physicsOn); });
+  document.getElementById('power-switch').addEventListener('click', function() { setPower(!windOn); });
   document.getElementById('help-btn').addEventListener('click', function() { openHelp(true); });
   document.getElementById('theme-btn').addEventListener('click', function() {
     theme = theme === 'dark' ? 'light' : 'dark';
@@ -844,6 +925,10 @@ window.addEventListener('load', function() {
     saveSettings();
   });
   document.getElementById('help').addEventListener('click', function() { openHelp(false); });
+  document.getElementById('egg-later').addEventListener('click', function() { document.getElementById('egg').classList.remove('open'); });
+  document.getElementById('egg-claim').addEventListener('click', function(e) {
+    if (!CLAIM_FORM_URL) { e.preventDefault(); hud('Claims open soon', 'keep your code', 1600); }
+  });
   document.getElementById('wind-switch').addEventListener('click', function() {
     windSound = !windSound;
     showWind();
@@ -892,7 +977,7 @@ window.addEventListener('load', function() {
   sendParams();
   restoreSound();
   showPower();
-  if (Engine) Engine.setPhysics({ on: false }); // the chimes wait for the Wind switch
+  if (Engine) Engine.setWind({ on: false }); // still air until the Wind switch
   requestAnimationFrame(loop);
 });
 
@@ -920,17 +1005,18 @@ function loop() {
       S = state;
       if (Date.now() - _userChangedAt > 500) {
         if (S.sound !== currentSound) showSound(S.sound);
-        if (S.physicsOn !== physicsOn) {
-          physicsOn = S.physicsOn; // the sleep timer, or an interruption, turned it off
+        if (typeof S.windOn === 'boolean' && S.windOn !== windOn) {
+          windOn = S.windOn; // the sleep timer turned the wind off
           showPower();
-          if (!physicsOn && sleepMinutes > 0) { sleepMinutes = 0; showSleep(); hud('Goodnight', '', 2000); }
+          if (!windOn && sleepMinutes > 0) { sleepMinutes = 0; showSleep(); hud('Goodnight', '', 2000); }
         }
       }
       if (sleepMinutes > 0) showSleep(S.sleepRemaining);
       if (S.source !== _source) {
         _source = S.source;
-        if (_source === 'phone') hud('Phone mode', 'swinging with you', 1600);
+        if (_source === 'phone') hud('Hang mode', 'swinging with you', 1600);
       }
+      if (!hang.found && isNum(S.phoneSpell) && S.phoneSpell >= HANG_SECONDS) revealHang();
       updateMeter();
       if (S.sample && !hasRecording) {
         hasRecording = true;

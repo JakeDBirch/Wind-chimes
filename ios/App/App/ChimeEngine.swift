@@ -90,6 +90,44 @@ final class ChimeEngine {
         queue.async { self.applyPhysics(on) }
     }
 
+    /// The Wind switch. Off, the wind stops blowing but the world goes on: the chimes
+    /// swing down and settle, strikes still ring, a gust still pushes, and hanging the
+    /// phone still works. Once everything has settled the engine goes dormant to save
+    /// battery, and wakes for a gust, the switch, or the phone being hung.
+    private(set) var windEnabled = false
+    func setWind(_ on: Bool) {
+        queue.async {
+            self.windEnabled = on
+            if !on {
+                self.sleepTimer?.cancel()
+                self.sleepTimer = nil
+                self.sleepAt = 0
+            }
+            if on && !self.physicsOn { self.applyPhysics(true); return }
+            if self.physicsOn && self.source == "wind" {
+                if on { self.physics.startWind(resetState: false) } else { self.physics.stopWind() }
+            }
+        }
+    }
+
+    // Dormant: physics and audio stopped with the wind off and nothing moving. A slow
+    // watch on the motion sensor wakes the engine when the phone is turned over.
+    private var dormantWatch: DispatchSourceTimer?
+    private var settledSince: Double?
+
+    private func goDormant() {
+        applyPhysics(false)
+        startMotion()
+        let timer = DispatchSource.makeTimerSource(queue: queue)
+        timer.schedule(deadline: .now() + 0.25, repeating: 0.25)
+        timer.setEventHandler { [weak self] in
+            guard let self, let g = self.motion.deviceMotion?.gravity else { return }
+            if g.y > 0.6 { self.applyPhysics(true) }
+        }
+        timer.resume()
+        dormantWatch = timer
+    }
+
     /// Wind drives the chimes unless the phone hangs upside down (top edge toward the
     /// ground), which switches to the phone's own motion. Checked from the physics step.
     private var invertedSince: Double?
@@ -105,16 +143,27 @@ final class ChimeEngine {
 
         if source == "wind", let t = invertedSince, now - t > 1.0 {
             source = "phone"
+            phoneSince = now
             physics.selectMotion()
         } else if source == "phone", let t = uprightSince, now - t > 2.0 {
             source = "wind"
+            longestPhoneSpell = max(longestPhoneSpell, now - phoneSince)
             physics.selectWind(physicsOn: physicsOn)
         }
     }
 
+    // The longest unbroken spell spent hanging, in seconds. Kept here rather than on the
+    // page so it still counts while the screen is locked in a tree.
+    private var phoneSince = 0.0
+    private var longestPhoneSpell = 0.0
+    private var phoneSpell: Double {
+        max(longestPhoneSpell, source == "phone" ? CACurrentMediaTime() - phoneSince : 0)
+    }
+
     func gust() {
         queue.async {
-            if self.physicsOn { self.physics.gust() }
+            if !self.physicsOn { self.applyPhysics(true) }
+            self.physics.gust()
         }
     }
 
@@ -138,7 +187,7 @@ final class ChimeEngine {
                 guard let self else { return }
                 self.sleepTimer = nil
                 self.sleepAt = 0
-                if self.physicsOn { self.applyPhysics(false) }
+                self.setWind(false) // the chimes settle and the engine goes quiet on its own
             }
             timer.resume()
             self.sleepTimer = timer
@@ -195,8 +244,10 @@ final class ChimeEngine {
         queue.sync {
             var state = physics.snapshot()
             state["physicsOn"] = physicsOn
+            state["windOn"] = windEnabled
             state["sleepRemaining"] = sleepAt > 0 ? max(0, sleepAt - CACurrentMediaTime()) : -1
             state["source"] = source
+            state["phoneSpell"] = phoneSpell
             state["sound"] = sound
             state["recordState"] = recordState.rawValue
             state["micLevel"] = micLevel
@@ -411,17 +462,17 @@ final class ChimeEngine {
 
     private func applyPhysics(_ on: Bool) {
         physicsOn = on
+        dormantWatch?.cancel()
+        dormantWatch = nil
+        settledSince = nil
         if on {
             idleTimer?.cancel()
             idleTimer = nil
-            if source == "wind" { physics.startWind(resetState: true) }
+            if source == "wind" && windEnabled { physics.startWind(resetState: true) }
             startMotion() // for motion drive and to notice the phone being flipped
             startAudio()
             startPhysicsTimer()
         } else {
-            sleepTimer?.cancel()
-            sleepTimer = nil
-            sleepAt = 0
             stopPhysicsTimer()
             physics.stopWind()
             windSoundEnvelope = 0
@@ -466,6 +517,15 @@ final class ChimeEngine {
         while accumulator >= ChimePhysics.dt {
             physics.tick()
             accumulator -= ChimePhysics.dt
+        }
+
+        // With the wind off, once everything has been still for a few seconds, go quiet
+        if !windEnabled && source == "wind" && physics.isSettled && !synth.isActive {
+            let t = CACurrentMediaTime()
+            if settledSince == nil { settledSince = t }
+            if t - settledSince! > 3 { goDormant(); return }
+        } else {
+            settledSince = nil
         }
         synth.windSoundGain = physics.params.windSoundGain
         synth.windTightness = physics.params.windTightness

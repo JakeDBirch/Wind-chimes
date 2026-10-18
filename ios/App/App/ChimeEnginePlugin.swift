@@ -9,6 +9,7 @@ public class ChimeEnginePlugin: CAPPlugin, CAPBridgedPlugin {
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "setParams", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setPhysics", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setWind", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "gust", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setSleepTimer", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setSound", returnType: CAPPluginReturnPromise),
@@ -58,6 +59,11 @@ public class ChimeEnginePlugin: CAPPlugin, CAPBridgedPlugin {
 
     @objc func setPhysics(_ call: CAPPluginCall) {
         engine.setPhysics(call.getBool("on") ?? false)
+        call.resolve()
+    }
+
+    @objc func setWind(_ call: CAPPluginCall) {
+        engine.setWind(call.getBool("on") ?? false)
         call.resolve()
     }
 
