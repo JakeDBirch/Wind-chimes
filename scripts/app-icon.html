@@ -3,42 +3,52 @@
 function hsla(h,s,l,a){return 'hsla('+h+','+s+'%,'+l+'%,'+a+')';}
 function render(opts){
   var c=document.getElementById('c').getContext('2d'), W=1024, H=1024, cx=512, cy=512, hue=150;
-  // cream ground with the scale's tint, and the vignette
+  var th=opts.windAngle, dx=Math.cos(th), dy=Math.sin(th); // the wind blows along (dx,dy)
   var bg=c.createRadialGradient(cx,cy,0,cx,cy,720);
   bg.addColorStop(0,hsla(hue,44,89,1)); bg.addColorStop(1,hsla(hue,38,72,1));
   c.fillStyle=bg; c.fillRect(0,0,W,H);
+  // streamlines: long, faint, gently curved sweeps along the wind
+  var seed=11; function rnd(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;}
+  c.lineCap='round';
+  for(var k=0;k<5;k++){
+    var off=(k-2)*150+(rnd()-0.5)*60; var sx=cx-dx*820-dy*off, sy=cy-dy*820+dx*off;
+    var ex=cx+dx*820-dy*off, ey=cy+dy*820+dx*off; var bend=(rnd()-0.5)*160;
+    var mx=(sx+ex)/2-dy*bend, my=(sy+ey)/2+dx*bend;
+    c.strokeStyle=hsla(hue,35,30,0.07+rnd()*0.05); c.lineWidth=4+rnd()*4;
+    c.beginPath(); c.moveTo(sx,sy); c.quadraticCurveTo(mx,my,ex,ey); c.stroke();
+  }
+  // dust, streaking downwind
+  for(var i=0;i<42;i++){var x=rnd()*W,y=rnd()*H,l=14+rnd()*34; c.strokeStyle=hsla(hue,35,28,0.12+rnd()*0.12); c.lineWidth=3+rnd()*2; c.beginPath(); c.moveTo(x,y); c.lineTo(x-dx*l,y-dy*l); c.stroke();}
+  // vignette
   var vig=c.createRadialGradient(cx,cy,330,cx,cy,760);
   vig.addColorStop(0,hsla(hue,40,18,0)); vig.addColorStop(1,hsla(hue,40,18,0.32));
   c.fillStyle=vig; c.fillRect(0,0,W,H);
-  // a little dust
-  var seed=7; function rnd(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;}
-  for(var i=0;i<36;i++){var x=rnd()*W,y=rnd()*H,l=8+rnd()*22; c.strokeStyle=hsla(hue,35,28,0.13+rnd()*0.1); c.lineWidth=3; c.lineCap='round'; c.beginPath(); c.moveTo(x,y); c.lineTo(x-l*0.94,y-l*0.34); c.stroke();}
-  // geometry: six tubes on a ring, clapper disc, mild swing
+
+  // geometry, all leaning downwind: the ring a little, the tubes more, the clapper most
   var n=6, ringR=opts.ringR, tubeR=opts.tubeR, wall=tubeR*0.26, clapR=ringR-tubeR-24;
-  var rcx=cx, rcy=cy; var scx=rcx+opts.clap, scy=rcy+opts.clap*0.62; // clapper swung toward tube 0 (right)
+  var rcx=cx+dx*10, rcy=cy+dy*10;
+  var scx=rcx+dx*opts.clap, scy=rcy+dy*opts.clap;
   c.beginPath(); c.arc(cx,cy,7,0,Math.PI*2); c.fillStyle=hsla(hue,25,40,1); c.fill();
   c.beginPath(); c.strokeStyle=hsla(hue,25,34,0.4); c.lineWidth=3; c.moveTo(cx,cy); c.lineTo(rcx,rcy); c.stroke();
   c.beginPath(); c.arc(rcx,rcy,ringR,0,Math.PI*2); c.strokeStyle=hsla(hue,25,36,0.5); c.lineWidth=5; c.stroke();
   c.beginPath(); c.strokeStyle=hsla(hue,25,34,0.4); c.lineWidth=3; c.moveTo(rcx,rcy); c.lineTo(scx,scy); c.stroke();
   c.beginPath(); c.arc(scx,scy,clapR,0,Math.PI*2); c.fillStyle=hsla(hue,30,84,1); c.fill();
   c.strokeStyle=hsla(hue,25,42,0.9); c.lineWidth=5; c.stroke();
+  // the downwind tube is the one the clapper reaches; its mount sits in the wind direction
   for(var i=0;i<n;i++){
-    var a=i/n*Math.PI*2 + 0.35, mx=rcx+Math.cos(a)*ringR, my=rcy+Math.sin(a)*ringR;
-    var sw=[26,-6,-14,-10,4,12][i]; var sx=mx+Math.cos(a)*0+ (i===0? -0 : 0), sy=my;
-    // swing displacement tangentially/radially for a little life
-    var radX=-Math.cos(a), radY=-Math.sin(a), tanX=-Math.sin(a), tanY=Math.cos(a);
-    var px=mx+radX*(i===0?opts.inward:6)+tanX*sw, py=my+radY*(i===0?opts.inward:6)+tanY*sw;
+    var a=th+i/n*Math.PI*2, mx=rcx+Math.cos(a)*ringR, my=rcy+Math.sin(a)*ringR;
+    var lean=opts.lean*(0.8+rnd()*0.4), px=mx+dx*lean, py=my+dy*lean, lit=i===0;
+    if(lit){ var cd=clapR+tubeR; px=scx+dx*cd; py=scy+dy*cd; } // exactly touching the clapper
     c.beginPath(); c.strokeStyle=hsla(hue,25,36,0.45); c.lineWidth=3; c.moveTo(mx,my); c.lineTo(px+(px-mx)*0.9,py+(py-my)*0.9); c.stroke();
     c.beginPath(); c.arc(mx,my,8,0,Math.PI*2); c.fillStyle=hsla(hue,25,40,1); c.fill();
-    var inner=tubeR-wall/2, lit=i===0;
+    var inner=tubeR-wall/2;
     if(lit){
       var h=opts.litHue, g=c.createRadialGradient(px,py,0,px,py,inner);
       g.addColorStop(0,hsla(h,95,80,1)); g.addColorStop(0.55,hsla(h,95,62,0.95)); g.addColorStop(1,hsla(h,95,50,0.5));
-      c.beginPath(); c.arc(px,py,inner,0,Math.PI*2); c.fillStyle=g; c.fill();
-      // outer bloom so the struck tube pops
       var bl=c.createRadialGradient(px,py,tubeR,px,py,tubeR*2.1);
       bl.addColorStop(0,hsla(h,90,60,0.35)); bl.addColorStop(1,hsla(h,90,60,0));
       c.beginPath(); c.arc(px,py,tubeR*2.1,0,Math.PI*2); c.fillStyle=bl; c.fill();
+      c.beginPath(); c.arc(px,py,inner,0,Math.PI*2); c.fillStyle=g; c.fill();
     } else {
       c.beginPath(); c.arc(px,py,inner,0,Math.PI*2); c.fillStyle=hsla(hue,40,93,0.75); c.fill();
     }
