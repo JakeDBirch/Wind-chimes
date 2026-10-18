@@ -6,7 +6,7 @@ Pocket Chimes is an iOS app built with [Capacitor](https://capacitorjs.com). The
 
 ## Controls (gesture branch)
 
-Nothing on screen but the chimes, with a scatter of dust that drifts with the wind so you can see it blow. The chimes start quiet; a power button at the bottom turns the wind on and off, and a sleep timer in the wind drawer turns it off after 15 to 90 minutes. Everything else is a gesture. Light mode (a tinted cream) is the default, dark mode the option; both take the current scale's colour and fall away into shade at the edges.
+Nothing on screen but the chimes, with a scatter of dust that drifts with the wind so you can see it blow. The chimes start quiet; the Wind switch in the wind drawer turns the wind on and off, and a sleep timer behind its own icon turns it off after 15 to 90 minutes. Everything else is a gesture. Light mode (a tinted cream) is the default, dark mode the option; both take the current scale's colour and fall away into shade at the edges.
 
 | Gesture | What it does |
 | --- | --- |
@@ -17,8 +17,8 @@ Nothing on screen but the chimes, with a scatter of dust that drifts with the wi
 | **Double-tap the clapper** | Opens the sound sheet: Metal or Recorded, the recorder (standby, trigger, arm, stop, 10 s cap) and the sample bank |
 | **? icon** (top left) | A guide to these gestures |
 | **Sun / moon icon** (top right) | Light mode (the default) or dark mode |
-| **Power** (bottom) | Starts and stops the wind. Off at launch |
-| **Wind icon** (top right) | Opens the wind drawer: wind sound on or off, **Strength** and **Constancy** sliders, and a **Sleep** timer (off, 15, 30, 60 or 90 min) |
+| **Wind icon** (top right) | Opens the wind drawer: **Wind** on or off (off at launch), wind sound on or off, **Strength** and **Constancy** sliders |
+| **Sleep icon** (top right) | A timer that turns the wind off after 15, 30, 60 or 90 minutes, with the time left shown |
 | *(hidden)* Phone mode | Hang the phone upside down for a second and its own motion drives the chimes; upright again returns to wind |
 
 Pocket Chimes takes the audio for itself: it pauses whatever else was playing, and another app starting playback (or a call) stops the chimes. After a call they come back on their own; after music, tap the screen.
