@@ -301,6 +301,12 @@ final class ChimePhysics {
         onStrike?(ChimeStrike(frequency: tubeFrequency(index), velocity: velocity, isClapper: isClapper))
     }
 
+    /// Strike velocity for the voice, 0–1, from an approach speed or impulse. A soft
+    /// curve: `scale` is the speed at which it reaches about three quarters, and it
+    /// never quite saturates, so only a hard blow brings in the full bright attack and
+    /// ordinary strikes sit in the rounder middle of the voice.
+    private func strikeVelocity(_ x: Double, scale: Double) -> Double { tanh(x / scale) }
+
     // MARK: - Tick
 
     func tick() {
@@ -438,7 +444,7 @@ final class ChimePhysics {
             tubes[i] = t
 
             if let strikeVel = struck {
-                emitStrike(i, velocity: strikeVel * 2.5, isClapper: true)
+                emitStrike(i, velocity: strikeVelocity(strikeVel, scale: 0.6), isClapper: true)
             }
         }
 
@@ -498,8 +504,8 @@ final class ChimePhysics {
                         strikeCount += 1
                         tubes[a].lastStrike = simTime
                         tubes[b].lastStrike = simTime
-                        emitStrike(a, velocity: impulse * 2, isClapper: false)
-                        emitStrike(b, velocity: impulse * 2, isClapper: false)
+                        emitStrike(a, velocity: strikeVelocity(impulse, scale: 0.7), isClapper: false)
+                        emitStrike(b, velocity: strikeVelocity(impulse, scale: 0.7), isClapper: false)
                     }
                 }
 
