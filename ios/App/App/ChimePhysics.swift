@@ -328,11 +328,12 @@ final class ChimePhysics {
         let rcx = sin(ring.ax) * ringL
         let rcy = sin(ring.ay) * ringL
 
-        // ── Clapper disc — longer cord than tubes, strikes at tube midpoint.
-        // Sheltered inside the ring: feels mostly the turbulent variation, a little of
-        // the mean flow, and swings more freely than the tubes' damping would allow.
+        // ── Clapper disc — longer cord than tubes, strikes at tube midpoint. A light
+        // disc with a lot of face: sheltered inside the ring it feels mostly the turbulent
+        // variation and a little of the mean flow, and swings more freely than the heavy
+        // tubes (damped less, and lighter than a tube when they meet).
         let strikerL = p.cordLength * 0.76
-        let clapperD = damping * 1.1
+        let clapperD = damping * 0.6
         let sEnergy = striker.vx * striker.vx + striker.vy * striker.vy
             + (striker.ax * striker.ax + striker.ay * striker.ay) * 0.15
         let sDamp = min(0.10, clapperD * (1 + sEnergy * 18))
@@ -406,7 +407,7 @@ final class ChimePhysics {
                 let relVn = (cvx - tvx) * cnx + (cvy - tvy) * cny
 
                 if relVn > 0 {
-                    let clapperMass = tubeMass * 2.5
+                    let clapperMass = tubeMass * 0.8 // a wooden disc against a metal tube
                     let restitution = 0.65
                     let impulse = (1 + restitution) * relVn / (1 / clapperMass + 1 / tubeMass)
 
