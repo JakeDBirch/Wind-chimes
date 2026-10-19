@@ -336,7 +336,9 @@ final class ChimePhysics {
         let clapperD = damping * 0.6
         let sEnergy = striker.vx * striker.vx + striker.vy * striker.vy
             + (striker.ax * striker.ax + striker.ay * striker.ay) * 0.15
-        let sDamp = min(0.10, clapperD * (1 + sEnergy * 18))
+        // A light disc has a lot of drag for its mass: a fast dash across the ring bleeds
+        // off quickly, while slow drifting in light air stays nearly free
+        let sDamp = min(0.12, clapperD * (1 + sEnergy * 45))
         let clapperWindX = ((windX - windMeanX) * 0.70 + windMeanX * 0.06) * wSusc
         let clapperWindY = ((windY - windMeanY) * 0.70 + windMeanY * 0.06) * wSusc
         let sAccX = -(G / strikerL) * sin(striker.ax) + clapperWindX / strikerL
@@ -408,7 +410,7 @@ final class ChimePhysics {
 
                 if relVn > 0 {
                     let clapperMass = tubeMass * 0.8 // a wooden disc against a metal tube
-                    let restitution = 0.65
+                    let restitution = 0.38 // wood on metal, on a cord: most of the bounce is lost
                     let impulse = (1 + restitution) * relVn / (1 / clapperMass + 1 / tubeMass)
 
                     striker.vx -= (impulse * cnx) / (clapperMass * strikerL)
