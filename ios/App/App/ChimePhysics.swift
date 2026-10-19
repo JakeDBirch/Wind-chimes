@@ -60,6 +60,10 @@ struct LabParams: Equatable {
     var clapperMass = 0.8        // clapper mass × tube mass in a strike (2.5 → 0.8)
     var restitution = 0.38       // bounce left after a clapper strike (0.65 → 0.38)
     var velocityScale = 0.6      // soft velocity curve tanh(v / scale); 0 = the old linear ×2.5
+    var windShadow = true        // windward tubes feel the flow, leeward ones its eddies (Oct 20)
+    var ownTurbulence = true     // each tube and the clapper has turbulence of its own (Oct 20)
+    var tuningDiversity = 1.0    // how much tube length and mass follow pitch: 0 all alike, 1 physical (Oct 20)
+    var strikeScatter = true     // a clapper strike deflects its rebound a little off the line (Oct 20)
 
     mutating func apply(_ values: [String: Double]) {
         for (key, value) in values {
@@ -76,6 +80,10 @@ struct LabParams: Equatable {
             case "clapperMass": clapperMass = max(0.05, value)
             case "restitution": restitution = max(0, min(1, value))
             case "velocityScale": velocityScale = max(0, value)
+            case "windShadow": windShadow = value != 0
+            case "ownTurbulence": ownTurbulence = value != 0
+            case "tuningDiversity": tuningDiversity = max(0, min(2, value))
+            case "strikeScatter": strikeScatter = value != 0
             default: break
             }
         }
@@ -85,7 +93,8 @@ struct LabParams: Equatable {
         ["steadyConstancy": steadyConstancy, "collisionAtMid": collisionAtMid, "prevailingWind": prevailingWind,
          "gap": gap, "clapperGap": clapperGap, "clapperDamp": clapperDamp, "clapperDrag": clapperDrag,
          "clapperFluct": clapperFluct, "clapperMean": clapperMean, "clapperMass": clapperMass,
-         "restitution": restitution, "velocityScale": velocityScale]
+         "restitution": restitution, "velocityScale": velocityScale,
+         "windShadow": windShadow, "ownTurbulence": ownTurbulence, "tuningDiversity": tuningDiversity, "strikeScatter": strikeScatter]
     }
 }
 
@@ -176,6 +185,12 @@ final class ChimePhysics {
     private var windAngle = 0.0, windSpeed = 0.0
     private var windMeanX = 0.0, windMeanY = 0.0
     private var noiseX = 0.0, noiseY = 0.0
+    // Turbulence each element feels on its own, besides the shared gust: eddies shed by
+    // the neighbours, with a shorter memory than the gust (0.5 s for tubes, 0.3 s for the
+    // clapper in the ring's wake). This is what gives the set relative motion.
+    private var tubeNoiseX: [Double] = [], tubeNoiseY: [Double] = []
+    private var clapNoiseX = 0.0, clapNoiseY = 0.0
+    private var turbAmpLast = 0.0
     private var calmDamp = 1.0
     private var evtPhase = WindPhase.lull
     private var evtT = 0.0
@@ -206,8 +221,17 @@ final class ChimePhysics {
         params = newParams
         if newParams.tubeCount != old.tubeCount {
             rebuild()
-        } else if newParams.lab.gap != old.lab.gap {
-            updateRingRadius()
+        } else {
+            if newParams.lab.gap != old.lab.gap { updateRingRadius() }
+            if newParams.lab.tuningDiversity != old.lab.tuningDiversity || newParams.scale != old.scale
+                || newParams.register != old.register || newParams.customScale != old.customScale {
+                // Re-derive lengths and masses from pitch without resetting the swing
+                let freqRef = tubeFrequency(tubes.count / 2)
+                for i in tubes.indices {
+                    let v = pow((freqRef / tubeFrequency(i)).squareRoot(), newParams.lab.tuningDiversity)
+                    tubes[i].lenFactor = v; tubes[i].mass = v
+                }
+            }
         }
     }
 
@@ -339,10 +363,13 @@ final class ChimePhysics {
         // Tube length from pitch: f = K/L^2 => L ∝ 1/sqrt(f); mass ∝ length
         let freqRef = tubeFrequency(n / 2)
         for i in 0..<n {
-            let lenVariation = (freqRef / tubeFrequency(i)).squareRoot()
+            // tuningDiversity 0 makes every tube the middle one; 1 is the physical spread
+            let lenVariation = pow((freqRef / tubeFrequency(i)).squareRoot(), params.lab.tuningDiversity)
             tubes.append(Tube(lenFactor: lenVariation, mass: lenVariation))
             strikeFlash.append(0)
         }
+        tubeNoiseX = Array(repeating: 0, count: n)
+        tubeNoiseY = Array(repeating: 0, count: n)
         ring = Pendulum()
         striker = Pendulum()
     }
@@ -400,8 +427,12 @@ final class ChimePhysics {
         // A light disc has a lot of drag for its mass: a fast dash across the ring bleeds
         // off quickly, while slow drifting in light air stays nearly free
         let sDamp = min(0.12, clapperD * (1 + sEnergy * p.lab.clapperDrag))
-        let clapperWindX = ((windX - windMeanX) * p.lab.clapperFluct + windMeanX * p.lab.clapperMean) * wSusc
-        let clapperWindY = ((windY - windMeanY) * p.lab.clapperFluct + windMeanY * p.lab.clapperMean) * wSusc
+        // With its own turbulence, the clapper takes half its buffeting from the shared gust
+        // and the rest from quick eddies of its own, so it isn't pumped along one line
+        let clapShare = p.lab.ownTurbulence ? 0.5 : 1.0
+        let clapOwn = p.lab.ownTurbulence ? 0.85 * turbAmpLast : 0
+        let clapperWindX = ((windX - windMeanX) * p.lab.clapperFluct * clapShare + clapNoiseX * clapOwn * p.lab.clapperFluct + windMeanX * p.lab.clapperMean) * wSusc
+        let clapperWindY = ((windY - windMeanY) * p.lab.clapperFluct * clapShare + clapNoiseY * clapOwn * p.lab.clapperFluct + windMeanY * p.lab.clapperMean) * wSusc
         let sAccX = -(G / strikerL) * sin(striker.ax) + clapperWindX / strikerL
         let sAccY = -(G / strikerL) * sin(striker.ay) + clapperWindY / strikerL
         striker.vx += sAccX * DT; striker.vy += sAccY * DT
@@ -425,8 +456,21 @@ final class ChimePhysics {
             let radX = -cos(mountAngle), radY = -sin(mountAngle)
             let tanX = -sin(mountAngle), tanY = cos(mountAngle)
 
-            let tubeWindX = ((windX - windMeanX) * 0.85 + windMeanX * 0.06) * wSusc
-            let tubeWindY = ((windY - windMeanY) * 0.85 + windMeanY * 0.06) * wSusc
+            // Where this tube sits relative to the wind: +1 on the windward side, -1 in the
+            // lee. Windward tubes take the flow; leeward ones sit in the eddies behind them.
+            var meanShare = 1.0, fluctShare = 1.0
+            if p.lab.windShadow && (windOn || motionOn) {
+                let wMag = (windMeanX * windMeanX + windMeanY * windMeanY).squareRoot()
+                if wMag > 1e-4 {
+                    let facing = -(cos(mountAngle) * windMeanX + sin(mountAngle) * windMeanY) / wMag
+                    meanShare = 0.4 + 0.6 * max(0, min(1, (facing + 1) / 2))
+                    fluctShare = 0.8 + 0.5 * max(0, min(1, (1 - facing) / 2))
+                }
+            }
+            let shared = p.lab.ownTurbulence ? 0.7 : 1.0
+            let own = p.lab.ownTurbulence ? 0.7 * turbAmpLast : 0
+            let tubeWindX = (((windX - windMeanX) * shared + tubeNoiseX[i] * own) * 0.85 * fluctShare + windMeanX * 0.06 * meanShare) * wSusc
+            let tubeWindY = (((windY - windMeanY) * shared + tubeNoiseY[i] * own) * 0.85 * fluctShare + windMeanY * 0.06 * meanShare) * wSusc
             let windR = tubeWindX * radX + tubeWindY * radY
             let windT = tubeWindX * tanX + tubeWindY * tanY
 
@@ -476,6 +520,15 @@ final class ChimePhysics {
 
                     striker.vx -= (impulse * cnx) / (clapperMass * strikerL)
                     striker.vy -= (impulse * cny) / (clapperMass * strikerL)
+                    if p.lab.strikeScatter {
+                        // Contact is never square on: the disc's edge and the cord's twist send
+                        // the rebound a little off the line, up to ±20°
+                        let turn = (rand() - 0.5) * 0.7
+                        let c = cos(turn), sn = sin(turn)
+                        let vx = striker.vx, vy = striker.vy
+                        striker.vx = vx * c - vy * sn
+                        striker.vy = vx * sn + vy * c
+                    }
                     t.tv += (impulse * cnx * radX + impulse * cny * radY) / (tubeMass * tLen * 0.5)
                     t.tvT += (impulse * cnx * tanX + impulse * cny * tanY) / (tubeMass * tLen * 0.5)
 
@@ -658,6 +711,15 @@ final class ChimePhysics {
             noiseX += (-noiseX / turbTau) * DT + (2 * DT / turbTau).squareRoot() * gaussian()
             noiseY += (-noiseY / turbTau) * DT + (2 * DT / turbTau).squareRoot() * gaussian()
             let turbAmp = wTurb * (0.02 + surge) * 4.0
+            turbAmpLast = turbAmp
+            // Each tube's own eddies (0.5 s memory) and the clapper's (0.3 s)
+            let tubeTau = 0.5, clapTau = 0.3
+            for i in tubeNoiseX.indices {
+                tubeNoiseX[i] += (-tubeNoiseX[i] / tubeTau) * DT + (2 * DT / tubeTau).squareRoot() * gaussian()
+                tubeNoiseY[i] += (-tubeNoiseY[i] / tubeTau) * DT + (2 * DT / tubeTau).squareRoot() * gaussian()
+            }
+            clapNoiseX += (-clapNoiseX / clapTau) * DT + (2 * DT / clapTau).squareRoot() * gaussian()
+            clapNoiseY += (-clapNoiseY / clapTau) * DT + (2 * DT / clapTau).squareRoot() * gaussian()
 
             windSurge = surge
             windX = meanX + noiseX * turbAmp
@@ -681,12 +743,14 @@ final class ChimePhysics {
             windX = mx
             windY = my
             windSurge = 0
+            turbAmpLast *= 0.9
             windMeanX *= 0.9
             windMeanY *= 0.9
         } else {
             windX *= 0.97
             windY *= 0.97
             windSurge *= 0.97
+            turbAmpLast *= 0.97
             windMeanX *= 0.97
             windMeanY *= 0.97
         }
