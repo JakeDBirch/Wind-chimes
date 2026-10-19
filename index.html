@@ -233,7 +233,7 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px;
 <div id="egg">
   <div class="egg-card">
     <div class="egg-title">You found hang mode</div>
-    <div class="egg-text">Hung outside, your phone is a real wind chime. The first ten people to find this get a 3D-printed harness to hang theirs in a tree. This code is yours; the form will ask for it.</div>
+    <div class="egg-text">Hung outside, your phone is a real wind chime. The first ten people to find this get a 3D-printed harness to hang theirs in a tree. This code is yours.</div>
     <div class="egg-code" id="egg-code"></div>
     <a class="egg-btn" id="egg-claim" href="#" target="_blank" rel="noopener">Claim a harness</a>
     <button class="egg-later" id="egg-later">Later</button>
@@ -583,7 +583,7 @@ function applyTheme() {
 // hung, so a brief tumble doesn't count and a long hang does even with the screen off.
 var HANG_SECONDS = 10;
 var CLAIM_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSdmLWkdgzL_-00HLKU_spfdlkRzBwmlQMxhuPzbvwZgYplmsA/viewform';
-var CLAIM_CODE_FIELD = '';         // the form's Claim code field, e.g. 'entry.123456789'; until set, the finder types the code
+var CLAIM_CODE_FIELD = 'entry.935922961'; // the form's Claim code field; the claim link arrives with the code filled in
 var hang = { found: 0, code: '' }; // found = time the reveal was earned, 0 if not yet
 
 function loadHang() {
