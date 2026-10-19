@@ -200,6 +200,10 @@ final class ChimeEngine {
         }
     }
 
+    func setLab(_ values: [String: Double]) {
+        updateParams { p in p.lab.apply(values) }
+    }
+
     func setVoiceParams(_ values: [String: Double]) {
         queue.async { self.voiceParams.apply(values) }
     }
@@ -251,6 +255,7 @@ final class ChimeEngine {
             var state = physics.snapshot()
             state["physicsOn"] = physicsOn
             state["windOn"] = windEnabled
+            state["lab"] = physics.params.lab.info
             state["sleepRemaining"] = sleepAt > 0 ? max(0, sleepAt - CACurrentMediaTime()) : -1
             state["source"] = source
             state["phoneSpell"] = phoneSpell

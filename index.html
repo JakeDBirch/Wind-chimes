@@ -107,6 +107,15 @@ html:not([data-theme="dark"]) #theme-btn .moon { display: block; }
 .egg-code { font-size: 24px; font-weight: 700; letter-spacing: 0.08em; color: var(--text); background: var(--chip-active-bg); border-radius: 14px; padding: 12px 10px; margin-bottom: 18px; font-variant-numeric: tabular-nums; -webkit-user-select: text; user-select: text; }
 .egg-btn { display: block; width: 100%; padding: 14px; border-radius: 16px; border: none; background: var(--key-active-bg); color: var(--key-active-text); font-family: inherit; font-weight: 700; font-size: 18px; text-decoration: none; outline: none; margin-bottom: 10px; }
 .egg-later { border: none; background: none; color: var(--text-dim); font-family: inherit; font-weight: 600; font-size: 16px; padding: 8px; outline: none; }
+/* Lab: every recent physics change as its own control */
+#lab { position: fixed; left: 0; right: 0; bottom: 0; z-index: 65; background: var(--panel); border-top: 1px solid var(--panel-border); border-radius: 16px 16px 0 0; padding: 14px 18px calc(18px + env(safe-area-inset-bottom)); transform: translateY(105%); transition: transform 0.3s cubic-bezier(.2,.8,.2,1); max-height: 86vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+#lab.open { transform: none; }
+.lab-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.lab-row .dlabel { font-size: 17px; }
+.lab-row .dval { font-size: 15px; }
+.lab-row .dslider { margin-top: 6px; }
+.lab-group { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.lab-note { font-size: 14px; font-weight: 500; color: var(--text-dim); line-height: 1.4; margin: 8px 0 4px; }
 /* Sound sheet: opened by a double tap on the clapper */
 #dim { position: fixed; inset: 0; background: var(--dim); opacity: 0; pointer-events: none; transition: opacity 0.25s; }
 #dim.open { opacity: 1; pointer-events: auto; }
@@ -191,6 +200,10 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px;
     <svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="24" cy="32" r="16"/><path d="M24 22v10l7 4"/><path d="M36 8h10l-10 10h10"/></svg>
     <div><div class="help-name">Sleep icon</div><div class="help-what">A timer that stops the wind after a while, for drifting off.</div></div>
   </div>
+  <div class="help-row" id="help-lab">
+    <svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 8h12"/><path d="M25 8v14L12 44a4 4 0 0 0 3.5 6h25a4 4 0 0 0 3.5-6L31 22V8"/><path d="M18 36h20" opacity="0.5"/></svg>
+    <div><div class="help-name">Lab</div><div class="help-what">Switch among the recent physics revisions to pin down what changed. Tap to open.</div></div>
+  </div>
 </div>
 
 <button id="theme-btn" aria-label="Light or dark">
@@ -238,6 +251,13 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px;
     <a class="egg-btn" id="egg-claim" href="#" target="_blank" rel="noopener">Claim a harness</a>
     <button class="egg-later" id="egg-later">Later</button>
   </div>
+</div>
+
+<div id="lab">
+  <div class="sheet-head"><span class="stitle">Lab</span><button class="close" id="lab-close">✕</button></div>
+  <div class="lab-note">Each control is one change from the last two days. The presets set them all as they stood on that day; then move one at a time.</div>
+  <div class="chips" id="lab-presets"></div>
+  <div id="lab-controls"></div>
 </div>
 
 <div id="dim"></div>
@@ -571,6 +591,98 @@ function showWind() {
   document.getElementById('v-consistency').textContent = windConsistency;
 }
 
+// ── Lab ───────────────────────────────────────────────────
+// Every physics and measurement change from 17–19 October, each its own control, with
+// presets that set them all as they stood on a given day. Values go to the engine's
+// LabParams and are kept between launches.
+var LAB_PRESETS = {
+  'Oct 17': { steadyConstancy: 0, collisionAtMid: 0, prevailingWind: 0, gap: 15.25, clapperGap: 15.25, clapperDamp: 1.67, clapperDrag: 25, clapperFluct: 0.55, clapperMean: 0, clapperMass: 2.5, restitution: 0.65, velocityScale: 0 },
+  'Oct 18': { steadyConstancy: 1, collisionAtMid: 1, prevailingWind: 1, gap: 12.5, clapperGap: 12.5, clapperDamp: 1.67, clapperDrag: 25, clapperFluct: 0.55, clapperMean: 0, clapperMass: 2.5, restitution: 0.65, velocityScale: 0 },
+  'Today':  { steadyConstancy: 1, collisionAtMid: 1, prevailingWind: 1, gap: 11, clapperGap: 7, clapperDamp: 0.6, clapperDrag: 45, clapperFluct: 0.70, clapperMean: 0.06, clapperMass: 0.8, restitution: 0.38, velocityScale: 0.6 }
+};
+var LAB_CONTROLS = [
+  { key: 'steadyConstancy', name: 'Steady at full constancy', what: 'Oct 18: the top of the Constancy slider is a genuinely steady wind', type: 'switch' },
+  { key: 'collisionAtMid',  name: 'Clashes at the midpoint', what: 'Oct 18: tube-on-tube contact where the circles are drawn, not at the tips', type: 'switch' },
+  { key: 'prevailingWind',  name: 'Prevailing wind', what: 'Oct 18: a direction that veers slowly instead of swinging round each gust', type: 'switch' },
+  { key: 'velocityScale',   name: 'Soft velocity curve', what: 'Oct 19: ordinary strikes land in the rounder middle of the voice', type: 'switch', on: 0.6 },
+  { key: 'gap',         name: 'Tube spacing',     unit: 'mm', min: 8, max: 18, step: 0.25, what: '15.25 → 12.5 → 11' },
+  { key: 'clapperGap',  name: 'Clapper reach',    unit: 'mm', min: 3, max: 18, step: 0.5, what: 'gap to each tube at rest: same as spacing → 7' },
+  { key: 'clapperDamp', name: 'Clapper damping',  unit: '×', min: 0.3, max: 2.0, step: 0.05, what: '1.67 → 1.1 → 0.6; tubes are 0.67' },
+  { key: 'clapperDrag', name: 'Clapper drag at speed', unit: '', min: 5, max: 60, step: 1, what: '25 → 18 → 45' },
+  { key: 'clapperFluct', name: 'Clapper feels gusts', unit: '', min: 0.2, max: 1.0, step: 0.05, what: '0.55 → 0.70' },
+  { key: 'clapperMean', name: 'Clapper feels steady wind', unit: '', min: 0, max: 0.2, step: 0.01, what: '0 → 0.06' },
+  { key: 'clapperMass', name: 'Clapper mass',     unit: '× tube', min: 0.3, max: 3, step: 0.1, what: '2.5 → 0.8' },
+  { key: 'restitution', name: 'Clapper bounce',   unit: '', min: 0.1, max: 0.9, step: 0.01, what: '0.65 → 0.38' }
+];
+var lab = Object.assign({}, LAB_PRESETS['Today']);
+
+function loadLab() {
+  try { var l = JSON.parse(localStorage.getItem('pocketChimesLab')); if (l && typeof l === 'object') for (var k in lab) if (isNum(l[k])) lab[k] = l[k]; } catch (e) {}
+}
+function saveLab() { try { localStorage.setItem('pocketChimesLab', JSON.stringify(lab)); } catch (e) {} }
+function sendLab() { if (Engine) Engine.setLab(lab); saveLab(); showLab(); }
+
+function labPresetName() {
+  for (var name in LAB_PRESETS) {
+    var p = LAB_PRESETS[name], same = true;
+    for (var k in p) if (Math.abs(p[k] - lab[k]) > 1e-9) { same = false; break; }
+    if (same) return name;
+  }
+  return null;
+}
+
+function buildLab() {
+  var presets = document.getElementById('lab-presets');
+  Object.keys(LAB_PRESETS).forEach(function(name) {
+    var b = document.createElement('button');
+    b.className = 'schip'; b.textContent = name; b.dataset.preset = name;
+    b.addEventListener('click', function() { lab = Object.assign({}, LAB_PRESETS[name]); sendLab(); hud(name, '', 900); });
+    presets.appendChild(b);
+  });
+  var el = document.getElementById('lab-controls');
+  LAB_CONTROLS.forEach(function(c) {
+    if (c.type === 'switch') {
+      var row = document.createElement('div'); row.className = 'lab-row';
+      row.innerHTML = '<div><div class="dlabel">' + c.name + '</div><div class="lab-note" style="margin:2px 0 0">' + c.what + '</div></div>' +
+        '<button class="switch" data-key="' + c.key + '" aria-label="' + c.name + '"></button>';
+      row.querySelector('.switch').addEventListener('click', function() {
+        var on = !(lab[c.key] > 0);
+        lab[c.key] = on ? (c.on || 1) : 0;
+        sendLab();
+      });
+      el.appendChild(row);
+    } else {
+      var g = document.createElement('div'); g.className = 'lab-group';
+      g.innerHTML = '<div class="drow" style="margin-bottom:0"><span class="dlabel">' + c.name + '</span><span class="dval" data-val="' + c.key + '"></span></div>' +
+        '<input class="dslider" type="range" data-key="' + c.key + '" min="' + c.min + '" max="' + c.max + '" step="' + c.step + '">' +
+        '<div class="lab-note" style="margin:4px 0 0">' + c.what + '</div>';
+      g.querySelector('input').addEventListener('input', function() { lab[c.key] = parseFloat(this.value); sendLab(); });
+      el.appendChild(g);
+    }
+  });
+  showLab();
+}
+
+function showLab() {
+  var preset = labPresetName();
+  document.querySelectorAll('#lab-presets .schip').forEach(function(b) { b.classList.toggle('active', b.dataset.preset === preset); });
+  LAB_CONTROLS.forEach(function(c) {
+    if (c.type === 'switch') {
+      var sw = document.querySelector('#lab .switch[data-key="' + c.key + '"]');
+      if (sw) sw.classList.toggle('on', lab[c.key] > 0);
+    } else {
+      var inp = document.querySelector('#lab input[data-key="' + c.key + '"]'), v = document.querySelector('#lab [data-val="' + c.key + '"]');
+      if (inp) inp.value = lab[c.key];
+      if (v) v.textContent = (Math.round(lab[c.key] * 100) / 100) + (c.unit ? ' ' + c.unit : '');
+    }
+  });
+}
+
+function openLab(open) {
+  document.getElementById('lab').classList.toggle('open', open);
+  document.getElementById('dim').classList.toggle('open', open);
+}
+
 // ── Theme ─────────────────────────────────────────────────
 function applyTheme() {
   document.documentElement.setAttribute('data-theme', theme);
@@ -898,6 +1010,7 @@ function saveSample() {
 // ── Startup ───────────────────────────────────────────────
 window.addEventListener('load', function() {
   loadSettings();
+  loadLab();
   loadHang();
   addHangHelpRow();
   applyTheme();
@@ -927,6 +1040,9 @@ window.addEventListener('load', function() {
   });
   document.getElementById('help').addEventListener('click', function() { openHelp(false); });
   document.getElementById('egg-later').addEventListener('click', function() { document.getElementById('egg').classList.remove('open'); });
+  buildLab();
+  document.getElementById('help-lab').addEventListener('click', function(e) { e.stopPropagation(); openHelp(false); openLab(true); });
+  document.getElementById('lab-close').addEventListener('click', function() { openLab(false); });
   document.getElementById('egg-claim').addEventListener('click', function(e) {
     if (!CLAIM_FORM_URL) { e.preventDefault(); hud('Claims open soon', 'keep your code', 1600); }
   });
@@ -946,7 +1062,7 @@ window.addEventListener('load', function() {
     sendParams();
   });
 
-  document.getElementById('dim').addEventListener('click', closeSheet);
+  document.getElementById('dim').addEventListener('click', function() { closeSheet(); openLab(false); });
   document.getElementById('btn-close').addEventListener('click', closeSheet);
   makeChips('sound-chips', ['Metal', 'Recorded'],
     function() { return currentSound === 'recorded' ? 'Recorded' : 'Metal'; },
@@ -976,6 +1092,7 @@ window.addEventListener('load', function() {
   });
 
   sendParams();
+  if (Engine) Engine.setLab(lab);
   restoreSound();
   showPower();
   if (Engine) Engine.setWind({ on: false }); // still air until the Wind switch
@@ -1159,7 +1276,8 @@ function draw() {
   var dScy = rcy + Math.sin(S.striker[1]) * strikerL;
   c.beginPath(); c.strokeStyle = P.tubeCord; c.lineWidth = 0.8;
   c.moveTo(wx(rcx), wy(rcy)); c.lineTo(wx(dScx), wy(dScy)); c.stroke();
-  var clapperR = Math.max(4, (ringRadius - TUBE_R - (CLAPPER_GAP_MM / 1000)) * scale);
+  var clapperGapMM = (S.lab && isNum(S.lab.clapperGap)) ? S.lab.clapperGap : CLAPPER_GAP_MM;
+  var clapperR = Math.max(4, (ringRadius - TUBE_R - (clapperGapMM / 1000)) * scale);
   c.beginPath(); c.arc(wx(dScx), wy(dScy), clapperR, 0, Math.PI * 2);
   c.fillStyle = P.clapper; c.fill();
   c.strokeStyle = P.clapperEdge; c.lineWidth = 1.5; c.stroke();

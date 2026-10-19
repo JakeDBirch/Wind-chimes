@@ -13,13 +13,16 @@ struct ChimeParams {
     var customScale = [0, 3, 5, 7, 10] // semitones above A, used when scale == "Custom"
 
     let cordLength = 0.53
-    let gap = 11.0        // mm of clearance between neighbouring tubes at rest
-    let clapperGap = 7.0  // mm of clearance between the clapper and each tube at rest
+    /// The Lab: every physics and measurement change of the last two days as its own
+    /// setting, so the feel can be taken apart one knob at a time. Defaults are today's.
+    var lab = LabParams()
+    var gap: Double { lab.gap }
+    var clapperGap: Double { lab.clapperGap }
 
     /// Velocity damping per step; the old slider's default, kept fixed
     let damping = 0.0015 * pow(6.667, 0.42)
     var windSteady: Double { windConsistency * 0.35 }
-    var windTurb: Double { 0.5 - windConsistency * 0.4 - windConsistency * windConsistency * 0.08 } // ~0 at 1
+    var windTurb: Double { lab.steadyConstancy ? 0.5 - windConsistency * 0.4 - windConsistency * windConsistency * 0.08 : 0.5 - windConsistency * 0.4 }
     /// Scales the lulls between wind events: 1.5× at consistency 0, 0.3× at 1
     var lullScale: Double { 1.5 - windConsistency * 1.2 }
     /// Chance a lull goes truly still rather than settling to a breeze: 50% at 0, none at 1
@@ -30,16 +33,60 @@ struct ChimeParams {
     var holdScale: Double { 1 + windConsistency }
     /// How much the speed wanders within a gust (sub-gusts, drops, wander): 0.75 at
     /// constancy 0, 0.5 at the default 0.4, none at 1
-    var gustVariation: Double { (1 - windConsistency) * 0.5 + 0.25 * (1 - windConsistency * windConsistency) }
+    var gustVariation: Double { lab.steadyConstancy ? (1 - windConsistency) * 0.5 + 0.25 * (1 - windConsistency * windConsistency) : 0.25 + (1 - windConsistency) * 0.5 }
     /// At full constancy every event blows at the same strength; lower down the peaks
     /// are random (weighted toward lighter events)
-    var peakBlend: Double { windConsistency * windConsistency }
+    var peakBlend: Double { lab.steadyConstancy ? windConsistency * windConsistency : 0 }
     /// Scales the wobble and the chance of a spike while a gust holds: gone at 1
-    var holdWobble: Double { 1 - windConsistency * windConsistency * 0.9 }
-    var spikeChance: Double { 1 - windConsistency * windConsistency }
+    var holdWobble: Double { lab.steadyConstancy ? 1 - windConsistency * windConsistency * 0.9 : 1 }
+    var spikeChance: Double { lab.steadyConstancy ? 1 - windConsistency * windConsistency : 1 }
     /// The wind never falls below this between events: nothing at 0, the breeze at 1,
     /// so a constant wind stays up instead of dipping to zero before each gust
-    var speedFloor: Double { breezeSpeed * windConsistency }
+    var speedFloor: Double { lab.steadyConstancy ? breezeSpeed * windConsistency : 0 }
+}
+
+/// Lab settings. Each one is a change made on 17–19 October; "Oct 17", "Oct 18" and
+/// "Today" presets on the page set them all at once, and any can be moved alone.
+struct LabParams: Equatable {
+    var steadyConstancy = true   // full constancy is a genuinely steady wind (Oct 18)
+    var collisionAtMid = true    // tube-on-tube clashes at the midpoints, where drawn (Oct 18)
+    var prevailingWind = true    // a slowly veering prevailing direction (Oct 18)
+    var gap = 11.0               // mm between neighbouring tubes at rest (15.25 → 12.5 → 11)
+    var clapperGap = 7.0         // mm between the clapper and each tube at rest (= gap → 7)
+    var clapperDamp = 0.6        // clapper damping × base rate (1.67 → 1.1 → 0.6)
+    var clapperDrag = 45.0       // how much faster the clapper damps at speed (25 → 18 → 45)
+    var clapperFluct = 0.70      // share of the gusty wind the clapper feels (0.55 → 0.70)
+    var clapperMean = 0.06       // share of the steady wind the clapper feels (0 → 0.06)
+    var clapperMass = 0.8        // clapper mass × tube mass in a strike (2.5 → 0.8)
+    var restitution = 0.38       // bounce left after a clapper strike (0.65 → 0.38)
+    var velocityScale = 0.6      // soft velocity curve tanh(v / scale); 0 = the old linear ×2.5
+
+    mutating func apply(_ values: [String: Double]) {
+        for (key, value) in values {
+            switch key {
+            case "steadyConstancy": steadyConstancy = value != 0
+            case "collisionAtMid": collisionAtMid = value != 0
+            case "prevailingWind": prevailingWind = value != 0
+            case "gap": gap = max(2, value)
+            case "clapperGap": clapperGap = max(1, value)
+            case "clapperDamp": clapperDamp = max(0, value)
+            case "clapperDrag": clapperDrag = max(0, value)
+            case "clapperFluct": clapperFluct = max(0, value)
+            case "clapperMean": clapperMean = max(0, value)
+            case "clapperMass": clapperMass = max(0.05, value)
+            case "restitution": restitution = max(0, min(1, value))
+            case "velocityScale": velocityScale = max(0, value)
+            default: break
+            }
+        }
+    }
+
+    var info: [String: Any] {
+        ["steadyConstancy": steadyConstancy, "collisionAtMid": collisionAtMid, "prevailingWind": prevailingWind,
+         "gap": gap, "clapperGap": clapperGap, "clapperDamp": clapperDamp, "clapperDrag": clapperDrag,
+         "clapperFluct": clapperFluct, "clapperMean": clapperMean, "clapperMass": clapperMass,
+         "restitution": restitution, "velocityScale": velocityScale]
+    }
 }
 
 struct ChimeStrike {
@@ -159,6 +206,8 @@ final class ChimePhysics {
         params = newParams
         if newParams.tubeCount != old.tubeCount {
             rebuild()
+        } else if newParams.lab.gap != old.lab.gap {
+            updateRingRadius()
         }
     }
 
@@ -269,7 +318,9 @@ final class ChimePhysics {
         evtHoldDur = (2 + rand() * 10) * params.holdScale
         evtFallDur = 1.5 + rand() * 8.5
         // From near the prevailing direction: within ~20° typically, tighter when constant
-        evtAngle = prevailingAngle + gaussian() * (0.35 - params.windConsistency * 0.2)
+        evtAngle = params.lab.prevailingWind
+            ? prevailingAngle + gaussian() * (0.35 - params.windConsistency * 0.2)
+            : windAngle + (rand() - 0.5) * .pi * 0.6 // the old drift from the previous direction
         evtPhase = .lull
         evtT = 0
     }
@@ -306,7 +357,10 @@ final class ChimePhysics {
     /// curve: `scale` is the speed at which it reaches about three quarters, and it
     /// never quite saturates, so only a hard blow brings in the full bright attack and
     /// ordinary strikes sit in the rounder middle of the voice.
-    private func strikeVelocity(_ x: Double, scale: Double) -> Double { tanh(x / scale) }
+    private func strikeVelocity(_ x: Double, scale: Double, linear: Double) -> Double {
+        let s = params.lab.velocityScale
+        return s > 0 ? tanh(x / (scale / 0.6 * s)) : min(1, x * linear) // the Lab can restore the old linear map
+    }
 
     // MARK: - Tick
 
@@ -340,14 +394,14 @@ final class ChimePhysics {
         // variation and a little of the mean flow, and swings more freely than the heavy
         // tubes (damped less, and lighter than a tube when they meet).
         let strikerL = p.cordLength * 0.76
-        let clapperD = damping * 0.6
+        let clapperD = damping * p.lab.clapperDamp
         let sEnergy = striker.vx * striker.vx + striker.vy * striker.vy
             + (striker.ax * striker.ax + striker.ay * striker.ay) * 0.15
         // A light disc has a lot of drag for its mass: a fast dash across the ring bleeds
         // off quickly, while slow drifting in light air stays nearly free
-        let sDamp = min(0.12, clapperD * (1 + sEnergy * 45))
-        let clapperWindX = ((windX - windMeanX) * 0.70 + windMeanX * 0.06) * wSusc
-        let clapperWindY = ((windY - windMeanY) * 0.70 + windMeanY * 0.06) * wSusc
+        let sDamp = min(0.12, clapperD * (1 + sEnergy * p.lab.clapperDrag))
+        let clapperWindX = ((windX - windMeanX) * p.lab.clapperFluct + windMeanX * p.lab.clapperMean) * wSusc
+        let clapperWindY = ((windY - windMeanY) * p.lab.clapperFluct + windMeanY * p.lab.clapperMean) * wSusc
         let sAccX = -(G / strikerL) * sin(striker.ax) + clapperWindX / strikerL
         let sAccY = -(G / strikerL) * sin(striker.ay) + clapperWindY / strikerL
         striker.vx += sAccX * DT; striker.vy += sAccY * DT
@@ -416,8 +470,8 @@ final class ChimePhysics {
                 let relVn = (cvx - tvx) * cnx + (cvy - tvy) * cny
 
                 if relVn > 0 {
-                    let clapperMass = tubeMass * 0.8 // a wooden disc against a metal tube
-                    let restitution = 0.38 // wood on metal, on a cord: most of the bounce is lost
+                    let clapperMass = tubeMass * p.lab.clapperMass
+                    let restitution = p.lab.restitution
                     let impulse = (1 + restitution) * relVn / (1 / clapperMass + 1 / tubeMass)
 
                     striker.vx -= (impulse * cnx) / (clapperMass * strikerL)
@@ -445,7 +499,7 @@ final class ChimePhysics {
             tubes[i] = t
 
             if let strikeVel = struck {
-                emitStrike(i, velocity: strikeVelocity(strikeVel, scale: 0.6), isClapper: true)
+                emitStrike(i, velocity: strikeVelocity(strikeVel, scale: 0.6, linear: 2.5), isClapper: true)
             }
         }
 
@@ -456,7 +510,7 @@ final class ChimePhysics {
         let collisionDist = tubeR * 2
         for i in 0..<n {
             let t = tubes[i]
-            let tL = tubeL * t.lenFactor * 0.5
+            let tL = tubeL * t.lenFactor * (p.lab.collisionAtMid ? 0.5 : 1.0)
             let mAng = Double(i) / Double(n) * .pi * 2
             let mx = rcx + cos(mAng) * ringRadius
             let my = rcy + sin(mAng) * ringRadius
@@ -505,8 +559,8 @@ final class ChimePhysics {
                         strikeCount += 1
                         tubes[a].lastStrike = simTime
                         tubes[b].lastStrike = simTime
-                        emitStrike(a, velocity: strikeVelocity(impulse, scale: 0.7), isClapper: false)
-                        emitStrike(b, velocity: strikeVelocity(impulse, scale: 0.7), isClapper: false)
+                        emitStrike(a, velocity: strikeVelocity(impulse, scale: 0.7, linear: 2.0), isClapper: false)
+                        emitStrike(b, velocity: strikeVelocity(impulse, scale: 0.7, linear: 2.0), isClapper: false)
                     }
                 }
 
@@ -522,7 +576,7 @@ final class ChimePhysics {
         // ── Wind / motion forcing
         if windOn {
             // The prevailing direction veers slowly: a random walk of a few degrees a minute
-            prevailingAngle += gaussian() * DT.squareRoot() * 0.02
+            if p.lab.prevailingWind { prevailingAngle += gaussian() * DT.squareRoot() * 0.02 }
             let wStr = p.windStrength
             let wSteady = p.windSteady
             let wTurb = p.windTurb
@@ -558,7 +612,7 @@ final class ChimePhysics {
                 if rand() < 0.005 * p.spikeChance { targetSpeed *= 1.4 + rand() * 0.6 } // occasional spike
                 windSpeed += (targetSpeed - windSpeed) * 0.05
                 // Wander about the event's direction without walking away from it
-                windAngle += (evtAngle - windAngle) * 0.003 + (rand() - 0.5) * (1 - wSteady) * 0.04
+                windAngle += (p.lab.prevailingWind ? (evtAngle - windAngle) * 0.003 : 0) + (rand() - 0.5) * (1 - wSteady) * 0.04
                 if evtT >= evtHoldDur { evtPhase = .fall; evtT = 0 }
             case .fall:
                 calmDamp = 1.0
