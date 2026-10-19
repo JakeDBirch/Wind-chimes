@@ -13,7 +13,7 @@ struct ChimeParams {
     var customScale = [0, 3, 5, 7, 10] // semitones above A, used when scale == "Custom"
 
     let cordLength = 0.53
-    let gap = 15.25 // mm between tubes
+    let gap = 12.5 // mm of clearance between neighbouring tubes, and between the clapper and each tube, at rest
 
     /// Velocity damping per step; the old slider's default, kept fixed
     let damping = 0.0015 * pow(6.667, 0.42)
