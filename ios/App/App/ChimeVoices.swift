@@ -186,24 +186,40 @@ enum ChimeVoices {
             let pGain = vel * partialGains[i] * gainVar * pow(partialRolloff, di) * pow(partialVel, 0.6) * 0.65
             let attack = attackMult * (0.006 + di * (0.006 + velNorm * 0.008))
 
-            let v = SynthVoice()
-            v.startTime = now
-            v.frequency = Automation(pFreqD)
+            // Twin modes: a real tube is never perfectly round, so each partial is a pair
+            // of modes a cent or two apart that beat slowly as the note rings. The split is
+            // fixed per tube (from its pitch), so a tube warbles the same way every strike
+            // and no two tubes warble together.
+            let split = twinModeSplit(for: freq)
+            for sign in [-0.5, 0.5] {
+                let v = SynthVoice()
+                v.startTime = now
+                v.frequency = Automation(pFreqD * pow(2, sign * split / 1200))
 
-            // Lowpass sweep from bright to dark as the note decays
-            var cutoff = Automation(350) // BiquadFilterNode default until the sweep starts
-            cutoff.setValue(pFreq * startCutoffMult, at: now + attack)
-            cutoff.exponentialRamp(to: pFreq * endCutoffMult, at: now + attack + pDecay)
-            v.filterFrequency = cutoff
-            v.filter = Biquad(.lowpass, q: 0.5)
+                // Lowpass sweep from bright to dark as the note decays
+                var cutoff = Automation(350) // BiquadFilterNode default until the sweep starts
+                cutoff.setValue(pFreq * startCutoffMult, at: now + attack)
+                cutoff.exponentialRamp(to: pFreq * endCutoffMult, at: now + attack + pDecay)
+                v.filterFrequency = cutoff
+                v.filter = Biquad(.lowpass, q: 0.5)
 
-            v.gain.setValue(0, at: now)
-            v.gain.linearRamp(to: pGain, at: now + attack)
-            v.gain.exponentialRamp(to: 0.0001, at: now + attack + pDecay)
-            v.stopTime = now + attack + pDecay + 0.1
-            voices.append(v)
+                v.gain.setValue(0, at: now)
+                v.gain.linearRamp(to: pGain * 0.5, at: now + attack)
+                v.gain.exponentialRamp(to: 0.0001, at: now + attack + pDecay)
+                v.stopTime = now + attack + pDecay + 0.1
+                voices.append(v)
+            }
         }
 
         return voices
+    }
+
+    /// The split between a tube's two bending modes, in cents: 1 to 2.6, fixed for a given
+    /// pitch so every strike of that tube beats at the same slow rate (2 cents at A4 is a
+    /// beat every two seconds).
+    static func twinModeSplit(for freq: Double) -> Double {
+        let x = sin(freq * 12.9898) * 43758.5453
+        let frac = x - floor(x)
+        return 1.0 + 1.6 * frac
     }
 }
