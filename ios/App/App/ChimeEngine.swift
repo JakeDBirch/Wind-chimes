@@ -104,19 +104,21 @@ final class ChimeEngine {
                 self.sleepAt = 0
             }
             if on && !self.physicsOn { self.applyPhysics(true); return }
+            if !self.physicsOn { self.watchForHang(); return }
             if self.physicsOn && self.source == "wind" {
                 if on { self.physics.startWind(resetState: false) } else { self.physics.stopWind() }
             }
         }
     }
 
-    // Dormant: physics and audio stopped with the wind off and nothing moving. A slow
-    // watch on the motion sensor wakes the engine when the phone is turned over.
+    // Whenever the physics is stopped (never started, settled with the wind off, or put to
+    // sleep) a slow watch on the motion sensor wakes the engine when the phone is turned
+    // over, so hanging it works from any state.
     private var dormantWatch: DispatchSourceTimer?
     private var settledSince: Double?
 
-    private func goDormant() {
-        applyPhysics(false)
+    private func watchForHang() {
+        guard dormantWatch == nil else { return }
         startMotion()
         let timer = DispatchSource.makeTimerSource(queue: queue)
         timer.schedule(deadline: .now() + 0.25, repeating: 0.25)
@@ -126,6 +128,10 @@ final class ChimeEngine {
         }
         timer.resume()
         dormantWatch = timer
+    }
+
+    private func goDormant() {
+        applyPhysics(false)
     }
 
     /// Wind drives the chimes unless the phone hangs upside down (top edge toward the
@@ -148,7 +154,7 @@ final class ChimeEngine {
         } else if source == "phone", let t = uprightSince, now - t > 2.0 {
             source = "wind"
             longestPhoneSpell = max(longestPhoneSpell, now - phoneSince)
-            physics.selectWind(physicsOn: physicsOn)
+            physics.selectWind(physicsOn: physicsOn && windEnabled)
         }
     }
 
@@ -477,8 +483,8 @@ final class ChimeEngine {
             physics.stopWind()
             windSoundEnvelope = 0
             synth.windLevel = 0
-            stopMotion()
             stopAudioWhenIdle()
+            watchForHang() // keeps the motion sensor running
         }
     }
 
@@ -550,9 +556,6 @@ final class ChimeEngine {
         motion.startDeviceMotionUpdates(using: .xArbitraryZVertical)
     }
 
-    private func stopMotion() {
-        if motion.isDeviceMotionActive { motion.stopDeviceMotionUpdates() }
-    }
 
     // MARK: - Audio
 
