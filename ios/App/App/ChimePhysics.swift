@@ -329,14 +329,15 @@ final class ChimePhysics {
         let rcy = sin(ring.ay) * ringL
 
         // ── Clapper disc — longer cord than tubes, strikes at tube midpoint.
-        // Sheltered inside the ring: only feels turbulent variation, not mean flow.
+        // Sheltered inside the ring: feels mostly the turbulent variation, a little of
+        // the mean flow, and swings more freely than the tubes' damping would allow.
         let strikerL = p.cordLength * 0.76
-        let clapperD = damping * 1.67
+        let clapperD = damping * 1.1
         let sEnergy = striker.vx * striker.vx + striker.vy * striker.vy
             + (striker.ax * striker.ax + striker.ay * striker.ay) * 0.15
-        let sDamp = min(0.10, clapperD * (1 + sEnergy * 25))
-        let clapperWindX = (windX - windMeanX) * 0.55 * wSusc
-        let clapperWindY = (windY - windMeanY) * 0.55 * wSusc
+        let sDamp = min(0.10, clapperD * (1 + sEnergy * 18))
+        let clapperWindX = ((windX - windMeanX) * 0.70 + windMeanX * 0.06) * wSusc
+        let clapperWindY = ((windY - windMeanY) * 0.70 + windMeanY * 0.06) * wSusc
         let sAccX = -(G / strikerL) * sin(striker.ax) + clapperWindX / strikerL
         let sAccY = -(G / strikerL) * sin(striker.ay) + clapperWindY / strikerL
         striker.vx += sAccX * DT; striker.vy += sAccY * DT
