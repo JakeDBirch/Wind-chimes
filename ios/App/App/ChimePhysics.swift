@@ -427,10 +427,11 @@ final class ChimePhysics {
         // A light disc has a lot of drag for its mass: a fast dash across the ring bleeds
         // off quickly, while slow drifting in light air stays nearly free
         let sDamp = min(0.12, clapperD * (1 + sEnergy * p.lab.clapperDrag))
-        // With its own turbulence, the clapper takes half its buffeting from the shared gust
-        // and the rest from quick eddies of its own, so it isn't pumped along one line
-        let clapShare = p.lab.ownTurbulence ? 0.5 : 1.0
-        let clapOwn = p.lab.ownTurbulence ? 0.85 * turbAmpLast : 0
+        // With its own turbulence the clapper keeps most of the shared gust and gets quick
+        // eddies of its own on top, so it isn't pumped along one line. Quick eddies move a
+        // pendulum far less than slow ones of the same size, so they add, not replace.
+        let clapShare = p.lab.ownTurbulence ? 0.8 : 1.0
+        let clapOwn = p.lab.ownTurbulence ? 0.9 * turbAmpLast : 0
         let clapperWindX = ((windX - windMeanX) * p.lab.clapperFluct * clapShare + clapNoiseX * clapOwn * p.lab.clapperFluct + windMeanX * p.lab.clapperMean) * wSusc
         let clapperWindY = ((windY - windMeanY) * p.lab.clapperFluct * clapShare + clapNoiseY * clapOwn * p.lab.clapperFluct + windMeanY * p.lab.clapperMean) * wSusc
         let sAccX = -(G / strikerL) * sin(striker.ax) + clapperWindX / strikerL
@@ -467,8 +468,8 @@ final class ChimePhysics {
                     fluctShare = 0.8 + 0.5 * max(0, min(1, (1 - facing) / 2))
                 }
             }
-            let shared = p.lab.ownTurbulence ? 0.7 : 1.0
-            let own = p.lab.ownTurbulence ? 0.7 * turbAmpLast : 0
+            let shared = 1.0
+            let own = p.lab.ownTurbulence ? 0.8 * turbAmpLast : 0
             let tubeWindX = (((windX - windMeanX) * shared + tubeNoiseX[i] * own) * 0.85 * fluctShare + windMeanX * 0.06 * meanShare) * wSusc
             let tubeWindY = (((windY - windMeanY) * shared + tubeNoiseY[i] * own) * 0.85 * fluctShare + windMeanY * 0.06 * meanShare) * wSusc
             let windR = tubeWindX * radX + tubeWindY * radY
@@ -504,7 +505,7 @@ final class ChimePhysics {
             let timeSince = simTime - t.lastStrike
 
             var struck: Double?
-            if cDist < cStrikeDist && cDist > 0.0001 && timeSince > 0.150 {
+            if cDist < cStrikeDist && cDist > 0.0001 {
                 let cnx = cdx / cDist, cny = cdy / cDist
                 let tvx = t.tv * (tLen * 0.5) * radX + t.tvT * (tLen * 0.5) * tanX
                 let tvy = t.tv * (tLen * 0.5) * radY + t.tvT * (tLen * 0.5) * tanY
@@ -513,7 +514,17 @@ final class ChimePhysics {
                 // Relative velocity along normal — positive means approaching
                 let relVn = (cvx - tvx) * cnx + (cvy - tvy) * cny
 
-                if relVn > 0 {
+                // Whatever else happens, the two are pushed apart: an overlap that lingered
+                // (a rebound that still pointed inward, wind pressing the clapper on) used to
+                // go uncorrected for the 150 ms after a strike and showed as a stuck, jittering
+                // clapper
+                let cOverlap = (cStrikeDist - cDist) * 0.5
+                striker.ax -= (cOverlap * cnx) / strikerL
+                striker.ay -= (cOverlap * cny) / strikerL
+                t.ta += (cOverlap * cnx * radX + cOverlap * cny * radY) / (tLen * 0.5)
+                t.tt += (cOverlap * cnx * tanX + cOverlap * cny * tanY) / (tLen * 0.5)
+
+                if relVn > 0 && timeSince > 0.150 {
                     let clapperMass = tubeMass * p.lab.clapperMass
                     let restitution = p.lab.restitution
                     let impulse = (1 + restitution) * relVn / (1 / clapperMass + 1 / tubeMass)
@@ -522,21 +533,17 @@ final class ChimePhysics {
                     striker.vy -= (impulse * cny) / (clapperMass * strikerL)
                     if p.lab.strikeScatter {
                         // Contact is never square on: the disc's edge and the cord's twist send
-                        // the rebound a little off the line, up to ±20°
+                        // the rebound a little off the line, up to ±20°, never back into the tube
                         let turn = (rand() - 0.5) * 0.7
                         let c = cos(turn), sn = sin(turn)
                         let vx = striker.vx, vy = striker.vy
                         striker.vx = vx * c - vy * sn
                         striker.vy = vx * sn + vy * c
+                        let into = striker.vx * cnx + striker.vy * cny
+                        if into > 0 { striker.vx -= into * cnx; striker.vy -= into * cny }
                     }
                     t.tv += (impulse * cnx * radX + impulse * cny * radY) / (tubeMass * tLen * 0.5)
                     t.tvT += (impulse * cnx * tanX + impulse * cny * tanY) / (tubeMass * tLen * 0.5)
-
-                    let cOverlap = (cStrikeDist - cDist) * 0.5
-                    striker.ax -= (cOverlap * cnx) / strikerL
-                    striker.ay -= (cOverlap * cny) / strikerL
-                    t.ta += (cOverlap * cnx * radX + cOverlap * cny * radY) / (tLen * 0.5)
-                    t.tt += (cOverlap * cnx * tanX + cOverlap * cny * tanY) / (tLen * 0.5)
 
                     let strikeVel = abs(relVn)
                     strikeCount += 1
