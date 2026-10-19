@@ -276,7 +276,7 @@ var Engine = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Pl
 
 var TUBE_R = 0.035;       // tube radius in meters, matches ChimePhysics.tubeR
 var CORD_LENGTH = 0.53;   // matches ChimeParams.cordLength
-var GAP_MM = 11.0;        // matches ChimeParams.gap
+var CLAPPER_GAP_MM = 7.0; // matches ChimeParams.clapperGap
 var WIND_SOUND_GAIN = 0.1; // -20 dB when on
 
 // Each scale has its own hue, so the whole screen takes on its mood
@@ -1159,7 +1159,7 @@ function draw() {
   var dScy = rcy + Math.sin(S.striker[1]) * strikerL;
   c.beginPath(); c.strokeStyle = P.tubeCord; c.lineWidth = 0.8;
   c.moveTo(wx(rcx), wy(rcy)); c.lineTo(wx(dScx), wy(dScy)); c.stroke();
-  var clapperR = Math.max(4, (ringRadius - TUBE_R - (GAP_MM / 1000)) * scale);
+  var clapperR = Math.max(4, (ringRadius - TUBE_R - (CLAPPER_GAP_MM / 1000)) * scale);
   c.beginPath(); c.arc(wx(dScx), wy(dScy), clapperR, 0, Math.PI * 2);
   c.fillStyle = P.clapper; c.fill();
   c.strokeStyle = P.clapperEdge; c.lineWidth = 1.5; c.stroke();

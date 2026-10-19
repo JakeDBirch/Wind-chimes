@@ -13,7 +13,8 @@ struct ChimeParams {
     var customScale = [0, 3, 5, 7, 10] // semitones above A, used when scale == "Custom"
 
     let cordLength = 0.53
-    let gap = 11.0 // mm of clearance between neighbouring tubes, and between the clapper and each tube, at rest
+    let gap = 11.0        // mm of clearance between neighbouring tubes at rest
+    let clapperGap = 7.0  // mm of clearance between the clapper and each tube at rest
 
     /// Velocity damping per step; the old slider's default, kept fixed
     let damping = 0.0015 * pow(6.667, 0.42)
@@ -356,7 +357,7 @@ final class ChimePhysics {
         striker.ay = clampAngle(striker.ay)
         let scx = rcx + sin(striker.ax) * strikerL
         let scy = rcy + sin(striker.ay) * strikerL
-        let clapperR = max(0.005, ringRadius - tubeR - (p.gap / 1000))
+        let clapperR = max(0.005, ringRadius - tubeR - (p.clapperGap / 1000))
 
         // ── Tubes — each swings radially and tangentially from its mount on the ring
         for i in 0..<n {
