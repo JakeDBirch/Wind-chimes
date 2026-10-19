@@ -585,6 +585,38 @@ var HANG_SECONDS = 10;
 var CLAIM_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSdmLWkdgzL_-00HLKU_spfdlkRzBwmlQMxhuPzbvwZgYplmsA/viewform';
 var CLAIM_CODE_FIELD = 'entry.935922961'; // the form's Claim code field; the claim link arrives with the code filled in
 var hang = { found: 0, code: '' }; // found = time the reveal was earned, 0 if not yet
+// Whether harnesses are still to be had. A one-line file on the repo's GitHub Pages site;
+// the app reads it when it can and remembers the last answer, so the card is honest after
+// the tenth claim without an app update. Offline, it assumes the hunt is still open.
+var HUNT_STATUS_URL = 'https://jakedbirch.github.io/Wind-chimes/hunt.json';
+var hunt = { open: true, claimed: 0 };
+
+function loadHunt() { try { var h = JSON.parse(localStorage.getItem('pocketChimesHunt')); if (h && typeof h.open === 'boolean') hunt = h; } catch (e) {} }
+function refreshHunt() {
+  if (!window.fetch) return;
+  var ctrl = window.AbortController ? new AbortController() : null;
+  if (ctrl) setTimeout(function() { ctrl.abort(); }, 4000);
+  fetch(HUNT_STATUS_URL + '?t=' + Date.now(), { cache: 'no-store', signal: ctrl && ctrl.signal }).then(function(r) { return r.json(); }).then(function(h) {
+    if (h && typeof h.open === 'boolean') {
+      hunt = { open: h.open, claimed: isNum(h.claimed) ? h.claimed : 0 };
+      try { localStorage.setItem('pocketChimesHunt', JSON.stringify(hunt)); } catch (e) {}
+      showHunt();
+    }
+  }).catch(function() {});
+}
+
+// The card and the help row say whether a harness is still to be had
+function showHunt() {
+  var open = hunt.open;
+  var text = document.querySelector('#egg .egg-text');
+  if (text) text.textContent = open
+    ? 'Hung outside, your phone is a real wind chime. The first ten people to find this get a 3D-printed harness to hang theirs in a tree. This code is yours.'
+    : 'Hung outside, your phone is a real wind chime. All ten harnesses have found their trees, but you found this, and the code is yours.';
+  var claim = document.getElementById('egg-claim');
+  if (claim) claim.style.display = open ? 'block' : 'none';
+  var hc = document.getElementById('help-claim');
+  if (hc) hc.style.display = open ? 'inline' : 'none';
+}
 
 function loadHang() {
   try { var h = JSON.parse(localStorage.getItem('pocketChimesHang')); if (h && h.code) hang = h; } catch (e) {}
@@ -616,6 +648,8 @@ function claimURL() {
 }
 
 function revealHang() {
+  refreshHunt();
+  showHunt();
   if (!hang.found) {
     hang.found = Date.now();
     hang.code = makeClaimCode();
@@ -899,7 +933,10 @@ function saveSample() {
 window.addEventListener('load', function() {
   loadSettings();
   loadHang();
+  loadHunt();
   addHangHelpRow();
+  showHunt();
+  if (hang.found) refreshHunt();
   applyTheme();
   showWind();
   buildKeyboard();

@@ -24,6 +24,10 @@ Pocket Chimes takes the audio for itself: it pauses whatever else was playing, a
 
 Every setting is saved as it changes and restored the next time the app opens.
 
+## The harness hunt
+
+`hunt.json` at the repository root is served by GitHub Pages at `https://jakedbirch.github.io/Wind-chimes/hunt.json`, and the app reads it whenever the hidden-mode card is shown. To close the hunt after the tenth claim: set `"open": false` in `hunt.json` and push to `main` (Pages redeploys in a minute or two), and set the Google Form to no longer accept responses. The card then says the harnesses are gone and hides the claim button; phones that are offline keep the last answer they saw.
+
 ## Project layout
 
 | Path | What it is |
