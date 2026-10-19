@@ -116,6 +116,17 @@ html:not([data-theme="dark"]) #theme-btn .moon { display: block; }
 .lab-row .dslider { margin-top: 6px; }
 .lab-group { padding: 8px 0; border-bottom: 1px solid var(--line); }
 .lab-note { font-size: 14px; font-weight: 500; color: var(--text-dim); line-height: 1.4; margin: 8px 0 4px; }
+.stepper { display: flex; align-items: center; gap: 8px; margin: 10px 0 6px; }
+.stepper button { width: 48px; height: 44px; border-radius: 12px; border: 1px solid var(--line); background: none; color: var(--text); font-family: inherit; font-size: 22px; outline: none; flex-shrink: 0; }
+.step-title { flex: 1; min-width: 0; font-size: 17px; font-weight: 700; color: var(--text); }
+.step-what { font-size: 14px; font-weight: 500; color: var(--text-dim); line-height: 1.4; margin-bottom: 8px; }
+.steps { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+.step { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 12px; border: 1px solid var(--line); background: none; color: var(--text); font-family: inherit; font-weight: 600; font-size: 15px; text-align: left; outline: none; }
+.step.active { border-color: var(--chip-active); background: var(--chip-active-bg); }
+.step .n { width: 22px; flex-shrink: 0; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.step .noted { margin-left: auto; font-size: 12px; color: var(--accent); }
+.notes { width: 100%; min-height: 64px; padding: 9px 11px; border-radius: 12px; border: 1px solid var(--line); background: var(--input-bg); color: var(--text); font-family: inherit; font-weight: 500; font-size: 16px; outline: none; resize: vertical; -webkit-user-select: text; user-select: text; }
+.lab-actions { display: flex; gap: 8px; margin: 8px 0 12px; }
 /* Sound sheet: opened by a double tap on the clapper */
 #dim { position: fixed; inset: 0; background: var(--dim); opacity: 0; pointer-events: none; transition: opacity 0.25s; }
 #dim.open { opacity: 1; pointer-events: auto; }
@@ -255,8 +266,12 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px;
 
 <div id="lab">
   <div class="sheet-head"><span class="stitle">Lab</span><button class="close" id="lab-close">✕</button></div>
-  <div class="lab-note">Each control is one change from the last two days. The presets set them all as they stood on that day; then move one at a time.</div>
-  <div class="chips" id="lab-presets"></div>
+  <div class="stepper"><button id="step-prev" aria-label="Previous step">‹</button><div class="step-title" id="step-title"></div><button id="step-next" aria-label="Next step">›</button></div>
+  <div class="step-what" id="step-what"></div>
+  <textarea class="notes" id="step-notes" placeholder="What's wrong (or right) at this step?"></textarea>
+  <div class="lab-actions"><button class="schip" id="notes-copy">Copy all notes</button><button class="schip" id="steps-toggle">Show all steps</button></div>
+  <div class="steps" id="lab-steps" style="display:none"></div>
+  <div class="lab-note">Each step is one commit, in the order they landed. Pick a step, live with it, write down what it does wrong. Any control below can then be moved on its own.</div>
   <div id="lab-controls"></div>
 </div>
 
@@ -595,11 +610,31 @@ function showWind() {
 // Every physics and measurement change from 17–19 October, each its own control, with
 // presets that set them all as they stood on a given day. Values go to the engine's
 // LabParams and are kept between launches.
-var LAB_PRESETS = {
-  'Oct 17': { steadyConstancy: 0, collisionAtMid: 0, prevailingWind: 0, gap: 15.25, clapperGap: 15.25, clapperDamp: 1.67, clapperDrag: 25, clapperFluct: 0.55, clapperMean: 0, clapperMass: 2.5, restitution: 0.65, velocityScale: 0 },
-  'Oct 18': { steadyConstancy: 1, collisionAtMid: 1, prevailingWind: 1, gap: 12.5, clapperGap: 12.5, clapperDamp: 1.67, clapperDrag: 25, clapperFluct: 0.55, clapperMean: 0, clapperMass: 2.5, restitution: 0.65, velocityScale: 0 },
-  'Today':  { steadyConstancy: 1, collisionAtMid: 1, prevailingWind: 1, gap: 11, clapperGap: 7, clapperDamp: 0.6, clapperDrag: 45, clapperFluct: 0.70, clapperMean: 0.06, clapperMass: 0.8, restitution: 0.38, velocityScale: 0.6 }
-};
+// The steps: every physics commit of 17–19 October, each the state after that commit.
+// Written as the change on top of the previous step, so the list reads as a history.
+var LAB_STEP_LIST = [
+  { name: 'Baseline (Oct 17)', what: 'Before any of it: wind direction a random walk, tube clashes at the tips, old constancy, 15.25 mm clearance all round, a heavy stiff clapper, linear velocity.',
+    set: { steadyConstancy: 0, collisionAtMid: 0, prevailingWind: 0, gap: 15.25, clapperGap: 15.25, clapperDamp: 1.67, clapperDrag: 25, clapperFluct: 0.55, clapperMean: 0, clapperMass: 2.5, restitution: 0.65, velocityScale: 0 } },
+  { name: '1 · Steady constancy', what: 'Oct 18. The top of the Constancy slider becomes a genuinely steady wind; the low half is nearly unchanged.', set: { steadyConstancy: 1 } },
+  { name: '2 · Midpoint clashes', what: 'Oct 18. Tube-on-tube contact tested where the circles are drawn instead of at the tips. Clashes need more swing than before.', set: { collisionAtMid: 1 } },
+  { name: '3 · Prevailing wind', what: 'Oct 18. A direction that veers a few degrees a minute; each gust blows from near it instead of swinging the wind round.', set: { prevailingWind: 1 } },
+  { name: '4 · Clearance 12.5 mm', what: 'Oct 18. Clapper-to-tube and tube-to-tube rest gap from 15.25 to 12.5 mm.', set: { gap: 12.5, clapperGap: 12.5 } },
+  { name: '5 · Clearance 11 mm', what: 'Oct 19. The same gap to 11 mm.', set: { gap: 11, clapperGap: 11 } },
+  { name: '6 · Freer clapper', what: 'Oct 19. Clapper damping 1.67 → 1.1, drag at speed 25 → 18, feels 70% of gusts instead of 55% and a little steady wind.', set: { clapperDamp: 1.1, clapperDrag: 18, clapperFluct: 0.70, clapperMean: 0.06 } },
+  { name: '7 · Light clapper', what: 'Oct 19. Damping to 0.6 (below the tubes), and the clapper counts as 0.8 of a tube in a strike instead of 2.5.', set: { clapperDamp: 0.6, clapperMass: 0.8 } },
+  { name: '8 · Dead bounce', what: 'Oct 19. Bounce after a strike 0.65 → 0.38 and drag at speed up to 45, against pinballing between opposite tubes.', set: { restitution: 0.38, clapperDrag: 45 } },
+  { name: '9 · Soft velocity', what: 'Oct 19. Strike velocity follows a soft curve instead of saturating at 0.4 m/s: ordinary hits land in the rounder middle of the voice.', set: { velocityScale: 0.6 } },
+  { name: '10 · Clapper reach 7 mm', what: 'Oct 19 (today). The clapper gets its own 7 mm rest gap; tubes stay 11 mm apart.', set: { clapperGap: 7 } }
+];
+// Each step's full state is the baseline plus every change up to and including it
+var LAB_STEPS = (function() {
+  var acc = {}, out = [];
+  LAB_STEP_LIST.forEach(function(st) { Object.assign(acc, st.set); out.push({ name: st.name, what: st.what, values: Object.assign({}, acc) }); });
+  return out;
+})();
+var LAB_PRESETS = { 'Oct 17': LAB_STEPS[0].values, 'Oct 18': LAB_STEPS[4].values, 'Today': LAB_STEPS[LAB_STEPS.length - 1].values };
+var labNotes = {};   // step name → what it does wrong, in the user's words
+var labStep = LAB_STEPS.length - 1;
 var LAB_CONTROLS = [
   { key: 'steadyConstancy', name: 'Steady at full constancy', what: 'Oct 18: the top of the Constancy slider is a genuinely steady wind', type: 'switch' },
   { key: 'collisionAtMid',  name: 'Clashes at the midpoint', what: 'Oct 18: tube-on-tube contact where the circles are drawn, not at the tips', type: 'switch' },
@@ -618,26 +653,67 @@ var lab = Object.assign({}, LAB_PRESETS['Today']);
 
 function loadLab() {
   try { var l = JSON.parse(localStorage.getItem('pocketChimesLab')); if (l && typeof l === 'object') for (var k in lab) if (isNum(l[k])) lab[k] = l[k]; } catch (e) {}
+  try { var n = JSON.parse(localStorage.getItem('pocketChimesLabNotes')); if (n && typeof n === 'object') labNotes = n; } catch (e) {}
+  var i = labStepIndex(); if (i >= 0) labStep = i;
 }
-function saveLab() { try { localStorage.setItem('pocketChimesLab', JSON.stringify(lab)); } catch (e) {} }
+function saveLab() {
+  try { localStorage.setItem('pocketChimesLab', JSON.stringify(lab)); localStorage.setItem('pocketChimesLabNotes', JSON.stringify(labNotes)); } catch (e) {}
+}
+
+// Which step the current values match exactly, or -1 if a control has been moved by hand
+function labStepIndex() {
+  for (var i = 0; i < LAB_STEPS.length; i++) {
+    var v = LAB_STEPS[i].values, same = true;
+    for (var k in v) if (Math.abs(v[k] - lab[k]) > 1e-9) { same = false; break; }
+    if (same) return i;
+  }
+  return -1;
+}
+
+function goStep(i) {
+  labStep = Math.max(0, Math.min(LAB_STEPS.length - 1, i));
+  lab = Object.assign({}, LAB_STEPS[labStep].values);
+  sendLab();
+  hud(LAB_STEPS[labStep].name, '', 1200);
+}
+
+function allNotesText() {
+  var lines = ['Pocket Chimes lab notes'];
+  LAB_STEPS.forEach(function(st) { if (labNotes[st.name]) lines.push('', st.name, labNotes[st.name]); });
+  if (labStepIndex() < 0) lines.push('', 'Custom settings in use', JSON.stringify(lab));
+  return lines.join('\n');
+}
 function sendLab() { if (Engine) Engine.setLab(lab); saveLab(); showLab(); }
 
-function labPresetName() {
-  for (var name in LAB_PRESETS) {
-    var p = LAB_PRESETS[name], same = true;
-    for (var k in p) if (Math.abs(p[k] - lab[k]) > 1e-9) { same = false; break; }
-    if (same) return name;
-  }
-  return null;
-}
 
 function buildLab() {
-  var presets = document.getElementById('lab-presets');
-  Object.keys(LAB_PRESETS).forEach(function(name) {
+  document.getElementById('step-prev').addEventListener('click', function() { goStep(labStep - 1); });
+  document.getElementById('step-next').addEventListener('click', function() { goStep(labStep + 1); });
+  var list = document.getElementById('lab-steps');
+  LAB_STEPS.forEach(function(st, i) {
     var b = document.createElement('button');
-    b.className = 'schip'; b.textContent = name; b.dataset.preset = name;
-    b.addEventListener('click', function() { lab = Object.assign({}, LAB_PRESETS[name]); sendLab(); hud(name, '', 900); });
-    presets.appendChild(b);
+    b.className = 'step'; b.dataset.step = i;
+    b.innerHTML = '<span class="n">' + (i === 0 ? '0' : i) + '</span><span class="name">' + st.name.replace(/^\d+ · /, '') + '</span><span class="noted"></span>';
+    b.addEventListener('click', function() { goStep(i); });
+    list.appendChild(b);
+  });
+  document.getElementById('steps-toggle').addEventListener('click', function() {
+    var open = list.style.display === 'none';
+    list.style.display = open ? 'flex' : 'none';
+    this.textContent = open ? 'Hide steps' : 'Show all steps';
+  });
+  var notes = document.getElementById('step-notes');
+  notes.addEventListener('input', function() {
+    var key = labStepIndex() >= 0 ? LAB_STEPS[labStepIndex()].name : 'Custom';
+    labNotes[key] = this.value;
+    saveLab();
+    showLab();
+  });
+  document.getElementById('notes-copy').addEventListener('click', function() {
+    var text = allNotesText(), btn = this;
+    var done = function() { btn.textContent = 'Copied'; setTimeout(function() { btn.textContent = 'Copy all notes'; }, 1200); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, function() { notes.value = text; notes.select(); });
+    else { notes.value = text; notes.select(); }
   });
   var el = document.getElementById('lab-controls');
   LAB_CONTROLS.forEach(function(c) {
@@ -664,8 +740,20 @@ function buildLab() {
 }
 
 function showLab() {
-  var preset = labPresetName();
-  document.querySelectorAll('#lab-presets .schip').forEach(function(b) { b.classList.toggle('active', b.dataset.preset === preset); });
+  var i = labStepIndex();
+  if (i >= 0) labStep = i;
+  var st = i >= 0 ? LAB_STEPS[i] : null;
+  document.getElementById('step-title').textContent = st ? st.name : 'Custom (' + LAB_STEPS[labStep].name + ' + changes)';
+  document.getElementById('step-what').textContent = st ? st.what : 'A control has been moved by hand. The steps still set everything at once.';
+  document.getElementById('step-prev').disabled = labStep <= 0 && i >= 0;
+  document.getElementById('step-next').disabled = labStep >= LAB_STEPS.length - 1 && i >= 0;
+  var key = st ? st.name : 'Custom';
+  var notes = document.getElementById('step-notes');
+  if (document.activeElement !== notes) notes.value = labNotes[key] || '';
+  document.querySelectorAll('#lab-steps .step').forEach(function(b, j) {
+    b.classList.toggle('active', j === i);
+    b.querySelector('.noted').textContent = labNotes[LAB_STEPS[j].name] ? 'noted' : '';
+  });
   LAB_CONTROLS.forEach(function(c) {
     if (c.type === 'switch') {
       var sw = document.querySelector('#lab .switch[data-key="' + c.key + '"]');
