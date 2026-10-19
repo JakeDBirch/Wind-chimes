@@ -28,7 +28,7 @@ struct SampleVoiceParams {
     var bendCents = 12.0        // how sharp a full-velocity hit starts
     var bendTimeSoftMs = 60.0   // how long the bend takes to settle
     var bendTimeHardMs = 100.0
-    var detuneCents = 8.0       // random spread per hit
+    var detuneCents = 0.0       // random spread per hit; 0, or repeated strikes of one tube beat
     // Octave layer
     var octaveThreshold = 0.49  // velocity above which the octave layer appears
     var octaveGain = 0.18
@@ -104,7 +104,9 @@ enum ChimeVoices {
         let startCutoffMult = 3.0 + velBright * 7.0
         let endCutoffMult = 0.85 + velBright * 0.4
 
-        let pitchWobble = 1 + (rand() - 0.5) * 0.001 * (1 - velNorm * 0.5)
+        // No per-strike pitch randomness: a tube struck again while ringing must land on
+        // exactly the same frequencies, or the two notes beat and read as pitch wobble
+        let pitchWobble = 1.0
         let now = 0.006
 
         // ── Recorded sound: the user's sample looped at the tube's pitch. A sample has a
@@ -178,8 +180,7 @@ enum ChimeVoices {
             if velNorm < threshold { continue }
             let partialVel = max(0, (velNorm - threshold) / (1 - threshold))
 
-            let detuneCents = (rand() - 0.5) * 4
-            let pFreqD = pFreq * pow(2, detuneCents / 1200)
+            let pFreqD = pFreq
             let pDecay = baseDecay * partialDecays[i]
             let gainVar = 0.90 + rand() * 0.20
             let pGain = vel * partialGains[i] * gainVar * pow(partialRolloff, di) * pow(partialVel, 0.6) * 0.65
