@@ -11,7 +11,7 @@ Nothing on screen but the chimes, with a scatter of dust that drifts with the wi
 | Gesture | What it does |
 | --- | --- |
 | **Swipe in from the left or right edge** | Next or previous scale (a straight horizontal stroke anywhere works too): Pentatonic, Major Pent, Minor, Lydian, Whole Tone, Hirajoshi, Slendro, Pelog (both Javanese gamelan tunings, off the piano's grid), Chord Seq, Custom. Each has its own colour, so the screen takes on the scale's mood. Custom brings up an octave of keys along the bottom to pick the notes |
-| **Circle a finger around the outside** | Register, one octave per turn, clockwise up, ±2 octaves |
+| **Circle a finger around the outside** | Pitch, one octave per turn, clockwise up, ±2 octaves |
 | **Circle a finger over the chimes** | Add a chime per sixth of a turn clockwise, remove one anticlockwise, 3–12 |
 | **Press and hold** | A two-second gust, wind on or off |
 | **Double-tap the clapper** | Opens the sound sheet: Metal or Recorded, the recorder (standby, trigger, arm, stop, 10 s cap) and the sample bank |

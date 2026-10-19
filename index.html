@@ -169,7 +169,7 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px;
   </div>
   <div class="help-row">
     <svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="28" cy="28" r="9" opacity="0.35"/><circle cx="28" cy="28" r="4" opacity="0.35"/><path d="M28 6a22 22 0 1 1-18 9.4"/><path d="M6 10l4 6 6-3"/></svg>
-    <div><div class="help-name">Circle around the outside</div><div class="help-what">Register. Clockwise raises the pitch, one octave per turn.</div></div>
+    <div><div class="help-name">Circle around the outside</div><div class="help-what">Pitch. Clockwise raises it, one octave per turn.</div></div>
   </div>
   <div class="help-row">
     <svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="28" cy="28" r="22" opacity="0.35"/><circle cx="28" cy="12" r="4" opacity="0.35"/><circle cx="42" cy="36" r="4" opacity="0.35"/><circle cx="14" cy="36" r="4" opacity="0.35"/><path d="M28 19a9 9 0 1 1-7.8 4.5"/><path d="M18 20l2.5 5 5-2"/></svg>
@@ -479,7 +479,7 @@ function pointerMove(e) {
   if (G.mode === 'register') {
     register = clamp(register + dAngle / (Math.PI * 2), -2, 2);
     sendParams();
-    hud('Register', fmtRegister(register), 900);
+    hud('Pitch', fmtRegister(register), 900);
   } else if (G.mode === 'chimes') {
     G.acc += dAngle / (Math.PI / 3);
     while (Math.abs(G.acc) >= 1) {
