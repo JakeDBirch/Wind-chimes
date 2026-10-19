@@ -217,7 +217,7 @@ final class SynthVoice {
 /// over through `enqueue`; the render thread only ever try-locks, so it never blocks.
 final class ChimeSynth {
     let sampleRate: Double
-    private let masterGain: Float = 0.6 // chimes and wind together, about 3.5 dB under the old level
+    private let masterGain: Float = 0.9
 
     /// Wind sound: a bed of brown-noise rumble, a pink-noise mid layer that brightens on
     /// gust fronts, and three slowly wandering resonant "whoosh" bands, all breathing with
