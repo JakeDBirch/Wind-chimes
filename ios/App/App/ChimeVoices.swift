@@ -97,10 +97,12 @@ enum ChimeVoices {
         let attackMult = isClapper ? 1.0 : 2.2
         let decayMult = isClapper ? 1.0 : 0.75
 
-        let vel = gainScale * (0.05 + pow(velNorm, 2.2) * 0.95)
+        // Loudness against strike velocity: a steep curve with almost no floor, so a soft
+        // strike is a true pianissimo and the loud end is unchanged
+        let vel = gainScale * (0.015 + pow(velNorm, 3.0) * 0.985)
         let freqNorm = max(0, min(1, log2(freq / 220) / 3))
         let baseDecay = decayMult * (1.2 + pow(velNorm, 0.7) * 24.0) * (1 - freqNorm * 0.4)
-        let velBright = bright * (0.20 + velNorm * velNorm * 0.80)
+        let velBright = bright * (0.08 + velNorm * velNorm * 0.92) // soft strikes are darker too
         let startCutoffMult = 3.0 + velBright * 7.0
         let endCutoffMult = 0.85 + velBright * 0.4
 
@@ -175,8 +177,8 @@ enum ChimeVoices {
             let pFreq = freq * partialRatios[i] * pitchWobble
             if pFreq > 16000 { continue }
 
-            // Higher partials only emerge on harder strikes
-            let threshold = di * 0.12
+            // Higher partials only emerge on harder strikes: a soft one is nearly a pure tone
+            let threshold = di * 0.18
             if velNorm < threshold { continue }
             let partialVel = max(0, (velNorm - threshold) / (1 - threshold))
 
