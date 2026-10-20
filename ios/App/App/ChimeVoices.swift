@@ -97,12 +97,10 @@ enum ChimeVoices {
         let attackMult = isClapper ? 1.0 : 2.2
         let decayMult = isClapper ? 1.0 : 0.75
 
-        // Loudness against strike velocity: a steep curve with almost no floor, so a soft
-        // strike is a true pianissimo and the loud end is unchanged
-        let vel = gainScale * (0.03 + pow(velNorm, 2.6) * 0.97)
+        let vel = gainScale * (0.05 + pow(velNorm, 2.2) * 0.95)
         let freqNorm = max(0, min(1, log2(freq / 220) / 3))
         let baseDecay = decayMult * (1.2 + pow(velNorm, 0.7) * 24.0) * (1 - freqNorm * 0.4)
-        let velBright = bright * (0.14 + velNorm * velNorm * 0.86) // soft strikes are darker too
+        let velBright = bright * (0.20 + velNorm * velNorm * 0.80)
         let startCutoffMult = 3.0 + velBright * 7.0
         let endCutoffMult = 0.85 + velBright * 0.4
 
@@ -177,20 +175,16 @@ enum ChimeVoices {
             let pFreq = freq * partialRatios[i] * pitchWobble
             if pFreq > 16000 { continue }
 
-            // Higher partials only emerge on harder strikes: a soft one is nearly a pure tone
-            let threshold = di * 0.15
+            // Higher partials only emerge on harder strikes
+            let threshold = di * 0.12
             if velNorm < threshold { continue }
             let partialVel = max(0, (velNorm - threshold) / (1 - threshold))
-            // The upper partials fade in slowly above their threshold, so a soft strike is
-            // mostly fundamental: warm rather than tinny, which the ear wants at low level
-            let presence = pow(partialVel, 1.0)
 
             let pFreqD = pFreq
             let pDecay = baseDecay * partialDecays[i]
             let gainVar = 0.90 + rand() * 0.20
-            let pGain = vel * partialGains[i] * gainVar * pow(partialRolloff, di) * presence * 0.65
-            // A soft strike has a longer contact and a softer onset than a hard one
-            let attack = attackMult * (0.006 + (1 - velNorm) * 0.006 + di * (0.006 + velNorm * 0.008))
+            let pGain = vel * partialGains[i] * gainVar * pow(partialRolloff, di) * pow(partialVel, 0.6) * 0.65
+            let attack = attackMult * (0.006 + di * (0.006 + velNorm * 0.008))
 
             // Twin modes: a real tube is never perfectly round, so each partial is a pair
             // of modes a cent or two apart that beat slowly as the note rings. The split is
