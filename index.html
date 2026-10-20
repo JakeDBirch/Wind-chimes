@@ -354,7 +354,7 @@ function sendParams(extra) {
   var p = {
     // Strength has a real quiet end and more travel in the gentle region: 0 is a whisper,
     // 25 a light air, 50 a breeze, 100 the old maximum
-    windStrength: 0.02 + 0.48 * Math.pow(windStrength / 100, 1.5),
+    windStrength: 0.04 + 0.46 * Math.pow(windStrength / 100, 1.25),
     windConsistency: windConsistency / 100,
     tubeCount: tubeCount,
     register: Math.round(register * 10) / 10,
