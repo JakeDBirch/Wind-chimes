@@ -181,12 +181,16 @@ enum ChimeVoices {
             let threshold = di * 0.18
             if velNorm < threshold { continue }
             let partialVel = max(0, (velNorm - threshold) / (1 - threshold))
+            // The upper partials fade in slowly above their threshold, so a soft strike is
+            // mostly fundamental: warm rather than tinny, which the ear wants at low level
+            let presence = pow(partialVel, 1.4)
 
             let pFreqD = pFreq
             let pDecay = baseDecay * partialDecays[i]
             let gainVar = 0.90 + rand() * 0.20
-            let pGain = vel * partialGains[i] * gainVar * pow(partialRolloff, di) * pow(partialVel, 0.6) * 0.65
-            let attack = attackMult * (0.006 + di * (0.006 + velNorm * 0.008))
+            let pGain = vel * partialGains[i] * gainVar * pow(partialRolloff, di) * presence * 0.65
+            // A soft strike has a longer contact and a softer onset than a hard one
+            let attack = attackMult * (0.006 + (1 - velNorm) * 0.012 + di * (0.006 + velNorm * 0.008))
 
             // Twin modes: a real tube is never perfectly round, so each partial is a pair
             // of modes a cent or two apart that beat slowly as the note rings. The split is
