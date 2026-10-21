@@ -66,6 +66,9 @@ struct LabParams: Equatable {
     var ownTurbulence = true     // each tube and the clapper has turbulence of its own (Oct 20)
     var tuningDiversity = 1.0    // how much tube length and mass follow pitch: 0 all alike, 1 physical (Oct 20)
     var strikeScatter = true     // a clapper strike deflects its rebound a little off the line (Oct 20)
+    var chordSeconds = 20.0      // seconds each chord of the Chord Seq scale lasts
+    var chordSet = 0             // which of ChimePhysics.chordSets the Chord Seq scale cycles through
+    var chordShuffle = false     // chords in a random order (never the same one twice running) instead of in turn
 
     mutating func apply(_ values: [String: Double]) {
         for (key, value) in values {
@@ -88,6 +91,9 @@ struct LabParams: Equatable {
             case "ownTurbulence": ownTurbulence = value != 0
             case "tuningDiversity": tuningDiversity = max(0, min(2, value))
             case "strikeScatter": strikeScatter = value != 0
+            case "chordSeconds": chordSeconds = max(2, value)
+            case "chordSet": chordSet = max(0, min(ChimePhysics.chordSets.count - 1, Int(value.isFinite ? value.rounded() : 0)))
+            case "chordShuffle": chordShuffle = value != 0
             default: break
             }
         }
@@ -98,7 +104,8 @@ struct LabParams: Equatable {
          "gap": gap, "clapperGap": clapperGap, "clapperDamp": clapperDamp, "tubeDamp": tubeDamp, "sensitivity": sensitivity, "clapperDrag": clapperDrag,
          "clapperFluct": clapperFluct, "clapperMean": clapperMean, "clapperMass": clapperMass,
          "restitution": restitution, "velocityScale": velocityScale,
-         "windShadow": windShadow, "ownTurbulence": ownTurbulence, "tuningDiversity": tuningDiversity, "strikeScatter": strikeScatter]
+         "windShadow": windShadow, "ownTurbulence": ownTurbulence, "tuningDiversity": tuningDiversity, "strikeScatter": strikeScatter,
+         "chordSeconds": chordSeconds, "chordSet": chordSet, "chordShuffle": chordShuffle]
     }
 }
 
@@ -117,7 +124,7 @@ final class ChimePhysics {
     static let tubeR = 0.035 // tube radius in meters
 
     /// Semitone offsets above A4, fractional where a tuning falls between the piano's
-    /// keys. "Chord Seq" cycles through chordProgression instead, and "Custom" uses
+    /// keys. "Chord Seq" cycles through one of chordSets instead, and "Custom" uses
     /// params.customScale.
     static let scales: [String: [Double]] = [
         "Pentatonic": [0, 3, 5, 7, 10],
@@ -137,16 +144,40 @@ final class ChimePhysics {
         "Slendro": [0, 2.4, 4.8, 7.2, 9.6],
         "Pelog": [0, 1.2, 2.58, 6.75, 7.85],
     ]
-    // Each chord is a set of semitone offsets from root
-    static let chordProgression: [[Int]] = [
-        [0, 3, 7, 10, 14, 17],   // im9add11 — tonic, open and floating
-        [5, 8, 12, 15, 19, 22],  // iv9 — subdominant with ninth and eleventh
-        [2, 5, 9, 12, 16, 21],   // II maj9 — bright borrowed chord
-        [7, 10, 14, 17, 21, 24], // v11 — dominant suspended, unresolved
-        [3, 7, 10, 14, 17, 22],  // IIImaj9 — warm mediant
-        [8, 12, 15, 19, 22, 26], // VI9 — relative major with extensions
+    // Chord sequences the "Chord Seq" scale cycles through, chosen in the Workshop by
+    // index. Each chord is a set of semitone offsets from the root; tubes past the
+    // sixth take the same notes an octave up.
+    static let chordSets: [[[Int]]] = [
+        // 0 Floating: minor ninths and elevenths that never quite resolve
+        [
+            [0, 3, 7, 10, 14, 17],   // im9add11 — tonic, open and floating
+            [5, 8, 12, 15, 19, 22],  // iv9 — subdominant with ninth and eleventh
+            [2, 5, 9, 12, 16, 21],   // II maj9 — bright borrowed chord
+            [7, 10, 14, 17, 21, 24], // v11 — dominant suspended, unresolved
+            [3, 7, 10, 14, 17, 22],  // IIImaj9 — warm mediant
+            [8, 12, 15, 19, 22, 26], // VI9 — relative major with extensions
+        ],
+        // 1 Hymn: a plain major I–IV–vi–V, each chord with its ninth
+        [
+            [0, 4, 7, 11, 14, 19],   // Imaj9
+            [5, 9, 12, 16, 19, 24],  // IVmaj9
+            [9, 12, 16, 19, 23, 28], // vi9
+            [7, 11, 14, 17, 21, 26], // V9
+        ],
+        // 2 Drift: a modal two-chord vamp, minor tonic against its major fourth
+        [
+            [0, 3, 7, 10, 14, 17],   // im9
+            [5, 9, 12, 16, 19, 23],  // IV9
+            [0, 3, 7, 10, 14, 19],   // im9, fifth on top
+            [10, 14, 17, 21, 24, 29],// VIImaj9
+        ],
+        // 3 Drone: one tonic, breathing between an open and a warm voicing
+        [
+            [0, 7, 12, 14, 19, 24],  // open fifths and a ninth
+            [0, 4, 7, 11, 14, 19],   // Imaj9
+            [0, 2, 7, 9, 14, 19],    // sus2 with a sixth
+        ],
     ]
-    static let chordDuration = 20.0 // seconds per chord
     static let gustDuration = 2.0   // seconds a Gust button push lasts
 
     struct Pendulum { var ax = 0.0, vx = 0.0, ay = 0.0, vy = 0.0 }
@@ -227,8 +258,10 @@ final class ChimePhysics {
             rebuild()
         } else {
             if newParams.lab.gap != old.lab.gap { updateRingRadius() }
+            if newParams.lab.chordSet != old.lab.chordSet { chordIndex = 0; chordTimer = 0 }
             if newParams.lab.tuningDiversity != old.lab.tuningDiversity || newParams.scale != old.scale
-                || newParams.register != old.register || newParams.customScale != old.customScale {
+                || newParams.register != old.register || newParams.customScale != old.customScale
+                || newParams.lab.chordSet != old.lab.chordSet {
                 // Re-derive lengths and masses from pitch without resetting the swing
                 let freqRef = tubeFrequency(tubes.count / 2)
                 for i in tubes.indices {
@@ -287,7 +320,8 @@ final class ChimePhysics {
     func tubeFrequency(_ index: Int) -> Double {
         let semitone: Double
         if params.scale == "Chord Seq" {
-            let chord = Self.chordProgression[chordIndex % Self.chordProgression.count]
+            let chords = Self.chordSets[params.lab.chordSet]
+            let chord = chords[chordIndex % chords.count]
             semitone = Double(chord[index % chord.count] + (index / chord.count) * 12)
         } else {
             let scale: [Double]
@@ -780,9 +814,23 @@ final class ChimePhysics {
         // Advance chord progression
         if p.scale == "Chord Seq" {
             chordTimer += DT
-            if chordTimer >= Self.chordDuration {
+            if chordTimer >= p.lab.chordSeconds {
                 chordTimer = 0
-                chordIndex = (chordIndex + 1) % Self.chordProgression.count
+                let count = Self.chordSets[p.lab.chordSet].count
+                if p.lab.chordShuffle && count > 1 {
+                    // Any chord but the one just played
+                    var next = Int.random(in: 0..<(count - 1))
+                    if next >= chordIndex % count { next += 1 }
+                    chordIndex = next
+                } else {
+                    chordIndex = (chordIndex + 1) % count
+                }
+                // The new chord retunes the tubes, so their lengths and masses follow
+                let freqRef = tubeFrequency(tubes.count / 2)
+                for i in tubes.indices {
+                    let v = pow((freqRef / tubeFrequency(i)).squareRoot(), p.lab.tuningDiversity)
+                    tubes[i].lenFactor = v; tubes[i].mass = v
+                }
             }
         }
     }

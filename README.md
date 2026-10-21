@@ -18,7 +18,7 @@ Nothing on screen but the chimes, with a scatter of dust that drifts with the wi
 | **? icon** (top left) | A guide to these gestures |
 | **Sun / moon icon** (top right) | Light mode (the default) or dark mode |
 | **Wind icon** (top right) | Opens the wind drawer: **Wind** on or off (off at launch; off, the chimes settle and the engine rests), wind sound on or off, **Strength** and **Constancy** sliders |
-| **Workshop** (last row of the ? guide) | Five numbers under the hood as percentages of the default: clapper damping and gap, chime damping and gap, wind susceptibility. 100% everywhere is the app as shipped |
+| **Workshop** (last row of the ? guide) | Five numbers under the hood as percentages of the default: clapper damping and gap, chime damping and gap, wind susceptibility, plus the Chord Seq scale's chord length, progression (Floating, Hymn, Drift, Drone) and order. 100% everywhere is the app as shipped |
 | **Sleep icon** (top right) | A timer that turns the wind off after 15, 30, 60 or 90 minutes, with the time left shown |
 
 Pocket Chimes takes the audio for itself: it pauses whatever else was playing, and another app starting playback (or a call) stops the chimes. After a call they come back on their own; after music, tap the screen.
