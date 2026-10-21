@@ -4,7 +4,7 @@ import Foundation
 struct ChimeParams {
     var windStrength = 0.3
     var windConsistency = 0.4 // "Constancy" on screen: 0 = gusty and shifting with long calms, 1 = a steady breeze
-    let sensitivity = 0.36    // how much wind force reaches the ring, tubes and clapper (0.5 until 21 Oct, then 0.4, then a tenth less)
+    let sensitivity = 0.342   // how much wind force reaches the ring, tubes and clapper (0.5 until 21 Oct, then 0.4, 0.36, and 5% less)
     var tubeCount = 6
     var register = 0.0
     var scale = "Pentatonic"
@@ -51,8 +51,8 @@ struct LabParams: Equatable {
     var steadyConstancy = true   // full constancy is a genuinely steady wind (Oct 18)
     var collisionAtMid = true    // tube-on-tube clashes at the midpoints, where drawn (Oct 18)
     var prevailingWind = true    // a slowly veering prevailing direction (Oct 18)
-    var gap = 11.0               // mm between neighbouring tubes at rest (15.25 → 12.5 → 11)
-    var clapperGap = 7.0         // mm between the clapper and each tube at rest (= gap → 7)
+    var gap = 10.5               // mm between neighbouring tubes at rest (15.25 → 12.5 → 11 → 10.5)
+    var clapperGap = 7.5         // mm between the clapper and each tube at rest (= gap → 7 → 7.5)
     var clapperDamp = 0.72       // clapper damping × base rate (1.67 → 1.1 → 0.6 → 0.72, a fifth more)
     var clapperDrag = 45.0       // how much faster the clapper damps at speed (25 → 18 → 45)
     var clapperFluct = 0.70      // share of the gusty wind the clapper feels (0.55 → 0.70)
