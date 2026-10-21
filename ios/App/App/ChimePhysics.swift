@@ -4,7 +4,7 @@ import Foundation
 struct ChimeParams {
     var windStrength = 0.3
     var windConsistency = 0.4 // "Constancy" on screen: 0 = gusty and shifting with long calms, 1 = a steady breeze
-    let sensitivity = 0.4     // how much wind force reaches the ring, tubes and clapper (0.5 until 21 Oct, then a fifth less)
+    let sensitivity = 0.36    // how much wind force reaches the ring, tubes and clapper (0.5 until 21 Oct, then 0.4, then a tenth less)
     var tubeCount = 6
     var register = 0.0
     var scale = "Pentatonic"
@@ -20,7 +20,7 @@ struct ChimeParams {
     var clapperGap: Double { lab.clapperGap }
 
     /// Velocity damping per step; the old slider's default, kept fixed
-    let damping = 0.0015 * pow(6.667, 0.42)
+    let damping = 0.0015 * pow(6.667, 0.42) * 1.1 // the old slider's default, a tenth more since 21 Oct
     var windSteady: Double { windConsistency * 0.35 }
     var windTurb: Double { lab.steadyConstancy ? 0.5 - windConsistency * 0.4 - windConsistency * windConsistency * 0.08 : 0.5 - windConsistency * 0.4 }
     /// Scales the lulls between wind events: 1.5× at consistency 0, 0.3× at 1
