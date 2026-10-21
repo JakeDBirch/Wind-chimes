@@ -4,7 +4,7 @@ import Foundation
 struct ChimeParams {
     var windStrength = 0.3
     var windConsistency = 0.4 // "Constancy" on screen: 0 = gusty and shifting with long calms, 1 = a steady breeze
-    let sensitivity = 0.5     // how much wind force reaches the chimes (the old slider's default)
+    let sensitivity = 0.4     // how much wind force reaches the ring, tubes and clapper (0.5 until 21 Oct, then a fifth less)
     var tubeCount = 6
     var register = 0.0
     var scale = "Pentatonic"
