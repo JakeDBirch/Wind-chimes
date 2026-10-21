@@ -51,9 +51,9 @@ struct LabParams: Equatable {
     var steadyConstancy = true   // full constancy is a genuinely steady wind (Oct 18)
     var collisionAtMid = true    // tube-on-tube clashes at the midpoints, where drawn (Oct 18)
     var prevailingWind = true    // a slowly veering prevailing direction (Oct 18)
-    var gap = 12.0               // mm between neighbouring tubes at rest (15.25 → 12.5 → 11 → 12)
-    var clapperGap = 8.0         // mm between the clapper and each tube at rest (= gap → 7 → 8)
-    var clapperDamp = 0.6        // clapper damping × base rate (1.67 → 1.1 → 0.6)
+    var gap = 11.0               // mm between neighbouring tubes at rest (15.25 → 12.5 → 11)
+    var clapperGap = 7.0         // mm between the clapper and each tube at rest (= gap → 7)
+    var clapperDamp = 0.72       // clapper damping × base rate (1.67 → 1.1 → 0.6 → 0.72, a fifth more)
     var clapperDrag = 45.0       // how much faster the clapper damps at speed (25 → 18 → 45)
     var clapperFluct = 0.70      // share of the gusty wind the clapper feels (0.55 → 0.70)
     var clapperMean = 0.06       // share of the steady wind the clapper feels (0 → 0.06)
@@ -398,7 +398,7 @@ final class ChimePhysics {
         let ringL = p.cordLength * 0.30
         let ringD = damping
         let tubeL = p.cordLength
-        let tubeD = damping * 0.67
+        let tubeD = damping * 0.54 // a fifth less than the 0.67 it was
         let n = tubes.count
         simTime += DT
 
