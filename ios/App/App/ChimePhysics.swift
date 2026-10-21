@@ -4,7 +4,7 @@ import Foundation
 struct ChimeParams {
     var windStrength = 0.3
     var windConsistency = 0.4 // "Constancy" on screen: 0 = gusty and shifting with long calms, 1 = a steady breeze
-    let sensitivity = 0.342   // how much wind force reaches the ring, tubes and clapper (0.5 until 21 Oct, then 0.4, 0.36, and 5% less)
+    var sensitivity: Double { lab.sensitivity } // how much wind force reaches the ring, tubes and clapper
     var tubeCount = 6
     var register = 0.0
     var scale = "Pentatonic"
@@ -54,6 +54,8 @@ struct LabParams: Equatable {
     var gap = 10.5               // mm between neighbouring tubes at rest (15.25 → 12.5 → 11 → 10.5)
     var clapperGap = 7.5         // mm between the clapper and each tube at rest (= gap → 7 → 7.5)
     var clapperDamp = 0.72       // clapper damping × base rate (1.67 → 1.1 → 0.6 → 0.72, a fifth more)
+    var tubeDamp = 0.54          // tube damping × base rate (0.67 → 0.54, a fifth less)
+    var sensitivity = 0.342      // share of the wind force that reaches the set (0.5 → 0.4 → 0.36 → 0.342)
     var clapperDrag = 45.0       // how much faster the clapper damps at speed (25 → 18 → 45)
     var clapperFluct = 0.70      // share of the gusty wind the clapper feels (0.55 → 0.70)
     var clapperMean = 0.06       // share of the steady wind the clapper feels (0 → 0.06)
@@ -74,6 +76,8 @@ struct LabParams: Equatable {
             case "gap": gap = max(2, value)
             case "clapperGap": clapperGap = max(1, value)
             case "clapperDamp": clapperDamp = max(0, value)
+            case "tubeDamp": tubeDamp = max(0, value)
+            case "sensitivity": sensitivity = max(0, value)
             case "clapperDrag": clapperDrag = max(0, value)
             case "clapperFluct": clapperFluct = max(0, value)
             case "clapperMean": clapperMean = max(0, value)
@@ -91,7 +95,7 @@ struct LabParams: Equatable {
 
     var info: [String: Any] {
         ["steadyConstancy": steadyConstancy, "collisionAtMid": collisionAtMid, "prevailingWind": prevailingWind,
-         "gap": gap, "clapperGap": clapperGap, "clapperDamp": clapperDamp, "clapperDrag": clapperDrag,
+         "gap": gap, "clapperGap": clapperGap, "clapperDamp": clapperDamp, "tubeDamp": tubeDamp, "sensitivity": sensitivity, "clapperDrag": clapperDrag,
          "clapperFluct": clapperFluct, "clapperMean": clapperMean, "clapperMass": clapperMass,
          "restitution": restitution, "velocityScale": velocityScale,
          "windShadow": windShadow, "ownTurbulence": ownTurbulence, "tuningDiversity": tuningDiversity, "strikeScatter": strikeScatter]
@@ -398,7 +402,7 @@ final class ChimePhysics {
         let ringL = p.cordLength * 0.30
         let ringD = damping
         let tubeL = p.cordLength
-        let tubeD = damping * 0.54 // a fifth less than the 0.67 it was
+        let tubeD = damping * p.lab.tubeDamp
         let n = tubes.count
         simTime += DT
 

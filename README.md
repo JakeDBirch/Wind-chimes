@@ -6,18 +6,19 @@ Pocket Chimes is an iOS app built with [Capacitor](https://capacitorjs.com). The
 
 ## Controls (gesture branch)
 
-Nothing on screen but the chimes, with a scatter of dust that drifts with the wind so you can see it blow. The chimes start in still air; the Wind switch in the wind drawer turns the wind on and off. Off, the wind stops but the world goes on: the chimes swing down and settle, a gust still pushes, and the sleep timer behind its own icon turns the wind off after 15 to 90 minutes. Everything else is a gesture. Light mode (a tinted cream) is the default, dark mode the option; both take the current scale's colour and fall away into shade at the edges.
+Nothing on screen but the chimes, with a scatter of dust that drifts with the wind so you can see it blow. The chimes start in still air; the Wind switch in the wind drawer turns the wind on and off. Off, the wind stops but the world goes on: the chimes swing down and settle, a gust still pushes, and the sleep timer behind its own icon turns the wind off after 15 to 90 minutes. Everything else is a gesture. Light mode (a tinted cream) is the default, dark mode the option; both take the current scale's color and fall away into shade at the edges.
 
 | Gesture | What it does |
 | --- | --- |
-| **Swipe in from the left or right edge** | Next or previous scale (a straight horizontal stroke anywhere works too): Pentatonic, Major Pent, Minor, Lydian, Whole Tone, Hirajoshi, Slendro, Pelog (both Javanese gamelan tunings, off the piano's grid), Chord Seq, Custom. Each has its own colour, so the screen takes on the scale's mood. Custom brings up an octave of keys along the bottom to pick the notes |
+| **Swipe in from the left or right edge** | Next or previous scale (a straight horizontal stroke anywhere works too): Pentatonic, Major Pent, Minor, Lydian, Whole Tone, Hirajoshi, Slendro, Pelog (both Javanese gamelan tunings, off the piano's grid), Chord Seq, Custom. Each has its own color, so the screen takes on the scale's mood. Custom brings up an octave of keys along the bottom to pick the notes |
 | **Circle a finger around the outside** | Pitch, one octave per turn, clockwise up, ±2 octaves |
-| **Circle a finger over the chimes** | Add a chime per sixth of a turn clockwise, remove one anticlockwise, 3–12 |
+| **Circle a finger over the chimes** | Add a chime per sixth of a turn clockwise, remove one counterclockwise, 3–12 |
 | **Press and hold** | A two-second gust, wind on or off |
 | **Double-tap the clapper** | Opens the sound sheet: Metal or Recorded, the recorder (standby, trigger, arm, stop, 10 s cap) and the sample bank |
 | **? icon** (top left) | A guide to these gestures |
 | **Sun / moon icon** (top right) | Light mode (the default) or dark mode |
 | **Wind icon** (top right) | Opens the wind drawer: **Wind** on or off (off at launch; off, the chimes settle and the engine rests), wind sound on or off, **Strength** and **Constancy** sliders |
+| **Workshop** (last row of the ? guide) | Five numbers under the hood as percentages of the default: clapper damping and gap, chime damping and gap, wind susceptibility. 100% everywhere is the app as shipped |
 | **Sleep icon** (top right) | A timer that turns the wind off after 15, 30, 60 or 90 minutes, with the time left shown |
 
 Pocket Chimes takes the audio for itself: it pauses whatever else was playing, and another app starting playback (or a call) stops the chimes. After a call they come back on their own; after music, tap the screen.

@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#e9e3d2">
 <title>Pocket Chimes</title>
 <style>
-/* Theme: light is the default, dark is the option. Every colour on the page comes from here;
+/* Theme: light is the default, dark is the option. Every color on the page comes from here;
    the canvas has its own table in draw(). */
 :root {
   --bg: #e9e3d2; --text: #1f262b; --text-dim: #5a6670; --text-faint: #8a949c;
@@ -107,6 +107,13 @@ html:not([data-theme="dark"]) #theme-btn .moon { display: block; }
 .egg-code { font-size: 24px; font-weight: 700; letter-spacing: 0.08em; color: var(--text); background: var(--chip-active-bg); border-radius: 14px; padding: 12px 10px; margin-bottom: 18px; font-variant-numeric: tabular-nums; -webkit-user-select: text; user-select: text; }
 .egg-btn { display: block; width: 100%; padding: 14px; border-radius: 16px; border: none; background: var(--key-active-bg); color: var(--key-active-text); font-family: inherit; font-weight: 700; font-size: 18px; text-decoration: none; outline: none; margin-bottom: 10px; }
 .egg-later { border: none; background: none; color: var(--text-dim); font-family: inherit; font-weight: 600; font-size: 16px; padding: 8px; outline: none; }
+/* Workshop: the numbers under the hood, as percentages of this build's defaults */
+#shop { position: fixed; left: 0; right: 0; bottom: 0; z-index: 65; background: var(--panel); border-top: 1px solid var(--panel-border); border-radius: 16px 16px 0 0; padding: 14px 18px calc(18px + env(safe-area-inset-bottom)); transform: translateY(105%); transition: transform 0.3s cubic-bezier(.2,.8,.2,1); max-height: 80vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+#shop.open { transform: none; }
+.shop-group { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.shop-group:last-of-type { border-bottom: none; }
+.shop-note { font-size: 14px; font-weight: 500; color: var(--text-dim); line-height: 1.4; margin: 4px 0 10px; }
+.shop-actions { display: flex; gap: 8px; margin-top: 12px; }
 /* Sound sheet: opened by a double tap on the clapper */
 #dim { position: fixed; inset: 0; background: var(--dim); opacity: 0; pointer-events: none; transition: opacity 0.25s; }
 #dim.open { opacity: 1; pointer-events: auto; }
@@ -165,7 +172,7 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px;
   <div class="help-head"><span class="help-title">How to play</span><button class="close" id="help-close">✕</button></div>
   <div class="help-row">
     <svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="48" height="36" rx="6" opacity="0.35"/><path d="M8 28h26"/><path d="M28 21l7 7-7 7"/><circle cx="8" cy="28" r="3.5" fill="currentColor"/></svg>
-    <div><div class="help-name">Swipe in from the edge</div><div class="help-what">Left or right for the next scale. Each one has its own colour. Custom brings up a keyboard to pick your notes.</div></div>
+    <div><div class="help-name">Swipe in from the edge</div><div class="help-what">Left or right for the next scale. Each one has its own color. Custom brings up a keyboard to pick your notes.</div></div>
   </div>
   <div class="help-row">
     <svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="28" cy="28" r="9" opacity="0.35"/><circle cx="28" cy="28" r="4" opacity="0.35"/><path d="M28 6a22 22 0 1 1-18 9.4"/><path d="M6 10l4 6 6-3"/></svg>
@@ -173,7 +180,7 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px;
   </div>
   <div class="help-row">
     <svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="28" cy="28" r="22" opacity="0.35"/><circle cx="28" cy="12" r="4" opacity="0.35"/><circle cx="42" cy="36" r="4" opacity="0.35"/><circle cx="14" cy="36" r="4" opacity="0.35"/><path d="M28 19a9 9 0 1 1-7.8 4.5"/><path d="M18 20l2.5 5 5-2"/></svg>
-    <div><div class="help-name">Circle over the chimes</div><div class="help-what">Clockwise adds a chime, anticlockwise takes one away. Three to twelve.</div></div>
+    <div><div class="help-name">Circle over the chimes</div><div class="help-what">Clockwise adds a chime, counterclockwise takes one away. Three to twelve.</div></div>
   </div>
   <div class="help-row">
     <svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="28" cy="28" r="6" fill="currentColor"/><circle cx="28" cy="28" r="13" opacity="0.5"/><circle cx="28" cy="28" r="20" opacity="0.25"/></svg>
@@ -190,6 +197,10 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px;
   <div class="help-row">
     <svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="24" cy="32" r="16"/><path d="M24 22v10l7 4"/><path d="M36 8h10l-10 10h10"/></svg>
     <div><div class="help-name">Sleep icon</div><div class="help-what">A timer that stops the wind after a while, for drifting off.</div></div>
+  </div>
+  <div class="help-row" id="help-shop">
+    <svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M34 10l12 12-20 20-12-12z"/><path d="M14 30L8 36a4 4 0 0 0 0 6l6 6a4 4 0 0 0 6 0l6-6" opacity="0.5"/><path d="M40 8l8 8" opacity="0.5"/></svg>
+    <div><div class="help-name">Workshop</div><div class="help-what">The numbers under the hood, as percentages of the default. Tap to open.</div></div>
   </div>
 </div>
 
@@ -238,6 +249,13 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px;
     <a class="egg-btn" id="egg-claim" href="#" target="_blank" rel="noopener">Claim a harness</a>
     <button class="egg-later" id="egg-later">Later</button>
   </div>
+</div>
+
+<div id="shop">
+  <div class="sheet-head"><span class="stitle">Workshop</span><button class="close" id="shop-close">✕</button></div>
+  <div class="shop-note">The numbers under the hood, each as a percentage of this build's default. 100% everywhere is the app as shipped.</div>
+  <div id="shop-controls"></div>
+  <div class="shop-actions"><button class="schip" id="shop-reset">Back to 100%</button></div>
 </div>
 
 <div id="dim"></div>
@@ -450,7 +468,7 @@ function pointerMove(e) {
   G.angle = angle;
 
   if (G.mode === 'pending') {
-    G.pend += dAngle; // the turn made before the gesture is recognised counts too
+    G.pend += dAngle; // the turn made before the gesture is recognized counts too
     // From an edge, a horizontal move is a swipe as soon as it's clearly one
     var ex = x - G.x0, ey = y - G.y0;
     if (G.edge && Math.abs(ex) > 50 && Math.abs(ex) > 1.5 * Math.abs(ey)) {
@@ -573,6 +591,52 @@ function showWind() {
   document.getElementById('v-consistency').textContent = windConsistency;
 }
 
+// ── Workshop ──────────────────────────────────────────────
+// Five numbers under the hood, each set as a percentage of this build's default and
+// sent to the engine as the absolute value. 100% everywhere is the app as shipped.
+var SHOP = [
+  { key: 'clapperDamp', name: 'Clapper damping', base: 0.72 },
+  { key: 'clapperGap',  name: 'Clapper gap',     base: 7.5 },
+  { key: 'tubeDamp',    name: 'Chime damping',   base: 0.54 },
+  { key: 'gap',         name: 'Chime gap',       base: 10.5 },
+  { key: 'sensitivity', name: 'Wind susceptibility', base: 0.342 }
+];
+var shop = {}; // key → percent
+SHOP.forEach(function(c) { shop[c.key] = 100; });
+
+function loadShop() { try { var v = JSON.parse(localStorage.getItem('pocketChimesShop')); if (v && typeof v === 'object') SHOP.forEach(function(c) { if (isNum(v[c.key])) shop[c.key] = clamp(v[c.key], 25, 300); }); } catch (e) {} }
+function saveShop() { try { localStorage.setItem('pocketChimesShop', JSON.stringify(shop)); } catch (e) {} }
+function sendShop() {
+  var values = {};
+  SHOP.forEach(function(c) { values[c.key] = c.base * shop[c.key] / 100; });
+  if (Engine) Engine.setLab(values);
+  saveShop();
+  showShop();
+}
+function buildShop() {
+  var el = document.getElementById('shop-controls');
+  SHOP.forEach(function(c) {
+    var g = document.createElement('div'); g.className = 'shop-group';
+    g.innerHTML = '<div class="drow" style="margin-bottom:0"><span class="dlabel">' + c.name + '</span><span class="dval" data-val="' + c.key + '"></span></div>' +
+      '<input class="dslider" type="range" data-key="' + c.key + '" min="25" max="300" step="5">';
+    g.querySelector('input').addEventListener('input', function() { shop[c.key] = parseFloat(this.value); sendShop(); });
+    el.appendChild(g);
+  });
+  document.getElementById('shop-reset').addEventListener('click', function() { SHOP.forEach(function(c) { shop[c.key] = 100; }); sendShop(); hud('Back to 100%', '', 900); });
+  showShop();
+}
+function showShop() {
+  SHOP.forEach(function(c) {
+    var inp = document.querySelector('#shop input[data-key="' + c.key + '"]'), v = document.querySelector('#shop [data-val="' + c.key + '"]');
+    if (inp) inp.value = shop[c.key];
+    if (v) v.textContent = Math.round(shop[c.key]) + '%';
+  });
+}
+function openShop(open) {
+  document.getElementById('shop').classList.toggle('open', open);
+  document.getElementById('dim').classList.toggle('open', open);
+}
+
 // ── Theme ─────────────────────────────────────────────────
 function applyTheme() {
   document.documentElement.setAttribute('data-theme', theme);
@@ -678,7 +742,7 @@ function addHangHelpRow() {
 function openHelp(open) {
   var el = document.getElementById('help');
   el.classList.toggle('open', open);
-  el.style.color = theme === 'dark' ? hsla(hue, 60, 72, 1) : hsla(hue, 55, 38, 1); // icons in the scale's colour
+  el.style.color = theme === 'dark' ? hsla(hue, 60, 72, 1) : hsla(hue, 55, 38, 1); // icons in the scale's color
 }
 
 function openDrawer(open) {
@@ -935,6 +999,7 @@ function saveSample() {
 window.addEventListener('load', function() {
   loadSettings();
   loadHang();
+  loadShop();
   loadHunt();
   addHangHelpRow();
   showHunt();
@@ -966,6 +1031,9 @@ window.addEventListener('load', function() {
   });
   document.getElementById('help').addEventListener('click', function() { openHelp(false); });
   document.getElementById('egg-later').addEventListener('click', function() { document.getElementById('egg').classList.remove('open'); });
+  buildShop();
+  document.getElementById('help-shop').addEventListener('click', function(e) { e.stopPropagation(); openHelp(false); openShop(true); });
+  document.getElementById('shop-close').addEventListener('click', function() { openShop(false); });
   document.getElementById('egg-claim').addEventListener('click', function(e) {
     if (!CLAIM_FORM_URL) { e.preventDefault(); hud('Claims open soon', 'keep your code', 1600); }
   });
@@ -985,7 +1053,7 @@ window.addEventListener('load', function() {
     sendParams();
   });
 
-  document.getElementById('dim').addEventListener('click', closeSheet);
+  document.getElementById('dim').addEventListener('click', function() { closeSheet(); openShop(false); });
   document.getElementById('btn-close').addEventListener('click', closeSheet);
   makeChips('sound-chips', ['Metal', 'Recorded'],
     function() { return currentSound === 'recorded' ? 'Recorded' : 'Metal'; },
@@ -1015,6 +1083,7 @@ window.addEventListener('load', function() {
   });
 
   sendParams();
+  sendShop();
   restoreSound();
   showPower();
   if (Engine) Engine.setWind({ on: false }); // still air until the Wind switch
@@ -1135,13 +1204,13 @@ function draw() {
   }
   c.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-  // Ease the hue toward the scale's colour
+  // Ease the hue toward the scale's color
   var dh = hueTarget - hue;
   if (dh > 180) dh -= 360; else if (dh < -180) dh += 360;
   hue = (hue + dh * 0.08 + 360) % 360;
 
   // The two palettes. Dark: pale metal on a deep tinted ground. Light: a sunlit, pale
-  // ground with the metal drawn darker, and strikes glowing in saturated colour.
+  // ground with the metal drawn darker, and strikes glowing in saturated color.
   var D = theme === 'dark';
   var P = D ? {
     bg0: hsla(hue, 30, 11, 1), bg1: hsla(hue, 35, 4, 1),
@@ -1198,7 +1267,7 @@ function draw() {
   var dScy = rcy + Math.sin(S.striker[1]) * strikerL;
   c.beginPath(); c.strokeStyle = P.tubeCord; c.lineWidth = 0.8;
   c.moveTo(wx(rcx), wy(rcy)); c.lineTo(wx(dScx), wy(dScy)); c.stroke();
-  var clapperR = Math.max(4, (ringRadius - TUBE_R - (CLAPPER_GAP_MM / 1000)) * scale);
+  var clapperR = Math.max(4, (ringRadius - TUBE_R - (CLAPPER_GAP_MM * shop.clapperGap / 100 / 1000)) * scale);
   c.beginPath(); c.arc(wx(dScx), wy(dScy), clapperR, 0, Math.PI * 2);
   c.fillStyle = P.clapper; c.fill();
   c.strokeStyle = P.clapperEdge; c.lineWidth = 1.5; c.stroke();
@@ -1235,7 +1304,7 @@ function draw() {
     var sx = wx(midX), sy = wy(midY);
     var inner = r - wall / 2;
     if (absFlash > 0.01) {
-      var litHue = flash < 0 ? (hue + 180) % 360 : hue; // tube on tube glows the opposite colour
+      var litHue = flash < 0 ? (hue + 180) % 360 : hue; // tube on tube glows the opposite color
       var stops = P.glow(litHue, absFlash);
       var glow = c.createRadialGradient(sx, sy, 0, sx, sy, inner);
       glow.addColorStop(0, stops[0]);
