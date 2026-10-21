@@ -98,8 +98,12 @@ enum ChimeVoices {
         let decayMult = isClapper ? 1.0 : 0.75
 
         let vel = gainScale * (0.05 + pow(velNorm, 2.2) * 0.95)
-        let freqNorm = max(0, min(1, log2(freq / 220) / 3))
-        let baseDecay = decayMult * (1.2 + pow(velNorm, 0.7) * 24.0) * (1 - freqNorm * 0.4)
+        // Ring time falls with pitch, as a metal tube's does (its losses give a roughly
+        // constant Q, so a real tube rings in proportion to 1/f). Here it's a nudge toward
+        // that: ∝ 1/f^0.6, anchored so A4 keeps the length it had, so an octave up rings
+        // a third shorter and an octave down half as long again; clamped at both ends.
+        let pitchRing = max(0.2, min(2.4, 0.867 * pow(440 / freq, 0.6)))
+        let baseDecay = decayMult * (1.2 + pow(velNorm, 0.7) * 24.0) * pitchRing
         let velBright = bright * (0.20 + velNorm * velNorm * 0.80)
         let startCutoffMult = 3.0 + velBright * 7.0
         let endCutoffMult = 0.85 + velBright * 0.4
@@ -118,7 +122,7 @@ enum ChimeVoices {
             let ratio = sample.pitch > 0 ? freq / sample.pitch : freq / 440
             let hit = pow(velNorm, t.hitCurve)
             let decay = decayMult * (t.decayMin + pow(velNorm, t.decayCurve) * t.decayMax)
-                * (1 - t.decayVariation + rand() * 2 * t.decayVariation) * (1 - freqNorm * 0.3)
+                * (1 - t.decayVariation + rand() * 2 * t.decayVariation) * max(0.3, min(2.0, 0.9 * pow(440 / freq, 0.45)))
             let attack = attackMult * mix(t.attackSoftMs, t.attackHardMs, velNorm) / 1000
             let level = vel * t.level * sample.loudness // evens out dense vs breathy material
 
