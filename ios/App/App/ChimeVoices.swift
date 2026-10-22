@@ -36,11 +36,11 @@ struct SampleVoiceParams {
     var octaveCutoff = 0.8      // × the main cutoff
     // Metal voice: the ting, a tube's high modes in a note's first instant. Defaults are
     // where Jake's ear landed on Oct 22: the 8.9× partial alone, quiet, instant, and
-    // following velocity steeply, with the next two modes above it added for delicacy.
+    // following velocity, with the next two modes above it added for delicacy.
     var ting = 0.2              // overall weight
     var tingAttackMs = 0.2      // rise time
     var tingDecayMs = 100.0     // decay of the 4th (8.933×) partial at zero velocity
-    var tingDecayVelMs = 100.0  // decay added at full velocity
+    var tingDecayHard = 2.0     // decay at full velocity, × the zero-velocity decay
     var tingTilt = 0.75         // each partial above the 4th decays this much faster, each below this much slower
     var tingBright = 40.0       // lowpass cutoff × each partial's frequency (40 = open)
     var tingP2 = 0.02           // weight of the 2.756× partial
@@ -49,7 +49,7 @@ struct SampleVoiceParams {
     var tingP5 = 0.08           // ... 13.34×
     var tingP6 = 0.05           // ... 18.64×
     var tingBendCents = 10.0    // how sharp the ting starts, settling over 20 ms (as a struck object does)
-    var tingCurve = 5.0         // velocity exponent of its level (higher = hard hits only)
+    var tingCurve = 3.6         // velocity exponent of its level (higher = hard hits only)
 
     /// Apply any matching numeric keys from the page.
     mutating func apply(_ values: [String: Double]) {
@@ -85,7 +85,7 @@ struct SampleVoiceParams {
             case "ting": ting = max(0, value)
             case "tingAttackMs": tingAttackMs = max(0.1, value)
             case "tingDecayMs": tingDecayMs = max(1, value)
-            case "tingDecayVelMs": tingDecayVelMs = max(0, value)
+            case "tingDecayHard": tingDecayHard = max(0.1, value)
             case "tingTilt": tingTilt = max(0.1, min(3, value))
             case "tingBright": tingBright = max(0.5, value)
             case "tingP2": tingP2 = max(0, value)
@@ -215,7 +215,7 @@ enum ChimeVoices {
         // are, and follow velocity steeply. Every number here is a Workshop slider.
         if t.ting > 0 {
             let tingAttack = t.tingAttackMs / 1000
-            let decay4 = (t.tingDecayMs + t.tingDecayVelMs * velNorm) / 1000
+            let decay4 = t.tingDecayMs / 1000 * (1 + (t.tingDecayHard - 1) * velNorm)
             let tingVel = gainScale * (0.05 + pow(velNorm, t.tingCurve) * 0.95)
             let tingGains = [0.0, t.tingP2, t.tingP3, t.tingP4, t.tingP5, t.tingP6]
             let split = twinModeSplit(for: freq)
