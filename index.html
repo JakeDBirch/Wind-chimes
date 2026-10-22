@@ -613,25 +613,31 @@ var SHOP = [
   { key: 'tubeDamp',    name: 'Chime damping',   base: 0.54 },
   { key: 'gap',         name: 'Chime gap',       base: 10.5 },
   { key: 'sensitivity', name: 'Wind susceptibility', base: 0.342 },
-  // The ting: a hard hit's upper partials in each note's first milliseconds. These run
-  // 0 to 400% so any one can be taken out, and show the value the engine gets.
-  { key: 'ting',          name: 'Ting level',        base: 1.0,  voice: true, min: 0, max: 400, head: 'Attack', unit: '' },
-  { key: 'tingAttackMs',  name: 'Ting attack',       base: 1.0,  voice: true, min: 0, max: 400, unit: ' ms' },
-  { key: 'tingDecayMs',   name: 'Ting decay',        base: 25,   voice: true, min: 0, max: 400, unit: ' ms' },
-  { key: 'tingDecayVelMs', name: 'Ting decay, hard hits', base: 25, voice: true, min: 0, max: 400, unit: ' ms' },
-  { key: 'tingBright',    name: 'Ting brightness',   base: 10,   voice: true, min: 0, max: 400, unit: '×' },
-  { key: 'tingP2',        name: 'Ting 2nd partial',  base: 0.55, voice: true, min: 0, max: 400, unit: '' },
-  { key: 'tingP3',        name: 'Ting 3rd partial',  base: 0.28, voice: true, min: 0, max: 400, unit: '' },
-  { key: 'tingP4',        name: 'Ting 4th partial',  base: 0.10, voice: true, min: 0, max: 400, unit: '' },
-  { key: 'tingCurve',     name: 'Ting velocity curve', base: 2.2, voice: true, min: 0, max: 400, unit: '' }
+  // The ting: the tube's high modes in each note's first instant. These run 0 to 400%
+  // so any one can be taken out, and show the value the engine gets. TING_REV marks
+  // the defaults; when they move, saved percentages for these go back to 100%.
+  { key: 'ting',          name: 'Ting level',        base: 0.2,  voice: true, min: 0, max: 400, head: 'Attack', unit: '' },
+  { key: 'tingAttackMs',  name: 'Ting attack',       base: 0.2,  voice: true, min: 0, max: 400, unit: ' ms' },
+  { key: 'tingDecayMs',   name: 'Ting decay',        base: 100,  voice: true, min: 0, max: 400, unit: ' ms' },
+  { key: 'tingDecayVelMs', name: 'Ting decay, hard hits', base: 100, voice: true, min: 0, max: 400, unit: ' ms' },
+  { key: 'tingTilt',      name: 'Ting decay tilt',   base: 0.75, voice: true, min: 0, max: 400, unit: '' },
+  { key: 'tingBright',    name: 'Ting brightness',   base: 40,   voice: true, min: 0, max: 400, unit: '×' },
+  { key: 'tingP2',        name: 'Ting 2.8× partial', base: 0.02, voice: true, min: 0, max: 400, unit: '' },
+  { key: 'tingP3',        name: 'Ting 5.4× partial', base: 0.03, voice: true, min: 0, max: 400, unit: '' },
+  { key: 'tingP4',        name: 'Ting 8.9× partial', base: 0.10, voice: true, min: 0, max: 400, unit: '' },
+  { key: 'tingP5',        name: 'Ting 13.3× partial', base: 0.08, voice: true, min: 0, max: 400, unit: '' },
+  { key: 'tingP6',        name: 'Ting 18.6× partial', base: 0.05, voice: true, min: 0, max: 400, unit: '' },
+  { key: 'tingBendCents', name: 'Ting bend',         base: 10,   voice: true, min: 0, max: 400, unit: ' cents' },
+  { key: 'tingCurve',     name: 'Ting velocity curve', base: 5.0, voice: true, min: 0, max: 400, unit: '' }
 ];
+var TING_REV = 2;
 function shopMin(c) { return c.min == null ? 25 : c.min; }
 function shopMax(c) { return c.max == null ? 300 : c.max; }
 function shopReadout(c) {
   var pct = Math.round(shop[c.key]) + '%';
   if (c.unit == null) return pct;
   var v = c.base * shop[c.key] / 100;
-  return pct + ' · ' + (v >= 10 ? Math.round(v) : v >= 1 ? v.toFixed(1) : v.toFixed(2)) + c.unit;
+  return pct + ' · ' + (v >= 10 ? Math.round(v) : v >= 1 ? v.toFixed(1) : v >= 0.1 ? v.toFixed(2) : v.toFixed(3)) + c.unit;
 }
 var shop = {}; // key → percent
 SHOP.forEach(function(c) { shop[c.key] = 100; });
@@ -646,7 +652,7 @@ function loadShop() {
   try {
     var v = JSON.parse(localStorage.getItem('pocketChimesShop'));
     if (v && typeof v === 'object') {
-      SHOP.forEach(function(c) { if (isNum(v[c.key])) shop[c.key] = clamp(v[c.key], shopMin(c), shopMax(c)); });
+      SHOP.forEach(function(c) { if (isNum(v[c.key]) && !(c.voice && v.tingRev !== TING_REV)) shop[c.key] = clamp(v[c.key], shopMin(c), shopMax(c)); });
       var ch = v.chords;
       if (ch && typeof ch === 'object') {
         if (isNum(ch.len)) chords.len = clamp(ch.len, 25, 300);
@@ -656,7 +662,7 @@ function loadShop() {
     }
   } catch (e) {}
 }
-function saveShop() { try { var v = {}; SHOP.forEach(function(c) { v[c.key] = shop[c.key]; }); v.chords = chords; localStorage.setItem('pocketChimesShop', JSON.stringify(v)); } catch (e) {} }
+function saveShop() { try { var v = {}; SHOP.forEach(function(c) { v[c.key] = shop[c.key]; }); v.chords = chords; v.tingRev = TING_REV; localStorage.setItem('pocketChimesShop', JSON.stringify(v)); } catch (e) {} }
 function sendShop() {
   var values = {}, voice = {};
   SHOP.forEach(function(c) { (c.voice ? voice : values)[c.key] = c.base * shop[c.key] / 100; });

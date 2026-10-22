@@ -34,16 +34,22 @@ struct SampleVoiceParams {
     var octaveGain = 0.18
     var octaveDecay = 0.45      // × the main decay
     var octaveCutoff = 0.8      // × the main cutoff
-    // Metal voice: the ting, a hard hit's upper partials in a note's first milliseconds
-    var ting = 1.0              // overall weight (0 = none, 1 = a hard hit's balance)
-    var tingAttackMs = 1.0      // rise time
-    var tingDecayMs = 25.0      // decay at zero velocity
-    var tingDecayVelMs = 25.0   // decay added at full velocity
-    var tingBright = 10.0       // lowpass cutoff × each partial's frequency
-    var tingP2 = 0.55           // weight of the 2.756× partial
-    var tingP3 = 0.28           // ... 5.404×
+    // Metal voice: the ting, a tube's high modes in a note's first instant. Defaults are
+    // where Jake's ear landed on Oct 22: the 8.9× partial alone, quiet, instant, and
+    // following velocity steeply, with the next two modes above it added for delicacy.
+    var ting = 0.2              // overall weight
+    var tingAttackMs = 0.2      // rise time
+    var tingDecayMs = 100.0     // decay of the 4th (8.933×) partial at zero velocity
+    var tingDecayVelMs = 100.0  // decay added at full velocity
+    var tingTilt = 0.75         // each partial above the 4th decays this much faster, each below this much slower
+    var tingBright = 40.0       // lowpass cutoff × each partial's frequency (40 = open)
+    var tingP2 = 0.02           // weight of the 2.756× partial
+    var tingP3 = 0.03           // ... 5.404×
     var tingP4 = 0.10           // ... 8.933×
-    var tingCurve = 2.2         // velocity exponent of its level (2.2 = as the note's own level)
+    var tingP5 = 0.08           // ... 13.34×
+    var tingP6 = 0.05           // ... 18.64×
+    var tingBendCents = 10.0    // how sharp the ting starts, settling over 20 ms (as a struck object does)
+    var tingCurve = 5.0         // velocity exponent of its level (higher = hard hits only)
 
     /// Apply any matching numeric keys from the page.
     mutating func apply(_ values: [String: Double]) {
@@ -80,10 +86,14 @@ struct SampleVoiceParams {
             case "tingAttackMs": tingAttackMs = max(0.1, value)
             case "tingDecayMs": tingDecayMs = max(1, value)
             case "tingDecayVelMs": tingDecayVelMs = max(0, value)
+            case "tingTilt": tingTilt = max(0.1, min(3, value))
             case "tingBright": tingBright = max(0.5, value)
             case "tingP2": tingP2 = max(0, value)
             case "tingP3": tingP3 = max(0, value)
             case "tingP4": tingP4 = max(0, value)
+            case "tingP5": tingP5 = max(0, value)
+            case "tingP6": tingP6 = max(0, value)
+            case "tingBendCents": tingBendCents = max(0, value)
             case "tingCurve": tingCurve = max(0.1, value)
             default: break
             }
@@ -99,6 +109,9 @@ enum ChimeVoices {
     static let partialRatios = [1, 2.756, 5.404, 8.933]
     static let partialGains = [1.0, 0.55, 0.28, 0.10]
     static let partialDecays = [1.0, 0.55, 0.30, 0.15]
+    // The same series carried on: the modes a strike excites but that are gone before the
+    // ring settles. Only the ting uses them.
+    static let tingRatios = [1, 2.756, 5.404, 8.933, 13.34, 18.64]
 
     static func make(for strike: ChimeStrike, sample: UserSample?, tuning t: SampleVoiceParams = SampleVoiceParams(),
                      sampleRate sr: Double) -> [SynthVoice] {
@@ -193,35 +206,39 @@ enum ChimeVoices {
             return voices
         }
 
-        // ── The ting: the first few milliseconds of every note sound like a hard hit.
-        // Hard strikes get their bite from the upper partials, which on a soft strike are
-        // missing (below their velocity thresholds) and on any strike swell in over tens of
-        // milliseconds. A real tube doesn't choose: the impact excites every mode at once,
-        // and the soft hit's upper modes simply die fast. So each note opens with the
-        // upper partials at a full-velocity strike's balance, scaled to the note's own
-        // level, with a 1 ms attack and a decay of a few tens of milliseconds; after that
-        // the note is as it was. Every number here is a Workshop slider (the ting* params).
+        // ── The ting: the first instant of every note is the tube's high modes. The
+        // impact excites every mode at once; the ring is what's left once the high ones
+        // have died, which on a real tube takes a tenth of a second or so. Those modes
+        // (the 8.9× partial and the two above it, which the ring never uses) are what a
+        // light touch sounds like before the fundamental takes over, and what gives a hard
+        // hit its edge. They start a touch sharp and settle, decay faster the higher they
+        // are, and follow velocity steeply. Every number here is a Workshop slider.
         if t.ting > 0 {
             let tingAttack = t.tingAttackMs / 1000
-            let tingDecay = (t.tingDecayMs + t.tingDecayVelMs * velNorm) / 1000
+            let decay4 = (t.tingDecayMs + t.tingDecayVelMs * velNorm) / 1000
             let tingVel = gainScale * (0.05 + pow(velNorm, t.tingCurve) * 0.95)
-            let tingGains = [0.0, t.tingP2, t.tingP3, t.tingP4]
+            let tingGains = [0.0, t.tingP2, t.tingP3, t.tingP4, t.tingP5, t.tingP6]
             let split = twinModeSplit(for: freq)
-            for i in 1..<partialRatios.count {
+            let bend = pow(2, t.tingBendCents / 1200)
+            for i in 1..<tingRatios.count {
                 let di = Double(i)
-                let pFreq = freq * partialRatios[i]
+                let pFreq = freq * tingRatios[i]
                 if pFreq > 16000 || tingGains[i] <= 0 { continue }
                 let pGain = t.ting * tingVel * tingGains[i] * pow(partialRolloff, di) * 0.65 * (0.90 + rand() * 0.20)
+                let pDecay = decay4 * pow(t.tingTilt, di - 3)
                 for sign in [-0.5, 0.5] {
                     let v = SynthVoice()
                     v.startTime = now
-                    v.frequency = Automation(pFreq * pow(2, sign * split / 1200))
+                    let f = pFreq * pow(2, sign * split / 1200)
+                    var pitch = Automation(f * bend)
+                    if t.tingBendCents > 0 { pitch.exponentialRamp(to: f, at: now + 0.020) }
+                    v.frequency = pitch
                     v.filterFrequency = Automation(pFreq * t.tingBright)
                     v.filter = Biquad(.lowpass, q: 0.5)
                     v.gain.setValue(0, at: now)
                     v.gain.linearRamp(to: pGain * 0.5, at: now + tingAttack)
-                    v.gain.exponentialRamp(to: 0.0001, at: now + tingAttack + tingDecay)
-                    v.stopTime = now + tingAttack + tingDecay + 0.01
+                    v.gain.exponentialRamp(to: 0.0001, at: now + tingAttack + pDecay)
+                    v.stopTime = now + tingAttack + pDecay + 0.01
                     voices.append(v)
                 }
             }
