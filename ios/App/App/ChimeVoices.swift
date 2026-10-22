@@ -34,6 +34,8 @@ struct SampleVoiceParams {
     var octaveGain = 0.18
     var octaveDecay = 0.45      // × the main decay
     var octaveCutoff = 0.8      // × the main cutoff
+    // Metal voice
+    var ting = 1.0              // level of the contact transient at the start of a metal note (0 = none)
 
     /// Apply any matching numeric keys from the page.
     mutating func apply(_ values: [String: Double]) {
@@ -66,6 +68,7 @@ struct SampleVoiceParams {
             case "octaveGain": octaveGain = value
             case "octaveDecay": octaveDecay = value
             case "octaveCutoff": octaveCutoff = value
+            case "ting": ting = max(0, value)
             default: break
             }
         }
@@ -80,6 +83,10 @@ enum ChimeVoices {
     static let partialRatios = [1, 2.756, 5.404, 8.933]
     static let partialGains = [1.0, 0.55, 0.28, 0.10]
     static let partialDecays = [1.0, 0.55, 0.30, 0.15]
+    // The next two bending modes of a free tube, heard only in the first instant of a hit
+    static let contactRatios = [13.34, 18.64]
+    /// White noise for the contact burst, looped (the burst is far shorter than the table)
+    static let noise: [Float] = (0..<8192).map { _ in Float.random(in: -1...1) }
 
     static func make(for strike: ChimeStrike, sample: UserSample?, tuning t: SampleVoiceParams = SampleVoiceParams(),
                      sampleRate sr: Double) -> [SynthVoice] {
@@ -172,6 +179,53 @@ enum ChimeVoices {
                 voices.append(layer(octave: 2, gainScale: t.octaveGain * pow(presence, 0.7), decayScale: t.octaveDecay, cutoffScale: t.octaveCutoff))
             }
             return voices
+        }
+
+        // ── The ting: the moment of contact. A clapper meeting a tube is a hard, brief
+        // impact, so before the tube's modes settle into their ring there's a bright
+        // click: a few milliseconds of broadband noise from the contact itself, and the
+        // tube's high bending modes, which are excited by the impact but die within a
+        // few hundredths of a second. It's there on a light touch too, which is what
+        // separates a struck tube from a swelled sine; only its weight follows velocity.
+        if t.ting > 0 {
+            let contact = isClapper ? 1.0 : 0.6 // tube on tube is a duller knock
+            let tingLevel = t.ting * gainScale * contact * (0.35 + 0.65 * pow(velNorm, 1.3))
+            let tingAttack = 0.0005
+            // Contact noise: a bandpass burst in the tinkle region, pitched with the tube so
+            // high tubes click thinner than low ones, falling as it fades
+            let center = min(9000.0, max(2500.0, freq * 5.4)) * (isClapper ? 1.0 : 0.7)
+            let burst = 0.008 + 0.010 * velNorm
+            let n = SynthVoice()
+            n.startTime = now
+            n.sample = noise
+            n.sampleStep = 1
+            n.loopStart = 0
+            var band = Automation(center * 1.5)
+            band.exponentialRamp(to: center * 0.7, at: now + tingAttack + burst)
+            n.filterFrequency = band
+            n.filter = Biquad(.bandpass, q: 1.2)
+            n.gain.setValue(0, at: now)
+            n.gain.linearRamp(to: tingLevel * 0.30, at: now + tingAttack)
+            n.gain.exponentialRamp(to: 0.0001, at: now + tingAttack + burst)
+            n.stopTime = now + tingAttack + burst + 0.01
+            voices.append(n)
+            // High modes: inharmonic, short, and a touch sharper on harder hits
+            for (j, ratio) in contactRatios.enumerated() {
+                let cFreq = freq * ratio
+                if cFreq > 16000 { continue }
+                let cDecay = (0.030 + 0.050 * velNorm) * (j == 0 ? 1.0 : 0.6)
+                let cGain = tingLevel * (j == 0 ? 0.16 : 0.10) * (0.9 + rand() * 0.2)
+                let v = SynthVoice()
+                v.startTime = now
+                v.frequency = Automation(cFreq)
+                v.filterFrequency = Automation(cFreq * 2)
+                v.filter = Biquad(.lowpass, q: 0)
+                v.gain.setValue(0, at: now)
+                v.gain.linearRamp(to: cGain, at: now + tingAttack * 2)
+                v.gain.exponentialRamp(to: 0.0001, at: now + tingAttack * 2 + cDecay)
+                v.stopTime = now + tingAttack * 2 + cDecay + 0.01
+                voices.append(v)
+            }
         }
 
         for i in 0..<partialRatios.count {

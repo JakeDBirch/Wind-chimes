@@ -601,15 +601,17 @@ function showWind() {
 }
 
 // ── Workshop ──────────────────────────────────────────────
-// Five numbers under the hood, each set as a percentage of this build's default and
-// sent to the engine as the absolute value, plus the chord sequence's length,
-// progression and order. 100% everywhere is the app as shipped.
+// Six numbers under the hood, each set as a percentage of this build's default and
+// sent to the engine as the absolute value (physics to setLab, the voice to
+// setVoiceParams), plus the chord sequence's length, progression and order. 100%
+// everywhere is the app as shipped.
 var SHOP = [
   { key: 'clapperDamp', name: 'Clapper damping', base: 0.72 },
   { key: 'clapperGap',  name: 'Clapper gap',     base: 7.5 },
   { key: 'tubeDamp',    name: 'Chime damping',   base: 0.54 },
   { key: 'gap',         name: 'Chime gap',       base: 10.5 },
-  { key: 'sensitivity', name: 'Wind susceptibility', base: 0.342 }
+  { key: 'sensitivity', name: 'Wind susceptibility', base: 0.342 },
+  { key: 'ting',        name: 'Attack ting',    base: 1.0, voice: true }
 ];
 var shop = {}; // key → percent
 SHOP.forEach(function(c) { shop[c.key] = 100; });
@@ -636,12 +638,12 @@ function loadShop() {
 }
 function saveShop() { try { var v = {}; SHOP.forEach(function(c) { v[c.key] = shop[c.key]; }); v.chords = chords; localStorage.setItem('pocketChimesShop', JSON.stringify(v)); } catch (e) {} }
 function sendShop() {
-  var values = {};
-  SHOP.forEach(function(c) { values[c.key] = c.base * shop[c.key] / 100; });
+  var values = {}, voice = {};
+  SHOP.forEach(function(c) { (c.voice ? voice : values)[c.key] = c.base * shop[c.key] / 100; });
   values.chordSeconds = CHORD_SECONDS * chords.len / 100;
   values.chordSet = chords.set;
   values.chordShuffle = chords.shuffle ? 1 : 0;
-  if (Engine) Engine.setLab(values);
+  if (Engine) { Engine.setLab(values); Engine.setVoiceParams(voice); }
   saveShop();
   showShop();
 }
