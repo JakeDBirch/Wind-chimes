@@ -112,6 +112,7 @@ html:not([data-theme="dark"]) #theme-btn .moon { display: block; }
 #shop.open { transform: none; }
 .shop-group { padding: 10px 0; border-bottom: 1px solid var(--line); }
 .shop-group:last-of-type { border-bottom: none; }
+.shop-head { font-size: 14px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dim); padding: 16px 0 2px; }
 .shop-note { font-size: 14px; font-weight: 500; color: var(--text-dim); line-height: 1.4; margin: 4px 0 10px; }
 .shop-actions { display: flex; gap: 8px; margin-top: 12px; }
 /* Sound sheet: opened by a double tap on the clapper */
@@ -255,6 +256,7 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px;
   <div class="sheet-head"><span class="stitle">Workshop</span><button class="close" id="shop-close">✕</button></div>
   <div class="shop-note">The numbers under the hood, each as a percentage of this build's default. 100% everywhere is the app as shipped.</div>
   <div id="shop-controls"></div>
+  <div class="shop-head">Chord sequence</div>
   <div class="shop-group" id="shop-chords">
     <div class="drow" style="margin-bottom:0"><span class="dlabel">Chord length</span><span class="dval" id="v-chord-len"></span></div>
     <input class="dslider" type="range" id="chord-len" min="25" max="300" step="5">
@@ -601,7 +603,7 @@ function showWind() {
 }
 
 // ── Workshop ──────────────────────────────────────────────
-// Six numbers under the hood, each set as a percentage of this build's default and
+// The numbers under the hood, each set as a percentage of this build's default and
 // sent to the engine as the absolute value (physics to setLab, the voice to
 // setVoiceParams), plus the chord sequence's length, progression and order. 100%
 // everywhere is the app as shipped.
@@ -611,8 +613,26 @@ var SHOP = [
   { key: 'tubeDamp',    name: 'Chime damping',   base: 0.54 },
   { key: 'gap',         name: 'Chime gap',       base: 10.5 },
   { key: 'sensitivity', name: 'Wind susceptibility', base: 0.342 },
-  { key: 'ting',        name: 'Attack ting',    base: 1.0, voice: true }
+  // The ting: a hard hit's upper partials in each note's first milliseconds. These run
+  // 0 to 400% so any one can be taken out, and show the value the engine gets.
+  { key: 'ting',          name: 'Ting level',        base: 1.0,  voice: true, min: 0, max: 400, head: 'Attack', unit: '' },
+  { key: 'tingAttackMs',  name: 'Ting attack',       base: 1.0,  voice: true, min: 0, max: 400, unit: ' ms' },
+  { key: 'tingDecayMs',   name: 'Ting decay',        base: 25,   voice: true, min: 0, max: 400, unit: ' ms' },
+  { key: 'tingDecayVelMs', name: 'Ting decay, hard hits', base: 25, voice: true, min: 0, max: 400, unit: ' ms' },
+  { key: 'tingBright',    name: 'Ting brightness',   base: 10,   voice: true, min: 0, max: 400, unit: '×' },
+  { key: 'tingP2',        name: 'Ting 2nd partial',  base: 0.55, voice: true, min: 0, max: 400, unit: '' },
+  { key: 'tingP3',        name: 'Ting 3rd partial',  base: 0.28, voice: true, min: 0, max: 400, unit: '' },
+  { key: 'tingP4',        name: 'Ting 4th partial',  base: 0.10, voice: true, min: 0, max: 400, unit: '' },
+  { key: 'tingCurve',     name: 'Ting velocity curve', base: 2.2, voice: true, min: 0, max: 400, unit: '' }
 ];
+function shopMin(c) { return c.min == null ? 25 : c.min; }
+function shopMax(c) { return c.max == null ? 300 : c.max; }
+function shopReadout(c) {
+  var pct = Math.round(shop[c.key]) + '%';
+  if (c.unit == null) return pct;
+  var v = c.base * shop[c.key] / 100;
+  return pct + ' · ' + (v >= 10 ? Math.round(v) : v >= 1 ? v.toFixed(1) : v.toFixed(2)) + c.unit;
+}
 var shop = {}; // key → percent
 SHOP.forEach(function(c) { shop[c.key] = 100; });
 // The chord sequence: how long each chord lasts (as a percentage of 20 s), which
@@ -626,7 +646,7 @@ function loadShop() {
   try {
     var v = JSON.parse(localStorage.getItem('pocketChimesShop'));
     if (v && typeof v === 'object') {
-      SHOP.forEach(function(c) { if (isNum(v[c.key])) shop[c.key] = clamp(v[c.key], 25, 300); });
+      SHOP.forEach(function(c) { if (isNum(v[c.key])) shop[c.key] = clamp(v[c.key], shopMin(c), shopMax(c)); });
       var ch = v.chords;
       if (ch && typeof ch === 'object') {
         if (isNum(ch.len)) chords.len = clamp(ch.len, 25, 300);
@@ -650,9 +670,10 @@ function sendShop() {
 function buildShop() {
   var el = document.getElementById('shop-controls');
   SHOP.forEach(function(c) {
+    if (c.head) { var h = document.createElement('div'); h.className = 'shop-head'; h.textContent = c.head; el.appendChild(h); }
     var g = document.createElement('div'); g.className = 'shop-group';
     g.innerHTML = '<div class="drow" style="margin-bottom:0"><span class="dlabel">' + c.name + '</span><span class="dval" data-val="' + c.key + '"></span></div>' +
-      '<input class="dslider" type="range" data-key="' + c.key + '" min="25" max="300" step="5">';
+      '<input class="dslider" type="range" data-key="' + c.key + '" min="' + shopMin(c) + '" max="' + shopMax(c) + '" step="5">';
     g.querySelector('input').addEventListener('input', function() { shop[c.key] = parseFloat(this.value); sendShop(); });
     el.appendChild(g);
   });
@@ -680,7 +701,7 @@ function showShop() {
   SHOP.forEach(function(c) {
     var inp = document.querySelector('#shop input[data-key="' + c.key + '"]'), v = document.querySelector('#shop [data-val="' + c.key + '"]');
     if (inp) inp.value = shop[c.key];
-    if (v) v.textContent = Math.round(shop[c.key]) + '%';
+    if (v) v.textContent = shopReadout(c);
   });
   document.getElementById('chord-len').value = chords.len;
   document.getElementById('v-chord-len').textContent = Math.round(chords.len) + '% · ' + Math.round(CHORD_SECONDS * chords.len / 100) + ' s';

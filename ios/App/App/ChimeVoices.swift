@@ -34,8 +34,16 @@ struct SampleVoiceParams {
     var octaveGain = 0.18
     var octaveDecay = 0.45      // × the main decay
     var octaveCutoff = 0.8      // × the main cutoff
-    // Metal voice
-    var ting = 1.0              // weight of the hard-hit partials in a metal note's first milliseconds (0 = none)
+    // Metal voice: the ting, a hard hit's upper partials in a note's first milliseconds
+    var ting = 1.0              // overall weight (0 = none, 1 = a hard hit's balance)
+    var tingAttackMs = 1.0      // rise time
+    var tingDecayMs = 25.0      // decay at zero velocity
+    var tingDecayVelMs = 25.0   // decay added at full velocity
+    var tingBright = 10.0       // lowpass cutoff × each partial's frequency
+    var tingP2 = 0.55           // weight of the 2.756× partial
+    var tingP3 = 0.28           // ... 5.404×
+    var tingP4 = 0.10           // ... 8.933×
+    var tingCurve = 2.2         // velocity exponent of its level (2.2 = as the note's own level)
 
     /// Apply any matching numeric keys from the page.
     mutating func apply(_ values: [String: Double]) {
@@ -69,6 +77,14 @@ struct SampleVoiceParams {
             case "octaveDecay": octaveDecay = value
             case "octaveCutoff": octaveCutoff = value
             case "ting": ting = max(0, value)
+            case "tingAttackMs": tingAttackMs = max(0.1, value)
+            case "tingDecayMs": tingDecayMs = max(1, value)
+            case "tingDecayVelMs": tingDecayVelMs = max(0, value)
+            case "tingBright": tingBright = max(0.5, value)
+            case "tingP2": tingP2 = max(0, value)
+            case "tingP3": tingP3 = max(0, value)
+            case "tingP4": tingP4 = max(0, value)
+            case "tingCurve": tingCurve = max(0.1, value)
             default: break
             }
         }
@@ -184,21 +200,23 @@ enum ChimeVoices {
         // and the soft hit's upper modes simply die fast. So each note opens with the
         // upper partials at a full-velocity strike's balance, scaled to the note's own
         // level, with a 1 ms attack and a decay of a few tens of milliseconds; after that
-        // the note is as it was. Weight follows the Workshop's ting (1 = as a hard hit).
+        // the note is as it was. Every number here is a Workshop slider (the ting* params).
         if t.ting > 0 {
-            let tingAttack = 0.001
-            let tingDecay = 0.025 + 0.025 * velNorm
+            let tingAttack = t.tingAttackMs / 1000
+            let tingDecay = (t.tingDecayMs + t.tingDecayVelMs * velNorm) / 1000
+            let tingVel = gainScale * (0.05 + pow(velNorm, t.tingCurve) * 0.95)
+            let tingGains = [0.0, t.tingP2, t.tingP3, t.tingP4]
             let split = twinModeSplit(for: freq)
             for i in 1..<partialRatios.count {
                 let di = Double(i)
                 let pFreq = freq * partialRatios[i]
-                if pFreq > 16000 { continue }
-                let pGain = t.ting * vel * partialGains[i] * pow(partialRolloff, di) * 0.65 * (0.90 + rand() * 0.20)
+                if pFreq > 16000 || tingGains[i] <= 0 { continue }
+                let pGain = t.ting * tingVel * tingGains[i] * pow(partialRolloff, di) * 0.65 * (0.90 + rand() * 0.20)
                 for sign in [-0.5, 0.5] {
                     let v = SynthVoice()
                     v.startTime = now
                     v.frequency = Automation(pFreq * pow(2, sign * split / 1200))
-                    v.filterFrequency = Automation(pFreq * 10) // a hard hit's open filter
+                    v.filterFrequency = Automation(pFreq * t.tingBright)
                     v.filter = Biquad(.lowpass, q: 0.5)
                     v.gain.setValue(0, at: now)
                     v.gain.linearRamp(to: pGain * 0.5, at: now + tingAttack)
