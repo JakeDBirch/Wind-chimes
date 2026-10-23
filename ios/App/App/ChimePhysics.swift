@@ -201,6 +201,10 @@ final class ChimePhysics {
     private(set) var strikeFlash: [Double] = []
     private(set) var ringRadius = 0.187
     private(set) var windX = 0.0, windY = 0.0
+    // The wind without the gust button's push, so a gust adds to the wind once rather
+    // than to its own remains tick after tick (with the wind off it used to pile up
+    // thirty-fold)
+    private var baseWindX = 0.0, baseWindY = 0.0
     private(set) var windSurge = 0.0 // mean wind speed (gust envelope with its texture), without turbulence
     private(set) var strikeCount = 0
 
@@ -291,6 +295,7 @@ final class ChimePhysics {
     func stopWind() {
         windOn = false
         windX = 0; windY = 0; windSurge = 0
+        baseWindX = 0; baseWindY = 0
     }
 
     func selectMotion() {
@@ -769,6 +774,7 @@ final class ChimePhysics {
             windSurge = surge
             windX = meanX + noiseX * turbAmp
             windY = meanY + noiseY * turbAmp
+            baseWindX = windX; baseWindY = windY
             windMeanX += (windX - windMeanX) * 0.003
             windMeanY += (windY - windMeanY) * 0.003
         } else if motionOn {
@@ -787,13 +793,16 @@ final class ChimePhysics {
             if mag > 0.6 { mx *= 0.6 / mag; my *= 0.6 / mag }
             windX = mx
             windY = my
+            baseWindX = mx; baseWindY = my
             windSurge = 0
             turbAmpLast *= 0.9
             windMeanX *= 0.9
             windMeanY *= 0.9
         } else {
-            windX *= 0.97
-            windY *= 0.97
+            baseWindX *= 0.97
+            baseWindY *= 0.97
+            windX = baseWindX
+            windY = baseWindY
             windSurge *= 0.97
             turbAmpLast *= 0.97
             windMeanX *= 0.97
