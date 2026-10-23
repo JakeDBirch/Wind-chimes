@@ -34,23 +34,6 @@ struct SampleVoiceParams {
     var octaveGain = 0.18
     var octaveDecay = 0.45      // × the main decay
     var octaveCutoff = 0.8      // × the main cutoff
-    // Metal voice: the ting, a tube's high modes in a note's first instant. Defaults are
-    // where Jake's ear landed on Oct 22: the 8.9× partial alone, quiet, instant, and
-    // following velocity, with the next two modes above it added for delicacy.
-    var ting = 0.2              // overall weight
-    var tingAttackMs = 0.2      // rise time
-    var tingDecayMs = 100.0     // decay of the 4th (8.933×) partial at zero velocity
-    var tingDecayHard = 2.0     // decay at full velocity, × the zero-velocity decay
-    var tingTilt = 0.75         // each partial above the 4th decays this much faster, each below this much slower
-    var tingBright = 40.0       // lowpass cutoff × each partial's frequency (40 = open)
-    var tingP2 = 0.02           // weight of the 2.756× partial
-    var tingP3 = 0.03           // ... 5.404×
-    var tingP4 = 0.10           // ... 8.933×
-    var tingP5 = 0.08           // ... 13.34×
-    var tingP6 = 0.05           // ... 18.64×
-    var tingBendCents = 10.0    // how sharp the ting starts, settling over 20 ms (as a struck object does)
-    var tingCurve = 3.6         // velocity exponent of its level (higher = hard hits only)
-
     /// Apply any matching numeric keys from the page.
     mutating func apply(_ values: [String: Double]) {
         for (key, value) in values {
@@ -82,37 +65,18 @@ struct SampleVoiceParams {
             case "octaveGain": octaveGain = value
             case "octaveDecay": octaveDecay = value
             case "octaveCutoff": octaveCutoff = value
-            case "ting": ting = max(0, value)
-            case "tingAttackMs": tingAttackMs = max(0.1, value)
-            case "tingDecayMs": tingDecayMs = max(1, value)
-            case "tingDecayHard": tingDecayHard = max(0.1, value)
-            case "tingTilt": tingTilt = max(0.1, min(3, value))
-            case "tingBright": tingBright = max(0.5, value)
-            case "tingP2": tingP2 = max(0, value)
-            case "tingP3": tingP3 = max(0, value)
-            case "tingP4": tingP4 = max(0, value)
-            case "tingP5": tingP5 = max(0, value)
-            case "tingP6": tingP6 = max(0, value)
-            case "tingBendCents": tingBendCents = max(0, value)
-            case "tingCurve": tingCurve = max(0.1, value)
             default: break
             }
         }
     }
 }
 
-/// Turns one strike into synth voices: a set of inharmonic partials with a
-/// velocity-dependent attack, decay and filter sweep, the metal tube sound of the
-/// original web version.
+/// Turns one strike into synth voices. The metal voice is a modal synth fitted to the
+/// reference physical model of a 1-inch aluminium tube (scripts/reference): every
+/// mode the model found, at the frequency, damping and amplitude it found for this
+/// pitch, this approach speed and this striker, each a damped sine from the first
+/// sample. A recorded sound plays the user's sample instead.
 enum ChimeVoices {
-    // Inharmonic series characteristic of hollow metal cylinders
-    static let partialRatios = [1, 2.756, 5.404, 8.933]
-    static let partialGains = [1.0, 0.55, 0.28, 0.10]
-    static let partialDecays = [1.0, 0.55, 0.30, 0.15]
-    // The same series carried on: the modes a strike excites but that are gone before the
-    // ring settles. Only the ting uses them.
-    static let tingRatios = [1, 2.756, 5.404, 8.933, 13.34, 18.64]
-
     static func make(for strike: ChimeStrike, sample: UserSample?, tuning t: SampleVoiceParams = SampleVoiceParams(),
                      sampleRate sr: Double) -> [SynthVoice] {
         func rand() -> Double { Double.random(in: 0..<1) }
@@ -125,24 +89,10 @@ enum ChimeVoices {
         // ── Timbre by strike type: clapper hits ring bright and long, tube-on-tube is warmer
         let bright = isClapper ? 0.55 : 0.30
         let gainScale = isClapper ? 1.0 : 0.75
-        let partialRolloff = isClapper ? 1.0 : 0.55
         let attackMult = isClapper ? 1.0 : 2.2
         let decayMult = isClapper ? 1.0 : 0.75
 
         let vel = gainScale * (0.05 + pow(velNorm, 2.2) * 0.95)
-        // Ring time falls with pitch, as a metal tube's does (its losses give a roughly
-        // constant Q, so a real tube rings in proportion to 1/f). Here it's a nudge toward
-        // that: ∝ 1/f^0.6, anchored so A4 keeps the length it had, so an octave up rings
-        // a third shorter and an octave down half as long again; clamped at both ends.
-        let pitchRing = max(0.2, min(2.4, 0.867 * pow(440 / freq, 0.6)))
-        let baseDecay = decayMult * (1.2 + pow(velNorm, 0.7) * 24.0) * pitchRing
-        let velBright = bright * (0.20 + velNorm * velNorm * 0.80)
-        let startCutoffMult = 3.0 + velBright * 7.0
-        let endCutoffMult = 0.85 + velBright * 0.4
-
-        // No per-strike pitch randomness: a tube struck again while ringing must land on
-        // exactly the same frequencies, or the two notes beat and read as pitch wobble
-        let pitchWobble = 1.0
         let now = 0.006
 
         // ── Recorded sound: the user's sample looped at the tube's pitch. A sample has a
@@ -206,85 +156,69 @@ enum ChimeVoices {
             return voices
         }
 
-        // ── The ting: the first instant of every note is the tube's high modes. The
-        // impact excites every mode at once; the ring is what's left once the high ones
-        // have died, which on a real tube takes a tenth of a second or so. Those modes
-        // (the 8.9× partial and the two above it, which the ring never uses) are what a
-        // light touch sounds like before the fundamental takes over, and what gives a hard
-        // hit its edge. They start a touch sharp and settle, decay faster the higher they
-        // are, and follow velocity steeply. Every number here is a Workshop slider.
-        if t.ting > 0 {
-            let tingAttack = t.tingAttackMs / 1000
-            let decay4 = t.tingDecayMs / 1000 * (1 + (t.tingDecayHard - 1) * velNorm)
-            let tingVel = gainScale * (0.05 + pow(velNorm, t.tingCurve) * 0.95)
-            let tingGains = [0.0, t.tingP2, t.tingP3, t.tingP4, t.tingP5, t.tingP6]
-            let split = twinModeSplit(for: freq)
-            let bend = pow(2, t.tingBendCents / 1200)
-            for i in 1..<tingRatios.count {
-                let di = Double(i)
-                let pFreq = freq * tingRatios[i]
-                if pFreq > 16000 || tingGains[i] <= 0 { continue }
-                let pGain = t.ting * tingVel * tingGains[i] * pow(partialRolloff, di) * 0.65 * (0.90 + rand() * 0.20)
-                let pDecay = decay4 * pow(t.tingTilt, di - 3)
-                for sign in [-0.5, 0.5] {
-                    let v = SynthVoice()
-                    v.startTime = now
-                    let f = pFreq * pow(2, sign * split / 1200)
-                    var pitch = Automation(f * bend)
-                    if t.tingBendCents > 0 { pitch.exponentialRamp(to: f, at: now + 0.020) }
-                    v.frequency = pitch
-                    v.filterFrequency = Automation(pFreq * t.tingBright)
-                    v.filter = Biquad(.lowpass, q: 0.5)
-                    v.gain.setValue(0, at: now)
-                    v.gain.linearRamp(to: pGain * 0.5, at: now + tingAttack)
-                    v.gain.exponentialRamp(to: 0.0001, at: now + tingAttack + pDecay)
-                    v.stopTime = now + tingAttack + pDecay + 0.01
-                    voices.append(v)
-                }
-            }
+        return modal(for: strike)
+    }
+
+    /// Hard hits in the table are 1 m/s; this puts one at a peak of about 0.6 in the mix
+    static let calibration: Double = {
+        let row = ChimeModalTable.wood[4]              // 440 Hz
+        let j = ChimeModalTable.speeds.firstIndex(of: 1.0) ?? 5
+        let sum = row.reduce(0.0) { $0 + $1.amps[j] }
+        return 0.6 / max(sum, 1e-9)
+    }()
+
+    /// The modal metal voice: look the strike up in the reference table, interpolating
+    /// in log pitch between the two nearest fitted tubes and in log speed between the
+    /// two nearest fitted strikes, and start every mode as a damped sine.
+    static func modal(for strike: ChimeStrike) -> [SynthVoice] {
+        let table = strike.isClapper ? ChimeModalTable.wood : ChimeModalTable.tube
+        let pitches = ChimeModalTable.pitches, speeds = ChimeModalTable.speeds
+        let f = strike.frequency
+        let now = 0.006
+
+        // Pitch bracket
+        let fc = min(max(f, pitches.first!), pitches.last!)
+        var i = 0
+        while i + 2 < pitches.count && pitches[i + 1] <= fc { i += 1 }
+        let tp = log(fc / pitches[i]) / log(pitches[i + 1] / pitches[i])
+        // Speed bracket
+        let sc = min(max(strike.speed, speeds.first!), speeds.last!)
+        var j = 0
+        while j + 2 < speeds.count && speeds[j + 1] <= sc { j += 1 }
+        let ts = log(sc / speeds[j]) / log(speeds[j + 1] / speeds[j])
+
+        func amp(_ m: ChimeModalTable.Mode) -> Double {
+            exp(log(max(m.amps[j], 1e-9)) * (1 - ts) + log(max(m.amps[j + 1], 1e-9)) * ts)
         }
+        let lo = table[i], hi = table[i + 1]
+        let loBend = lo.filter { !$0.shell }, hiBend = hi.filter { !$0.shell }
+        let loShell = lo.filter { $0.shell }, hiShell = hi.filter { $0.shell }
+        let split = twinModeSplit(for: f)
+        var voices: [SynthVoice] = []
 
-        for i in 0..<partialRatios.count {
-            let di = Double(i)
-            let pFreq = freq * partialRatios[i] * pitchWobble
-            if pFreq > 16000 { continue }
-
-            // Higher partials only emerge on harder strikes
-            let threshold = di * 0.12
-            if velNorm < threshold { continue }
-            let partialVel = max(0, (velNorm - threshold) / (1 - threshold))
-
-            let pFreqD = pFreq
-            let pDecay = baseDecay * partialDecays[i]
-            let gainVar = 0.90 + rand() * 0.20
-            let pGain = vel * partialGains[i] * gainVar * pow(partialRolloff, di) * pow(partialVel, 0.6) * 0.65
-            let attack = attackMult * (0.006 + di * (0.006 + velNorm * 0.008))
-
-            // Twin modes: a real tube is never perfectly round, so each partial is a pair
-            // of modes a cent or two apart that beat slowly as the note rings. The split is
-            // fixed per tube (from its pitch), so a tube warbles the same way every strike
-            // and no two tubes warble together.
-            let split = twinModeSplit(for: freq)
-            for sign in [-0.5, 0.5] {
+        func add(_ a: ChimeModalTable.Mode, _ b: ChimeModalTable.Mode, twin: Bool) {
+            let ratio = a.ratio * (1 - tp) + b.ratio * tp
+            let zeta = max(1e-4, a.zeta * (1 - tp) + b.zeta * tp)
+            let level = exp(log(amp(a)) * (1 - tp) + log(amp(b)) * tp) * calibration
+            let mf = f * ratio
+            if mf > 16000 || level < 3e-5 { return }
+            let decay = zeta * 2 * .pi * mf
+            // Twin modes: a real tube is never perfectly round, so each bending mode is a
+            // pair a cent or two apart that beat slowly as the note rings. Fixed per tube.
+            let parts: [Double] = twin && mf < 4000 ? [-0.5, 0.5] : [0]
+            for sign in parts {
                 let v = SynthVoice()
+                v.modal = true
                 v.startTime = now
-                v.frequency = Automation(pFreqD * pow(2, sign * split / 1200))
-
-                // Lowpass sweep from bright to dark as the note decays
-                var cutoff = Automation(350) // BiquadFilterNode default until the sweep starts
-                cutoff.setValue(pFreq * startCutoffMult, at: now + attack)
-                cutoff.exponentialRamp(to: pFreq * endCutoffMult, at: now + attack + pDecay)
-                v.filterFrequency = cutoff
-                v.filter = Biquad(.lowpass, q: 0.5)
-
-                v.gain.setValue(0, at: now)
-                v.gain.linearRamp(to: pGain * 0.5, at: now + attack)
-                v.gain.exponentialRamp(to: 0.0001, at: now + attack + pDecay)
-                v.stopTime = now + attack + pDecay + 0.1
+                v.modalFreq = mf * pow(2, sign * split / 1200)
+                v.modalAmp = level / Double(parts.count)
+                v.modalDecay = decay
+                v.stopTime = now + log(v.modalAmp / 2e-5) / decay + 0.01
                 voices.append(v)
             }
         }
-
+        for k in 0..<min(loBend.count, hiBend.count) { add(loBend[k], hiBend[k], twin: true) }
+        for k in 0..<min(loShell.count, hiShell.count) { add(loShell[k], hiShell[k], twin: false) }
         return voices
     }
 

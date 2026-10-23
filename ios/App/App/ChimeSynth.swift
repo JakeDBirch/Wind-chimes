@@ -149,6 +149,13 @@ final class SynthVoice {
     var filterFrequency: Automation? // nil = cutoff fixed when the voice was built
     var gain = Automation(1)
 
+    // Modal fast path: one mode of a struck tube, a damped sine that starts at full
+    // amplitude the instant the strike lands and decays at `modalDecay` per second.
+    // Rendered as a decaying complex rotation, four multiplies and two adds a sample.
+    var modal = false
+    var modalAmp = 0.0, modalFreq = 0.0, modalDecay = 0.0
+    private var mre = 0.0, mim = 0.0, rotC = 0.0, rotS = 0.0, modalReady = false
+
     private var time = 0.0
     private var phase = 0.0
     private var samplePos = 0.0
@@ -156,6 +163,28 @@ final class SynthVoice {
     /// Adds this voice into `out`. Returns false once the voice has finished.
     func render(into out: UnsafeMutablePointer<Float>, frames: Int, sampleRate: Double) -> Bool {
         let invSr = 1.0 / sampleRate
+        if modal {
+            if !modalReady {
+                modalReady = true
+                let g = exp(-modalDecay * invSr)
+                let w = 2.0 * Double.pi * modalFreq * invSr
+                rotC = cos(w) * g; rotS = sin(w) * g
+                mre = modalAmp; mim = 0           // the sine starts from zero: no click
+            }
+            let t0 = time
+            time = t0 + Double(frames) * invSr
+            let first = t0 < startTime ? min(frames, Int((startTime - t0) * sampleRate)) : 0
+            var re = mre, im = mim
+            let c = rotC, sn = rotS
+            for k in first..<frames {
+                let nre = re * c - im * sn
+                im = re * sn + im * c
+                re = nre
+                out[k] += Float(im)
+            }
+            mre = re; mim = im
+            return modalAmp * exp(-modalDecay * max(0, time - startTime)) > 2e-5
+        }
         let w = 2.0 * Double.pi * invSr
         let hasFilter = filter != nil
         let sweepsFilter = filterFrequency != nil
@@ -244,7 +273,7 @@ final class ChimeSynth {
     private var bodyDrift = 1.0, bodyDriftTarget = 1.0
     private var compEnvelope = 0.0, compGain = 1.0 // gentle compressor evens out the surges
 
-    private static let maxVoices = 384
+    private static let maxVoices = 768
 
     /// While the microphone is open nothing else may sound: the output is silence and
     /// every voice, ringing or waiting, is dropped so nothing bursts out afterwards.
@@ -260,7 +289,7 @@ final class ChimeSynth {
         self.sampleRate = sampleRate
         lock = .allocate(capacity: 1)
         lock.initialize(to: os_unfair_lock())
-        voices.reserveCapacity(512)
+        voices.reserveCapacity(1024)
         pending.reserveCapacity(128)
         incoming.reserveCapacity(128)
     }

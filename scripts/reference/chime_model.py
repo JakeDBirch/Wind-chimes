@@ -288,8 +288,26 @@ def collide(striker, target, v0, k, e):
 
 # ── Render ────────────────────────────────────────────────────────────────────
 
-def render(modes, sr, seconds, tilt_db_oct=0.0, radius=0.0127):
+def mode_weight(m, radius, tilt_db_oct=0.0):
+    """Pressure per unit modal displacement: far-field pressure follows the surface
+    acceleration while the tube is small against the wavelength (ka < 1), and the
+    surface velocity once it isn't, so the weight grows as ω² up to ka = 1 and as ω
+    beyond; radiation efficiency and an optional tilt on top."""
     w_ka1 = 343.0 / radius     # ω at which ka = 1 for the tube's outer radius
+    wa = min(m.w, w_ka1)
+    return m.radiation * m.w * wa * 2 ** (tilt_db_oct / 6.02 * math.log2(m.f / 440.0))
+
+
+def mode_amplitude(m, radius, tilt_db_oct=0.0):
+    """Peak pressure amplitude of a mode's ring-down from its state at separation."""
+    if m.w <= 0:
+        return 0.0
+    wd = m.w * math.sqrt(max(1 - m.zeta ** 2, 0))
+    a = m.zeta * m.w
+    return mode_weight(m, radius, tilt_db_oct) * math.hypot(m.q, (m.v + a * m.q) / wd)
+
+
+def render(modes, sr, seconds, tilt_db_oct=0.0, radius=0.0127):
     t = np.arange(int(sr * seconds)) / sr
     out = np.zeros_like(t)
     table = []
@@ -303,11 +321,7 @@ def render(modes, sr, seconds, tilt_db_oct=0.0, radius=0.0127):
         B = (m.v + a * m.q) / wd
         env = np.exp(-a * t)
         disp = env * (A * np.cos(wd * t) + B * np.sin(wd * t))
-        # Far-field pressure follows the surface acceleration while the tube is small
-        # against the wavelength (ka < 1), and the surface velocity once it isn't: the
-        # weight grows as ω² up to ka = 1 and as ω beyond
-        wa = min(m.w, w_ka1)
-        weight = m.radiation * m.w * wa * 2 ** (tilt_db_oct / 6.02 * math.log2(m.f / 440.0))
+        weight = mode_weight(m, radius, tilt_db_oct)
         out += -weight * disp      # the damping terms are negligible for ζ ≪ 1
         amp = weight * math.hypot(A, B)
         table.append({'label': m.label, 'kind': m.kind, 'f': m.f, 'zeta': m.zeta, 't60': m.t60,
