@@ -613,23 +613,14 @@ var SHOP = [
   { key: 'tubeDamp',    name: 'Chime damping',   base: 0.54 },
   { key: 'gap',         name: 'Chime gap',       base: 10.5 },
   { key: 'sensitivity', name: 'Wind susceptibility', base: 0.342 },
-  // The ting: the tube's high modes in each note's first instant. These run 0 to 400%
-  // so any one can be taken out, and show the value the engine gets. A saved
-  // percentage is kept only while its base is the one it was set against: when a
-  // default moves, that slider alone goes back to 100%.
-  { key: 'ting',          name: 'Ting level',        base: 0.2,  voice: true, min: 0, max: 400, head: 'Attack', unit: '' },
-  { key: 'tingAttackMs',  name: 'Ting attack',       base: 0.2,  voice: true, min: 0, max: 400, unit: ' ms' },
-  { key: 'tingDecayMs',   name: 'Ting decay',        base: 100,  voice: true, min: 0, max: 400, unit: ' ms' },
-  { key: 'tingDecayHard', name: 'Ting decay, hard hits', base: 2.0,  voice: true, min: 0, max: 400, unit: '× decay' },
-  { key: 'tingTilt',      name: 'Ting decay tilt',   base: 0.75, voice: true, min: 0, max: 400, unit: '' },
-  { key: 'tingBright',    name: 'Ting brightness',   base: 40,   voice: true, min: 0, max: 400, unit: '×' },
-  { key: 'tingP2',        name: 'Ting 2.8× partial', base: 0.02, voice: true, min: 0, max: 400, unit: '' },
-  { key: 'tingP3',        name: 'Ting 5.4× partial', base: 0.03, voice: true, min: 0, max: 400, unit: '' },
-  { key: 'tingP4',        name: 'Ting 8.9× partial', base: 0.10, voice: true, min: 0, max: 400, unit: '' },
-  { key: 'tingP5',        name: 'Ting 13.3× partial', base: 0.08, voice: true, min: 0, max: 400, unit: '' },
-  { key: 'tingP6',        name: 'Ting 18.6× partial', base: 0.05, voice: true, min: 0, max: 400, unit: '' },
-  { key: 'tingBendCents', name: 'Ting bend',         base: 10,   voice: true, min: 0, max: 400, unit: ' cents' },
-  { key: 'tingCurve',     name: 'Ting velocity curve', base: 3.6, voice: true, min: 0, max: 400, unit: '' }
+  // The ting: the modes of a real tube beyond the sustain's four partials, from the
+  // reference physical model at the strike's actual speed. Level 100% is the model's
+  // balance against the fundamental; decay 100% its decay times; "from" is the lowest
+  // bending mode included (the sustain carries 1–4). A saved percentage is kept only
+  // while its base is the one it was set against.
+  { key: 'ting',      name: 'Ting level',     base: 1.0, voice: true, min: 0, max: 400, head: 'Attack', unit: '' },
+  { key: 'tingDecay', name: 'Ting decay',     base: 1.0, voice: true, min: 0, max: 400, unit: '×' },
+  { key: 'tingFrom',  name: 'Ting from mode', base: 5,   voice: true, min: 40, max: 180, unit: '' }
 ];
 function shopMin(c) { return c.min == null ? 25 : c.min; }
 function shopMax(c) { return c.max == null ? 300 : c.max; }

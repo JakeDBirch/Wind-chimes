@@ -111,7 +111,8 @@ struct LabParams: Equatable {
 
 struct ChimeStrike {
     let frequency: Double
-    let velocity: Double
+    let velocity: Double   // 0–1, the soft curve the voice's sustain uses
+    let speed: Double      // the approach speed in m/s, for the reference-fitted ting
     let isClapper: Bool
 }
 
@@ -419,8 +420,8 @@ final class ChimePhysics {
 
     private func clampAngle(_ a: Double) -> Double { max(-.pi / 2, min(.pi / 2, a)) }
 
-    private func emitStrike(_ index: Int, velocity: Double, isClapper: Bool) {
-        onStrike?(ChimeStrike(frequency: tubeFrequency(index), velocity: velocity, isClapper: isClapper))
+    private func emitStrike(_ index: Int, velocity: Double, speed: Double, isClapper: Bool) {
+        onStrike?(ChimeStrike(frequency: tubeFrequency(index), velocity: velocity, speed: speed, isClapper: isClapper))
     }
 
     /// Strike velocity for the voice, 0–1, from an approach speed or impulse. A soft
@@ -602,7 +603,7 @@ final class ChimePhysics {
             tubes[i] = t
 
             if let strikeVel = struck {
-                emitStrike(i, velocity: strikeVelocity(strikeVel, scale: 0.6, linear: 2.5), isClapper: true)
+                emitStrike(i, velocity: strikeVelocity(strikeVel, scale: 0.6, linear: 2.5), speed: strikeVel, isClapper: true)
             }
         }
 
@@ -662,8 +663,8 @@ final class ChimePhysics {
                         strikeCount += 1
                         tubes[a].lastStrike = simTime
                         tubes[b].lastStrike = simTime
-                        emitStrike(a, velocity: strikeVelocity(impulse, scale: 0.7, linear: 2.0), isClapper: false)
-                        emitStrike(b, velocity: strikeVelocity(impulse, scale: 0.7, linear: 2.0), isClapper: false)
+                        emitStrike(a, velocity: strikeVelocity(impulse, scale: 0.7, linear: 2.0), speed: abs(relVn), isClapper: false)
+                        emitStrike(b, velocity: strikeVelocity(impulse, scale: 0.7, linear: 2.0), speed: abs(relVn), isClapper: false)
                     }
                 }
 

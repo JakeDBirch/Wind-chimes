@@ -34,22 +34,13 @@ struct SampleVoiceParams {
     var octaveGain = 0.18
     var octaveDecay = 0.45      // × the main decay
     var octaveCutoff = 0.8      // × the main cutoff
-    // Metal voice: the ting, a tube's high modes in a note's first instant. Defaults are
-    // where Jake's ear landed on Oct 22: the 8.9× partial alone, quiet, instant, and
-    // following velocity, with the next two modes above it added for delicacy.
-    var ting = 0.2              // overall weight
-    var tingAttackMs = 0.2      // rise time
-    var tingDecayMs = 100.0     // decay of the 4th (8.933×) partial at zero velocity
-    var tingDecayHard = 2.0     // decay at full velocity, × the zero-velocity decay
-    var tingTilt = 0.75         // each partial above the 4th decays this much faster, each below this much slower
-    var tingBright = 40.0       // lowpass cutoff × each partial's frequency (40 = open)
-    var tingP2 = 0.02           // weight of the 2.756× partial
-    var tingP3 = 0.03           // ... 5.404×
-    var tingP4 = 0.10           // ... 8.933×
-    var tingP5 = 0.08           // ... 13.34×
-    var tingP6 = 0.05           // ... 18.64×
-    var tingBendCents = 10.0    // how sharp the ting starts, settling over 20 ms (as a struck object does)
-    var tingCurve = 3.6         // velocity exponent of its level (higher = hard hits only)
+    // Metal voice: the ting, the modes of a real tube that the four partials of the
+    // sustain don't carry, taken from the reference physical model (scripts/reference)
+    // at the strike's actual speed: their amplitude relative to the fundamental's and
+    // their decay are the model's; only the level is taste.
+    var ting = 1.0              // level, 1 = the model's balance against the fundamental
+    var tingDecay = 1.0         // × the model's decay times
+    var tingFrom = 5.0          // the lowest bending mode in the ting (the sustain has 1–4)
 
     /// Apply any matching numeric keys from the page.
     mutating func apply(_ values: [String: Double]) {
@@ -83,18 +74,8 @@ struct SampleVoiceParams {
             case "octaveDecay": octaveDecay = value
             case "octaveCutoff": octaveCutoff = value
             case "ting": ting = max(0, value)
-            case "tingAttackMs": tingAttackMs = max(0.1, value)
-            case "tingDecayMs": tingDecayMs = max(1, value)
-            case "tingDecayHard": tingDecayHard = max(0.1, value)
-            case "tingTilt": tingTilt = max(0.1, min(3, value))
-            case "tingBright": tingBright = max(0.5, value)
-            case "tingP2": tingP2 = max(0, value)
-            case "tingP3": tingP3 = max(0, value)
-            case "tingP4": tingP4 = max(0, value)
-            case "tingP5": tingP5 = max(0, value)
-            case "tingP6": tingP6 = max(0, value)
-            case "tingBendCents": tingBendCents = max(0, value)
-            case "tingCurve": tingCurve = max(0.1, value)
+            case "tingDecay": tingDecay = max(0.05, value)
+            case "tingFrom": tingFrom = max(2, min(9, value))
             default: break
             }
         }
@@ -206,41 +187,25 @@ enum ChimeVoices {
             return voices
         }
 
-        // ── The ting: the first instant of every note is the tube's high modes. The
-        // impact excites every mode at once; the ring is what's left once the high ones
-        // have died, which on a real tube takes a tenth of a second or so. Those modes
-        // (the 8.9× partial and the two above it, which the ring never uses) are what a
-        // light touch sounds like before the fundamental takes over, and what gives a hard
-        // hit its edge. They start a touch sharp and settle, decay faster the higher they
-        // are, and follow velocity steeply. Every number here is a Workshop slider.
+        // ── The ting: the first instant of a real strike is the tube's high modes, which the
+        // four partials below don't carry. They come from the reference physical model,
+        // looked up at this strike's pitch, approach speed and striker: each mode's
+        // amplitude relative to the fundamental's and its decay are the model's, scaled by
+        // the fundamental this voice is about to play, so the ting follows velocity the
+        // way a struck tube's does. Instant onset, no filter.
         if t.ting > 0 {
-            let tingAttack = t.tingAttackMs / 1000
-            let decay4 = t.tingDecayMs / 1000 * (1 + (t.tingDecayHard - 1) * velNorm)
-            let tingVel = gainScale * (0.05 + pow(velNorm, t.tingCurve) * 0.95)
-            let tingGains = [0.0, t.tingP2, t.tingP3, t.tingP4, t.tingP5, t.tingP6]
-            let split = twinModeSplit(for: freq)
-            let bend = pow(2, t.tingBendCents / 1200)
-            for i in 1..<tingRatios.count {
-                let di = Double(i)
-                let pFreq = freq * tingRatios[i]
-                if pFreq > 16000 || tingGains[i] <= 0 { continue }
-                let pGain = t.ting * tingVel * tingGains[i] * pow(partialRolloff, di) * 0.65 * (0.90 + rand() * 0.20)
-                let pDecay = decay4 * pow(t.tingTilt, di - 3)
-                for sign in [-0.5, 0.5] {
-                    let v = SynthVoice()
-                    v.startTime = now
-                    let f = pFreq * pow(2, sign * split / 1200)
-                    var pitch = Automation(f * bend)
-                    if t.tingBendCents > 0 { pitch.exponentialRamp(to: f, at: now + 0.020) }
-                    v.frequency = pitch
-                    v.filterFrequency = Automation(pFreq * t.tingBright)
-                    v.filter = Biquad(.lowpass, q: 0.5)
-                    v.gain.setValue(0, at: now)
-                    v.gain.linearRamp(to: pGain * 0.5, at: now + tingAttack)
-                    v.gain.exponentialRamp(to: 0.0001, at: now + tingAttack + pDecay)
-                    v.stopTime = now + tingAttack + pDecay + 0.01
-                    voices.append(v)
-                }
+            let fundamental = vel * 0.65
+            for m in referenceTing(for: strike, from: Int(t.tingFrom.rounded())) {
+                let level = t.ting * fundamental * m.relative
+                if level < 2e-5 { continue }
+                let v = SynthVoice()
+                v.modal = true
+                v.startTime = now
+                v.modalFreq = m.frequency
+                v.modalAmp = level
+                v.modalDecay = m.decay / t.tingDecay
+                v.stopTime = now + log(level / 2e-5) / v.modalDecay + 0.01
+                voices.append(v)
             }
         }
 
@@ -286,6 +251,55 @@ enum ChimeVoices {
         }
 
         return voices
+    }
+
+    struct TingMode { let frequency: Double; let relative: Double; let decay: Double }
+
+    /// The reference model's modes for this strike beyond the sustain's partials: the
+    /// bending modes from `from` up and the wall's ovalling modes, each with its
+    /// amplitude as a fraction of the loudest low mode's and its decay rate per second.
+    /// Interpolated in log pitch and log speed between the fitted grid points.
+    static func referenceTing(for strike: ChimeStrike, from: Int) -> [TingMode] {
+        let table = strike.isClapper ? ChimeModalTable.wood : ChimeModalTable.tube
+        let pitches = ChimeModalTable.pitches, speeds = ChimeModalTable.speeds
+        let f = strike.frequency
+        let fc = min(max(f, pitches.first!), pitches.last!)
+        var i = 0
+        while i + 2 < pitches.count && pitches[i + 1] <= fc { i += 1 }
+        let tp = log(fc / pitches[i]) / log(pitches[i + 1] / pitches[i])
+        let sc = min(max(strike.speed, speeds.first!), speeds.last!)
+        var j = 0
+        while j + 2 < speeds.count && speeds[j + 1] <= sc { j += 1 }
+        let ts = log(sc / speeds[j]) / log(speeds[j + 1] / speeds[j])
+        func amp(_ m: ChimeModalTable.Mode) -> Double {
+            exp(log(max(m.amps[j], 1e-9)) * (1 - ts) + log(max(m.amps[j + 1], 1e-9)) * ts)
+        }
+        let lo = table[i], hi = table[i + 1]
+        let loBend = lo.filter { !$0.shell }, hiBend = hi.filter { !$0.shell }
+        let loShell = lo.filter { $0.shell }, hiShell = hi.filter { $0.shell }
+        // Relative to the loudest of the model's first four modes, the ones the sustain
+        // plays (its fundamental is the loudest of its partials, so that is what the
+        // level scales). Mode 1 alone would do, except that a long tube radiates its
+        // fundamental poorly in the model and the ratio would blow up at low pitch.
+        var reference = 1e-9
+        for k in 0..<min(4, loBend.count, hiBend.count) {
+            reference = max(reference, exp(log(amp(loBend[k])) * (1 - tp) + log(amp(hiBend[k])) * tp))
+        }
+        var out: [TingMode] = []
+        func add(_ a: ChimeModalTable.Mode, _ b: ChimeModalTable.Mode) {
+            let ratio = a.ratio * (1 - tp) + b.ratio * tp
+            let zeta = max(1e-4, a.zeta * (1 - tp) + b.zeta * tp)
+            let level = exp(log(amp(a)) * (1 - tp) + log(amp(b)) * tp)
+            let mf = f * ratio
+            if mf > 16000 { return }
+            out.append(TingMode(frequency: mf, relative: level / reference, decay: zeta * 2 * .pi * mf))
+        }
+        let first = max(1, from - 1)
+        if first < min(loBend.count, hiBend.count) {
+            for k in first..<min(loBend.count, hiBend.count) { add(loBend[k], hiBend[k]) }
+        }
+        for k in 0..<min(loShell.count, hiShell.count) { add(loShell[k], hiShell[k]) }
+        return out
     }
 
     /// The split between a tube's two bending modes, in cents: 1 to 2.6, fixed for a given

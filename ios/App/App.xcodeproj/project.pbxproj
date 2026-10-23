@@ -19,6 +19,7 @@
 		C41E00000000000000000B01 /* ChimePhysics.swift in Sources */ = {isa = PBXBuildFile; fileRef = C41E00000000000000000A01 /* ChimePhysics.swift */; };
 		C41E00000000000000000B02 /* ChimeSynth.swift in Sources */ = {isa = PBXBuildFile; fileRef = C41E00000000000000000A02 /* ChimeSynth.swift */; };
 		C41E00000000000000000B03 /* ChimeVoices.swift in Sources */ = {isa = PBXBuildFile; fileRef = C41E00000000000000000A03 /* ChimeVoices.swift */; };
+		C41E00000000000000000B09 /* ChimeModalTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = C41E00000000000000000A09 /* ChimeModalTable.swift */; };
 		C41E00000000000000000B04 /* ChimeEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = C41E00000000000000000A04 /* ChimeEngine.swift */; };
 		C41E00000000000000000B05 /* ChimeEnginePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = C41E00000000000000000A05 /* ChimeEnginePlugin.swift */; };
 		C41E00000000000000000B06 /* MainViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C41E00000000000000000A06 /* MainViewController.swift */; };
@@ -40,6 +41,7 @@
 		C41E00000000000000000A01 /* ChimePhysics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChimePhysics.swift; sourceTree = "<group>"; };
 		C41E00000000000000000A02 /* ChimeSynth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChimeSynth.swift; sourceTree = "<group>"; };
 		C41E00000000000000000A03 /* ChimeVoices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChimeVoices.swift; sourceTree = "<group>"; };
+		C41E00000000000000000A09 /* ChimeModalTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChimeModalTable.swift; sourceTree = "<group>"; };
 		C41E00000000000000000A04 /* ChimeEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChimeEngine.swift; sourceTree = "<group>"; };
 		C41E00000000000000000A05 /* ChimeEnginePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChimeEnginePlugin.swift; sourceTree = "<group>"; };
 		C41E00000000000000000A06 /* MainViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewController.swift; sourceTree = "<group>"; };
@@ -84,6 +86,7 @@
 				C41E00000000000000000A01 /* ChimePhysics.swift */,
 				C41E00000000000000000A02 /* ChimeSynth.swift */,
 				C41E00000000000000000A03 /* ChimeVoices.swift */,
+				C41E00000000000000000A09 /* ChimeModalTable.swift */,
 				C41E00000000000000000A04 /* ChimeEngine.swift */,
 				C41E00000000000000000A05 /* ChimeEnginePlugin.swift */,
 				C41E00000000000000000A06 /* MainViewController.swift */,
@@ -184,6 +187,7 @@
 				C41E00000000000000000B01 /* ChimePhysics.swift in Sources */,
 				C41E00000000000000000B02 /* ChimeSynth.swift in Sources */,
 				C41E00000000000000000B03 /* ChimeVoices.swift in Sources */,
+				C41E00000000000000000B09 /* ChimeModalTable.swift in Sources */,
 				C41E00000000000000000B04 /* ChimeEngine.swift in Sources */,
 				C41E00000000000000000B05 /* ChimeEnginePlugin.swift in Sources */,
 				C41E00000000000000000B06 /* MainViewController.swift in Sources */,
