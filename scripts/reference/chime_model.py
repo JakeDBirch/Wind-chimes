@@ -37,20 +37,31 @@ class Tube:
     """A 6061 aluminium tube: 1 inch outside diameter, 1.5 mm wall."""
 
     def __init__(self, f1, outer_d=0.0254, wall=0.0015, E=69e9, rho=2700.0, nu=0.33):
+        """wall=None makes a solid rod of diameter outer_d."""
         self.E, self.rho, self.nu = E, rho, nu
         self.G = E / (2 * (1 + nu))
         self.Ro = outer_d / 2
-        self.Ri = self.Ro - wall
-        self.h = wall
-        self.R = (self.Ro + self.Ri) / 2            # mid-surface radius
+        self.solid = wall is None
+        if self.solid:
+            self.Ri = 0.0
+            self.h = self.Ro
+            self.R = self.Ro
+            self.kappa = 6 * (1 + nu) / (7 + 6 * nu)   # Timoshenko shear coefficient, solid circle
+        else:
+            self.Ri = self.Ro - wall
+            self.h = wall
+            self.R = (self.Ro + self.Ri) / 2            # mid-surface radius
+            self.kappa = 2 * (1 + nu) / (4 + 3 * nu)     # thin tube
         self.A = math.pi * (self.Ro ** 2 - self.Ri ** 2)
         self.I = math.pi / 4 * (self.Ro ** 4 - self.Ri ** 4)
-        self.kappa = 2 * (1 + nu) / (4 + 3 * nu)     # Timoshenko shear coefficient, thin tube
+        # Coincidence: below this the bending wave is slower than sound and the mode
+        # radiates poorly (as f²)
+        self.gyr = math.sqrt(self.I / self.A)
+        self.f_c = 343.0 ** 2 / (2 * math.pi * self.gyr * math.sqrt(E / rho))
         # Length for the wanted first bending mode (Euler–Bernoulli estimate, then
         # corrected by the FE solution)
-        gyr = math.sqrt(self.I / self.A)
         c = math.sqrt(E / rho)
-        self.L = math.sqrt(4.7300 ** 2 / (2 * math.pi) * c * gyr / f1)
+        self.L = math.sqrt(4.7300 ** 2 / (2 * math.pi) * c * self.gyr / f1)
         self._solve_bending()
         scale = self.bend_f[0] / f1
         self.L *= math.sqrt(scale)                   # f ∝ 1/L², one correction is enough
@@ -103,6 +114,8 @@ class Tube:
     def shell_modes(self, f_max=20000.0, n_max=4, m_max=6):
         """Ovalling modes of the wall (Donnell–Mushtari), lowest branch, as a list of
         (frequency, circumferential n, axial m). Axial wavenumber m π / L."""
+        if self.solid:
+            return []
         E, rho, nu, R, h, L = self.E, self.rho, self.nu, self.R, self.h, self.L
         beta2 = h ** 2 / (12 * R ** 2)
         c = math.sqrt(E / (rho * (1 - nu ** 2)))
@@ -162,7 +175,7 @@ def tube_modes(tube, strike_frac, cord_frac, args, prefix=''):
     phi0 = tube.bend_at(x0)
     phis = tube.bend_at(xs)
     phimax = np.abs(tube.bend_shape).max(axis=0)
-    f_c = args.coincidence
+    f_c = tube.f_c
     for j, f in enumerate(tube.bend_f):
         if f > args.f_max:
             break
@@ -327,7 +340,7 @@ def main():
     ap.add_argument('--zeta-slope', type=float, default=0.37, help='damping ∝ f^slope')
     ap.add_argument('--zeta-cord', type=float, default=2e-4)
     ap.add_argument('--zeta-shell', type=float, default=2e-3)
-    ap.add_argument('--coincidence', type=float, default=440.0, help='below this, radiation falls as f²')
+    ap.add_argument('--solid', type=float, default=0.0, help='make the chimes solid rods of this diameter in mm (0 = 1-inch tube)')
     ap.add_argument('--f-max', type=float, default=20000.0)
     ap.add_argument('--tilt', type=float, default=0.0, help='spectral tilt of the output, dB/octave about 440')
     ap.add_argument('--seconds', type=float, default=5.0)
@@ -337,30 +350,33 @@ def main():
     ap.add_argument('--no-png', action='store_true')
     args = ap.parse_args()
 
-    tube = Tube(args.pitch)
+    def make(f1):
+        return Tube(f1, outer_d=args.solid / 1000, wall=None) if args.solid > 0 else Tube(f1)
+
+    tube = make(args.pitch)
     nu_c = 0.3
     striker_tube = None
+    tag = f'_solid{args.solid:g}mm' if args.solid > 0 else ''
     if args.striker.startswith('tube:'):
         # Two hung tubes meet at the same depth below the ring. Each hangs from its
         # mode-1 node, so a contact at fraction `strike` of this tube's length lands on
         # the other at the fraction that puts it at the same depth.
-        striker_tube = Tube(float(args.striker[5:]))
+        striker_tube = make(float(args.striker[5:]))
         depth = (args.strike - args.cord) * tube.L
         args.striker_frac = args.cord + depth / striker_tube.L
         E_star = tube.E / (2 * (1 - tube.nu ** 2))
         R_eff = math.sqrt(tube.Ro * striker_tube.Ro)       # crossed cylinders, as swinging tubes meet
         args.hertz_k = 4 / 3 * E_star * math.sqrt(R_eff)
-        tag = f'_by{striker_tube.bend_f[0]:.0f}Hz'
+        tag += f'_by{striker_tube.bend_f[0]:.0f}Hz'
     else:
         # Hertz contact: clapper edge (curved one way) on the tube (curved the other)
         E_star = 1 / ((1 - nu_c ** 2) / args.clapper_E + (1 - tube.nu ** 2) / tube.E)
         R_eff = math.sqrt(args.clapper_radius * tube.Ro)
         args.hertz_k = 4 / 3 * E_star * math.sqrt(R_eff)
-        tag = ''
     args.tag = tag + args.tag
 
     os.makedirs(args.out, exist_ok=True)
-    print(f'tube: L = {tube.L * 100:.1f} cm, mass {tube.mass * 1000:.0f} g, bending modes (Hz):',
+    print(f'{"rod" if tube.solid else "tube"}: L = {tube.L * 100:.1f} cm, mass {tube.mass * 1000:.0f} g, coincidence {tube.f_c:.0f} Hz, bending modes (Hz):',
           ' '.join(f'{f:.0f}' for f in tube.bend_f if f < args.f_max))
     print('      ratios:', ' '.join(f'{f / tube.bend_f[0]:.3f}' for f in tube.bend_f if f < args.f_max))
     print('      shell modes (Hz):', ' '.join(f'{f:.0f}(n{n}m{m})' for f, n, m in tube.shell_modes(args.f_max)))
