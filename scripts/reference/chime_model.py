@@ -36,9 +36,12 @@ from scipy.linalg import eigh
 class Tube:
     """A 6061 aluminium tube: 1 inch outside diameter, 1.5 mm wall."""
 
-    def __init__(self, f1, outer_d=0.0254, wall=0.0015, E=69e9, rho=2700.0, nu=0.33):
-        """wall=None makes a solid rod of diameter outer_d."""
+    def __init__(self, f1, outer_d=0.0254, wall=0.0015, E=69e9, rho=2700.0, nu=0.33, length=None, loss=None):
+        """wall=None makes a solid rod of diameter outer_d. length (m) fixes the length
+        instead of solving it for f1. loss is a material loss factor η that replaces the
+        aluminium damping law (bamboo ~0.02)."""
         self.E, self.rho, self.nu = E, rho, nu
+        self.loss = loss
         self.G = E / (2 * (1 + nu))
         self.Ro = outer_d / 2
         self.solid = wall is None
@@ -61,12 +64,21 @@ class Tube:
         # Length for the wanted first bending mode (Euler–Bernoulli estimate, then
         # corrected by the FE solution)
         c = math.sqrt(E / rho)
-        self.L = math.sqrt(4.7300 ** 2 / (2 * math.pi) * c * self.gyr / f1)
-        self._solve_bending()
-        scale = self.bend_f[0] / f1
-        self.L *= math.sqrt(scale)                   # f ∝ 1/L², one correction is enough
-        self._solve_bending()
+        if length:
+            self.L = length
+            self._solve_bending()
+        else:
+            self.L = math.sqrt(4.7300 ** 2 / (2 * math.pi) * c * self.gyr / f1)
+            self._solve_bending()
+            scale = self.bend_f[0] / f1
+            self.L *= math.sqrt(scale)                   # f ∝ 1/L², one correction is enough
+            self._solve_bending()
         self.mass = rho * self.A * self.L
+
+    def air_column(self):
+        """The air inside, closed at the top node and open at the bottom: a quarter-wave
+        resonance with the open end's correction."""
+        return 343.0 / (4 * (self.L + 0.6 * self.Ri))
 
     def _solve_bending(self, n_el=240, n_modes=12):
         """Free-free Timoshenko beam by finite elements. Returns frequencies and
@@ -182,7 +194,10 @@ def tube_modes(tube, strike_frac, cord_frac, args, prefix=''):
         # Material + radiation, anchored on measured ring times of aluminium chimes
         # (about 8 s for the fundamental of an A4 tube, 0.4 s near 4 kHz), plus the cord
         # at the mode-1 node, which barely touches mode 1 and damps the others
-        zeta = args.zeta_440 * (f / 440.0) ** args.zeta_slope
+        if tube.loss is not None:
+            zeta = tube.loss / 2                       # ζ = η / 2, flat with frequency
+        else:
+            zeta = args.zeta_440 * (f / 440.0) ** args.zeta_slope
         zeta += args.zeta_cord * (phis[j] / phimax[j]) ** 2
         rad = min(1.0, (f / f_c) ** 2)
         modes.append(Mode(f, zeta, phi0[j], 'bend', f'{prefix}bend {j + 1}', rad))
@@ -192,6 +207,11 @@ def tube_modes(tube, strike_frac, cord_frac, args, prefix=''):
         axial = math.cos(m * math.pi * strike_frac)
         mm = tube.mass * 0.5 * (1.0 if m == 0 else 0.5)
         modes.append(Mode(f, args.zeta_shell, axial / math.sqrt(mm), 'shell', f'{prefix}shell n{n} m{m}', 1.0))
+    if args.air > 0 and not tube.solid:
+        # The air column. How hard a wall strike drives it is the one empirical number
+        # in the model: its coupling is `air` × the first bending mode's at the strike
+        # point. It radiates from the open end, so weight 1; its damping is the pipe's.
+        modes.append(Mode(tube.air_column(), args.zeta_air, args.air * abs(phi0[0]), 'air', f'{prefix}air column', 1.0))
     return modes
 
 
@@ -341,6 +361,10 @@ def main():
     ap.add_argument('--zeta-cord', type=float, default=2e-4)
     ap.add_argument('--zeta-shell', type=float, default=2e-3)
     ap.add_argument('--solid', type=float, default=0.0, help='make the chimes solid rods of this diameter in mm (0 = 1-inch tube)')
+    ap.add_argument('--material', default='aluminium', choices=['aluminium', 'bamboo'])
+    ap.add_argument('--length', type=float, default=0.0, help='fix the length in cm instead of solving it for --pitch (bamboo defaults to 25)')
+    ap.add_argument('--air', type=float, default=0.0, help='air-column coupling relative to the first bending mode (bamboo defaults to 1)')
+    ap.add_argument('--zeta-air', type=float, default=0.012)
     ap.add_argument('--f-max', type=float, default=20000.0)
     ap.add_argument('--tilt', type=float, default=0.0, help='spectral tilt of the output, dB/octave about 440')
     ap.add_argument('--seconds', type=float, default=5.0)
@@ -350,21 +374,43 @@ def main():
     ap.add_argument('--no-png', action='store_true')
     args = ap.parse_args()
 
+    if args.material == 'bamboo':
+        # Moso-type culm: 40 mm across, 5 mm wall, stiff along the grain, lossy; a
+        # bamboo chime is cut to a length, not a pitch, and its "note" is mostly the air
+        if not args.length:
+            args.length = 25.0
+        if not args.air:
+            args.air = 1.0
+        material = dict(E=12e9, rho=750.0, nu=0.3, outer_d=0.040, wall=0.005, loss=0.02)
+    else:
+        material = {}
+
     def make(f1):
-        return Tube(f1, outer_d=args.solid / 1000, wall=None) if args.solid > 0 else Tube(f1)
+        if args.solid > 0:
+            return Tube(f1, outer_d=args.solid / 1000, wall=None, length=args.length / 100 or None)
+        return Tube(f1, length=args.length / 100 or None, **material)
 
     tube = make(args.pitch)
     nu_c = 0.3
     striker_tube = None
     tag = f'_solid{args.solid:g}mm' if args.solid > 0 else ''
+    if args.material != 'aluminium':
+        tag += f'_{args.material}{args.length:g}cm'
     if args.striker.startswith('tube:'):
         # Two hung tubes meet at the same depth below the ring. Each hangs from its
         # mode-1 node, so a contact at fraction `strike` of this tube's length lands on
         # the other at the fraction that puts it at the same depth.
-        striker_tube = make(float(args.striker[5:]))
+        if args.length:
+            # A length-cut neighbour: the pitch given is ignored, it is 15% shorter
+            saved = args.length
+            args.length = saved * 0.85
+            striker_tube = make(args.pitch)
+            args.length = saved
+        else:
+            striker_tube = make(float(args.striker[5:]))
         depth = (args.strike - args.cord) * tube.L
         args.striker_frac = args.cord + depth / striker_tube.L
-        E_star = tube.E / (2 * (1 - tube.nu ** 2))
+        E_star = tube.E / (2 * (1 - tube.nu ** 2))          # same material both sides
         R_eff = math.sqrt(tube.Ro * striker_tube.Ro)       # crossed cylinders, as swinging tubes meet
         args.hertz_k = 4 / 3 * E_star * math.sqrt(R_eff)
         tag += f'_by{striker_tube.bend_f[0]:.0f}Hz'
@@ -376,7 +422,8 @@ def main():
     args.tag = tag + args.tag
 
     os.makedirs(args.out, exist_ok=True)
-    print(f'{"rod" if tube.solid else "tube"}: L = {tube.L * 100:.1f} cm, mass {tube.mass * 1000:.0f} g, coincidence {tube.f_c:.0f} Hz, bending modes (Hz):',
+    print(f'{args.material} {"rod" if tube.solid else "tube"}: L = {tube.L * 100:.1f} cm, mass {tube.mass * 1000:.0f} g, coincidence {tube.f_c:.0f} Hz,'
+          + (f' air column {tube.air_column():.0f} Hz,' if args.air > 0 else '') + ' bending modes (Hz):',
           ' '.join(f'{f:.0f}' for f in tube.bend_f if f < args.f_max))
     print('      ratios:', ' '.join(f'{f / tube.bend_f[0]:.3f}' for f in tube.bend_f if f < args.f_max))
     print('      shell modes (Hz):', ' '.join(f'{f:.0f}(n{n}m{m})' for f, n, m in tube.shell_modes(args.f_max)))
