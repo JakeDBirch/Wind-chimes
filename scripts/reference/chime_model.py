@@ -7,14 +7,16 @@ measured target to be fitted against, in place of a recording we don't have.
 The tube is a free-free Timoshenko beam (finite elements, so the mode shapes are
 real and the higher modes drift below the simple 1 : 2.76 : 5.40 series as a real
 tube's do), with the ovalling modes of its wall from thin-shell theory. The strike
-is a clapper of real mass meeting the tube through a Hertzian contact spring with
-Hunt–Crossley hysteresis, integrated at 2 MHz for the fraction of a millisecond the
-contact lasts; after that each mode rings down analytically. Damping per mode is
+is a wooden clapper of real mass, or a neighbouring tube with all its own modes and
+its swing, meeting the tube through a Hertzian contact spring with Hunt–Crossley
+hysteresis, integrated at 5 MHz for the fraction of a millisecond the contact lasts;
+after that each mode rings down analytically. Damping per mode is
 material plus radiation (rising with frequency) plus the cord at the mode-1 node.
 Sound is the modal acceleration, weighted by a radiation efficiency, as a compact
 source's far-field pressure is.
 
     python3 chime_model.py --out renders/ --velocities 0.1 0.35 1.2
+    python3 chime_model.py --out renders/ --striker tube:523
 
 Writes one WAV per velocity (a common gain, so their relative loudness is kept),
 a JSON mode table for fitting, and a spectrogram PNG per render.
@@ -146,10 +148,17 @@ class Mode:
         return 6.908 / (self.zeta * self.w)
 
 
-def build_modes(tube, strike_frac, cord_frac, args):
+def tube_modes(tube, strike_frac, cord_frac, args, prefix=''):
+    """Every mode of a hung tube that matters at its contact point: rigid translation
+    and rotation (it swings on its cord, so a hit moves it bodily), bending, and the
+    wall's ovalling. All mass-normalised, so modal mass is 1."""
     modes = []
     x0 = strike_frac * tube.L
     xs = cord_frac * tube.L
+    # Rigid body: translation and rotation about the centre, ω = 0, no sound
+    modes.append(Mode(0.0, 0.0, 1 / math.sqrt(tube.mass), 'rigid', prefix + 'translate', 0.0))
+    J = tube.mass * tube.L ** 2 / 12
+    modes.append(Mode(0.0, 0.0, (x0 - tube.L / 2) / math.sqrt(J), 'rigid', prefix + 'rotate', 0.0))
     phi0 = tube.bend_at(x0)
     phis = tube.bend_at(xs)
     phimax = np.abs(tube.bend_shape).max(axis=0)
@@ -163,67 +172,73 @@ def build_modes(tube, strike_frac, cord_frac, args):
         zeta = args.zeta_440 * (f / 440.0) ** args.zeta_slope
         zeta += args.zeta_cord * (phis[j] / phimax[j]) ** 2
         rad = min(1.0, (f / f_c) ** 2)
-        modes.append(Mode(f, zeta, phi0[j], 'bend', f'bend {j + 1}', rad))
+        modes.append(Mode(f, zeta, phi0[j], 'bend', f'{prefix}bend {j + 1}', rad))
     for f, n, m in tube.shell_modes(args.f_max):
-        # Shape at the strike point: cos(nθ) = 1 under the clapper, cos(mπx/L) along;
+        # Shape at the strike point: cos(nθ) = 1 under the striker, cos(mπx/L) along;
         # modal mass is the tube's × ½ (circumferential) × ½ (axial, m ≥ 1)
         axial = math.cos(m * math.pi * strike_frac)
         mm = tube.mass * 0.5 * (1.0 if m == 0 else 0.5)
-        modes.append(Mode(f, args.zeta_shell, axial / math.sqrt(mm), 'shell', f'shell n{n} m{m}', 1.0))
+        modes.append(Mode(f, args.zeta_shell, axial / math.sqrt(mm), 'shell', f'{prefix}shell n{n} m{m}', 1.0))
     return modes
+
+
+def clapper_modes(mass):
+    """A wooden clapper: a point mass. (Its own body resonances are far quieter than
+    the tube and are left out.)"""
+    return [Mode(0.0, 0.0, 1 / math.sqrt(mass), 'rigid', 'clapper', 0.0)]
 
 
 # ── Strike ────────────────────────────────────────────────────────────────────
 
-def strike(modes, v0, args):
-    """Integrate the contact: the clapper (mass m_c, velocity v0) meets the tube
-    through a Hertz spring F = k δ^1.5 with Hunt–Crossley hysteresis. Returns the
-    contact duration and the peak force; leaves each mode with its state at
-    separation."""
-    m_c = args.clapper_mass
-    k = args.hertz_k
-    e = args.restitution
-    dt = 5e-7
-    xc, vc = 0.0, v0          # clapper position (towards the tube) and velocity
-    t = 0.0
-    F_peak = 0.0
-    t_contact = 0.0
+def collide(striker, target, v0, k, e):
+    """Integrate the contact between two modal bodies: the striker's surface meets the
+    target's through a Hertz spring F = k δ^1.5 with Hunt–Crossley hysteresis. The
+    striker arrives at v0 (its rigid translation), the target is at rest. Returns the
+    contact duration and peak force; leaves every mode with its state at separation."""
+    dt = 2e-7
+    modes = striker + target
+    ns = len(striker)
     n = len(modes)
     w = np.array([m.w for m in modes])
     z = np.array([m.zeta for m in modes])
     phi = np.array([m.phi for m in modes])
+    sign = np.array([-1.0] * ns + [1.0] * (n - ns))   # force pushes the target +, the striker −
     q = np.zeros(n)
     qv = np.zeros(n)
+    # The striker's translation carries its approach speed: surface velocity φ q̇ = v0
+    qv[0] = v0 / striker[0].phi
     hc = 1.5 * (1 - e) / max(v0, 1e-3)
+    ks = w ** 2
+    cs = 2 * z * w
 
-    def accel(xc, vc, q, qv):
-        y = float(phi @ q)                 # tube surface displacement under the clapper
-        yv = float(phi @ qv)
-        delta = xc - y
-        dv = vc - yv
+    def accel(q, qv):
+        # Gap closes as the striker's surface moves + and the target's moves +
+        us = float(phi[:ns] @ q[:ns])
+        ut = float(phi[ns:] @ q[ns:])
+        dus = float(phi[:ns] @ qv[:ns])
+        dut = float(phi[ns:] @ qv[ns:])
+        delta = us - ut
         if delta > 0:
-            F = k * delta ** 1.5 * max(0.0, 1 + hc * dv)
+            F = k * delta ** 1.5 * max(0.0, 1 + hc * (dus - dut))
         else:
             F = 0.0
-        ac = -F / m_c
-        aq = phi * F - 2 * z * w * qv - w ** 2 * q
-        return ac, aq, F
+        return sign * phi * F - cs * qv - ks * q, F
 
+    t = 0.0
+    F_peak = 0.0
+    t_contact = 0.0
     in_contact = False
     while True:
-        # RK4
-        a1, aq1, F = accel(xc, vc, q, qv)
-        k1 = (vc, a1, qv, aq1)
-        a2, aq2, _ = accel(xc + dt / 2 * k1[0], vc + dt / 2 * k1[1], q + dt / 2 * k1[2], qv + dt / 2 * k1[3])
-        k2 = (vc + dt / 2 * k1[1], a2, qv + dt / 2 * k1[3], aq2)
-        a3, aq3, _ = accel(xc + dt / 2 * k2[0], vc + dt / 2 * k2[1], q + dt / 2 * k2[2], qv + dt / 2 * k2[3])
-        k3 = (vc + dt / 2 * k2[1], a3, qv + dt / 2 * k2[3], aq3)
-        a4, aq4, _ = accel(xc + dt * k3[0], vc + dt * k3[1], q + dt * k3[2], qv + dt * k3[3])
-        k4 = (vc + dt * k3[1], a4, qv + dt * k3[3], aq4)
-        xc += dt / 6 * (k1[0] + 2 * k2[0] + 2 * k3[0] + k4[0])
-        vc += dt / 6 * (k1[1] + 2 * k2[1] + 2 * k3[1] + k4[1])
-        q += dt / 6 * (k1[2] + 2 * k2[2] + 2 * k3[2] + k4[2])
-        qv += dt / 6 * (k1[3] + 2 * k2[3] + 2 * k3[3] + k4[3])
+        a1, F = accel(q, qv)
+        k1 = (qv, a1)
+        a2, _ = accel(q + dt / 2 * k1[0], qv + dt / 2 * k1[1])
+        k2 = (qv + dt / 2 * k1[1], a2)
+        a3, _ = accel(q + dt / 2 * k2[0], qv + dt / 2 * k2[1])
+        k3 = (qv + dt / 2 * k2[1], a3)
+        a4, _ = accel(q + dt * k3[0], qv + dt * k3[1])
+        k4 = (qv + dt * k3[1], a4)
+        q = q + dt / 6 * (k1[0] + 2 * k2[0] + 2 * k3[0] + k4[0])
+        qv = qv + dt / 6 * (k1[1] + 2 * k2[1] + 2 * k3[1] + k4[1])
         t += dt
         if F > 0:
             in_contact = True
@@ -235,16 +250,19 @@ def strike(modes, v0, args):
             break
     for m, qi, vi in zip(modes, q, qv):
         m.q, m.v = qi, vi
-    return t_contact, F_peak, vc
+    return t_contact, F_peak
 
 
 # ── Render ────────────────────────────────────────────────────────────────────
 
-def render(modes, sr, seconds, tilt_db_oct=0.0):
+def render(modes, sr, seconds, tilt_db_oct=0.0, radius=0.0127):
+    w_ka1 = 343.0 / radius     # ω at which ka = 1 for the tube's outer radius
     t = np.arange(int(sr * seconds)) / sr
     out = np.zeros_like(t)
     table = []
     for m in modes:
+        if m.w <= 0:
+            continue
         wd = m.w * math.sqrt(max(1 - m.zeta ** 2, 0))
         a = m.zeta * m.w
         # Damped free response from (q, v) at separation
@@ -252,11 +270,13 @@ def render(modes, sr, seconds, tilt_db_oct=0.0):
         B = (m.v + a * m.q) / wd
         env = np.exp(-a * t)
         disp = env * (A * np.cos(wd * t) + B * np.sin(wd * t))
-        # Far-field pressure of a compact source follows the surface acceleration
-        acc = -(m.w ** 2) * disp     # the damping terms are negligible for ζ ≪ 1
-        weight = m.radiation * 2 ** (tilt_db_oct / 6.02 * math.log2(m.f / 440.0))
-        out += weight * acc
-        amp = weight * m.w ** 2 * math.hypot(A, B)
+        # Far-field pressure follows the surface acceleration while the tube is small
+        # against the wavelength (ka < 1), and the surface velocity once it isn't: the
+        # weight grows as ω² up to ka = 1 and as ω beyond
+        wa = min(m.w, w_ka1)
+        weight = m.radiation * m.w * wa * 2 ** (tilt_db_oct / 6.02 * math.log2(m.f / 440.0))
+        out += -weight * disp      # the damping terms are negligible for ζ ≪ 1
+        amp = weight * math.hypot(A, B)
         table.append({'label': m.label, 'kind': m.kind, 'f': m.f, 'zeta': m.zeta, 't60': m.t60,
                       'amp': amp, 'phi': m.phi})
     return out, table
@@ -297,6 +317,8 @@ def main():
     ap.add_argument('--velocities', type=float, nargs='+', default=[0.1, 0.35, 1.2], help='clapper speed, m/s')
     ap.add_argument('--strike', type=float, default=0.62, help='strike point as a fraction of the length')
     ap.add_argument('--cord', type=float, default=0.224, help='suspension point (mode-1 node)')
+    ap.add_argument('--hear', default='struck', choices=['struck', 'both'], help='with a tube striker: render only the struck tube (its voice alone) or both')
+    ap.add_argument('--striker', default='wood', help="'wood' (a clapper disc) or 'tube:<Hz>' (a neighbouring chime, its first mode at that pitch)")
     ap.add_argument('--clapper-mass', type=float, default=0.04, help='kg')
     ap.add_argument('--clapper-E', type=float, default=2e9, help='clapper material modulus, Pa (wood ~2e9, hard plastic 3e9, aluminium 69e9)')
     ap.add_argument('--clapper-radius', type=float, default=0.035, help='clapper disc radius, m')
@@ -316,34 +338,58 @@ def main():
     args = ap.parse_args()
 
     tube = Tube(args.pitch)
-    # Hertz contact: clapper edge (curved one way) on the tube (curved the other)
     nu_c = 0.3
-    E_star = 1 / ((1 - nu_c ** 2) / args.clapper_E + (1 - tube.nu ** 2) / tube.E)
-    R_eff = math.sqrt(args.clapper_radius * tube.Ro)
-    args.hertz_k = 4 / 3 * E_star * math.sqrt(R_eff)
+    striker_tube = None
+    if args.striker.startswith('tube:'):
+        # Two hung tubes meet at the same depth below the ring. Each hangs from its
+        # mode-1 node, so a contact at fraction `strike` of this tube's length lands on
+        # the other at the fraction that puts it at the same depth.
+        striker_tube = Tube(float(args.striker[5:]))
+        depth = (args.strike - args.cord) * tube.L
+        args.striker_frac = args.cord + depth / striker_tube.L
+        E_star = tube.E / (2 * (1 - tube.nu ** 2))
+        R_eff = math.sqrt(tube.Ro * striker_tube.Ro)       # crossed cylinders, as swinging tubes meet
+        args.hertz_k = 4 / 3 * E_star * math.sqrt(R_eff)
+        tag = f'_by{striker_tube.bend_f[0]:.0f}Hz'
+    else:
+        # Hertz contact: clapper edge (curved one way) on the tube (curved the other)
+        E_star = 1 / ((1 - nu_c ** 2) / args.clapper_E + (1 - tube.nu ** 2) / tube.E)
+        R_eff = math.sqrt(args.clapper_radius * tube.Ro)
+        args.hertz_k = 4 / 3 * E_star * math.sqrt(R_eff)
+        tag = ''
+    args.tag = tag + args.tag
 
     os.makedirs(args.out, exist_ok=True)
     print(f'tube: L = {tube.L * 100:.1f} cm, mass {tube.mass * 1000:.0f} g, bending modes (Hz):',
           ' '.join(f'{f:.0f}' for f in tube.bend_f if f < args.f_max))
     print('      ratios:', ' '.join(f'{f / tube.bend_f[0]:.3f}' for f in tube.bend_f if f < args.f_max))
     print('      shell modes (Hz):', ' '.join(f'{f:.0f}(n{n}m{m})' for f, n, m in tube.shell_modes(args.f_max)))
+    if striker_tube is not None:
+        print(f'struck by a tube: L = {striker_tube.L * 100:.1f} cm, modes (Hz):',
+              ' '.join(f'{f:.0f}' for f in striker_tube.bend_f if f < args.f_max),
+              f'| meeting at {args.striker_frac:.2f} of its length')
     print(f'contact stiffness k = {args.hertz_k:.3g} N/m^1.5')
 
     renders = []
     for v0 in args.velocities:
-        modes = build_modes(tube, args.strike, args.cord, args)
-        tc, Fp, v_out = strike(modes, v0, args)
-        x, table = render(modes, args.sr, args.seconds, args.tilt)
-        renders.append((v0, x, table, tc, Fp, v_out))
-        print(f'v = {v0:.2f} m/s: contact {tc * 1000:.2f} ms, peak force {Fp:.0f} N, clapper leaves at {-v_out:.2f} m/s')
+        target = tube_modes(tube, args.strike, args.cord, args, 'A ' if striker_tube else '')
+        if striker_tube is not None:
+            striker = tube_modes(striker_tube, args.striker_frac, args.cord, args, 'B ')
+        else:
+            striker = clapper_modes(args.clapper_mass)
+        tc, Fp = collide(striker, target, v0, args.hertz_k, args.restitution)
+        modes = (striker + target) if args.hear == 'both' else target
+        x, table = render(modes, args.sr, args.seconds, args.tilt, tube.Ro)
+        renders.append((v0, x, table, tc, Fp))
+        print(f'v = {v0:.2f} m/s: contact {tc * 1000:.3f} ms, peak force {Fp:.0f} N')
 
     peak = max(np.abs(r[1]).max() for r in renders)
     gain = args.gain if args.gain > 0 else (10 ** (-1 / 20)) / peak
     report = {'tube': {'L': tube.L, 'mass': tube.mass, 'pitch': args.pitch, 'bend_f': [float(f) for f in tube.bend_f]},
               'args': {k: v for k, v in vars(args).items() if isinstance(v, (int, float, str, list))},
               'gain': gain, 'renders': []}
-    for v0, x, table, tc, Fp, v_out in renders:
-        name = f'chime_{args.pitch:.0f}Hz_v{v0:.2f}{args.tag}'
+    for v0, x, table, tc, Fp in renders:
+        name = f'chime_{args.pitch:.0f}Hz{args.tag}_v{v0:.2f}'
         write_wav(os.path.join(args.out, name + '.wav'), x * gain, args.sr)
         if not args.no_png:
             spectrogram_png(os.path.join(args.out, name + '.png'), x * gain, args.sr, f'{name}: contact {tc * 1000:.2f} ms')
