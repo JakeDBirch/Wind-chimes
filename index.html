@@ -614,11 +614,11 @@ var SHOP = [
   { key: 'gap',         name: 'Chime gap',       base: 10.5 },
   { key: 'sensitivity', name: 'Wind susceptibility', base: 0.342 },
   // The ting: the modes of a real tube beyond the sustain's four partials, from the
-  // reference physical model at the strike's actual speed. Level 100% is the model's
+  // reference physical model at the strike's actual speed. Level 100% is a 25th of the model's
   // balance against the fundamental; decay 100% its decay times; "from" is the lowest
   // bending mode included (the sustain carries 1–4). A saved percentage is kept only
   // while its base is the one it was set against.
-  { key: 'ting',      name: 'Ting level',     base: 1.0, voice: true, min: 0, max: 400, head: 'Attack', unit: '' },
+  { key: 'ting',      name: 'Ting level',     base: 0.04, voice: true, min: 0, max: 400, head: 'Attack', unit: '' },
   { key: 'tingDecay', name: 'Ting decay',     base: 1.0, voice: true, min: 0, max: 400, unit: '×' },
   { key: 'tingFrom',  name: 'Ting from mode', base: 5,   voice: true, min: 40, max: 180, unit: '' }
 ];

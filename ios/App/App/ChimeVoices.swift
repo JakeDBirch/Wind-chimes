@@ -38,7 +38,7 @@ struct SampleVoiceParams {
     // sustain don't carry, taken from the reference physical model (scripts/reference)
     // at the strike's actual speed: their amplitude relative to the fundamental's and
     // their decay are the model's; only the level is taste.
-    var ting = 1.0              // level, 1 = the model's balance against the fundamental
+    var ting = 0.04             // level; 1 would be the model's balance against the fundamental, this is a 25th of it by ear
     var tingDecay = 1.0         // × the model's decay times
     var tingFrom = 5.0          // the lowest bending mode in the ting (the sustain has 1–4)
 
