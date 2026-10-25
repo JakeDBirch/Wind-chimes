@@ -113,6 +113,8 @@ html:not([data-theme="dark"]) #theme-btn .moon { display: block; }
 .shop-group { padding: 10px 0; border-bottom: 1px solid var(--line); }
 .shop-group:last-of-type { border-bottom: none; }
 .shop-head { font-size: 14px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dim); padding: 16px 0 2px; }
+.ting-ctl { transition: opacity 0.2s; }
+.ting-ctl.bypassed { opacity: 0.4; }
 .shop-note { font-size: 14px; font-weight: 500; color: var(--text-dim); line-height: 1.4; margin: 4px 0 10px; }
 .shop-actions { display: flex; gap: 8px; margin-top: 12px; }
 /* Sound sheet: opened by a double tap on the clapper */
@@ -638,6 +640,7 @@ var CHORD_SECONDS = 20;
 var CHORD_SETS = ['Floating', 'Hymn', 'Drift', 'Drone'];
 var CHORD_ORDERS = ['In turn', 'Shuffled'];
 var chords = { len: 100, set: 0, shuffle: false };
+var tingOn = true; // the Attack section's bypass: off sends the engine a ting level of 0
 
 function loadShop() {
   try {
@@ -645,6 +648,7 @@ function loadShop() {
     if (v && typeof v === 'object') {
       var bases = v.bases || {};
       SHOP.forEach(function(c) { if (isNum(v[c.key]) && bases[c.key] === c.base) shop[c.key] = clamp(v[c.key], shopMin(c), shopMax(c)); });
+      if (v.tingOn === false) tingOn = false;
       var ch = v.chords;
       if (ch && typeof ch === 'object') {
         if (isNum(ch.len)) chords.len = clamp(ch.len, 25, 300);
@@ -654,10 +658,11 @@ function loadShop() {
     }
   } catch (e) {}
 }
-function saveShop() { try { var v = {}; SHOP.forEach(function(c) { v[c.key] = shop[c.key]; }); v.chords = chords; v.bases = {}; SHOP.forEach(function(c) { v.bases[c.key] = c.base; }); localStorage.setItem('pocketChimesShop', JSON.stringify(v)); } catch (e) {} }
+function saveShop() { try { var v = {}; SHOP.forEach(function(c) { v[c.key] = shop[c.key]; }); v.chords = chords; v.tingOn = tingOn; v.bases = {}; SHOP.forEach(function(c) { v.bases[c.key] = c.base; }); localStorage.setItem('pocketChimesShop', JSON.stringify(v)); } catch (e) {} }
 function sendShop() {
   var values = {}, voice = {};
   SHOP.forEach(function(c) { (c.voice ? voice : values)[c.key] = c.base * shop[c.key] / 100; });
+  if (!tingOn) voice.ting = 0;
   values.chordSeconds = CHORD_SECONDS * chords.len / 100;
   values.chordSet = chords.set;
   values.chordShuffle = chords.shuffle ? 1 : 0;
@@ -669,7 +674,13 @@ function buildShop() {
   var el = document.getElementById('shop-controls');
   SHOP.forEach(function(c) {
     if (c.head) { var h = document.createElement('div'); h.className = 'shop-head'; h.textContent = c.head; el.appendChild(h); }
-    var g = document.createElement('div'); g.className = 'shop-group';
+    if (c.key === 'ting') {
+      var tg = document.createElement('div'); tg.className = 'shop-group';
+      tg.innerHTML = '<div class="drow" style="margin-bottom:0"><span class="dlabel">Ting</span><button class="switch" id="ting-switch" aria-label="Ting on or off"></button></div>';
+      tg.querySelector('button').addEventListener('click', function() { tingOn = !tingOn; sendShop(); hud(tingOn ? 'Ting on' : 'Ting off', '', 700); });
+      el.appendChild(tg);
+    }
+    var g = document.createElement('div'); g.className = 'shop-group' + (c.key.indexOf('ting') === 0 ? ' ting-ctl' : '');
     g.innerHTML = '<div class="drow" style="margin-bottom:0"><span class="dlabel">' + c.name + '</span><span class="dval" data-val="' + c.key + '"></span></div>' +
       '<input class="dslider" type="range" data-key="' + c.key + '" min="' + shopMin(c) + '" max="' + shopMax(c) + '" step="5">';
     g.querySelector('input').addEventListener('input', function() { shop[c.key] = parseFloat(this.value); sendShop(); });
@@ -691,6 +702,7 @@ function buildShop() {
   document.getElementById('shop-reset').addEventListener('click', function() {
     SHOP.forEach(function(c) { shop[c.key] = 100; });
     chords = { len: 100, set: 0, shuffle: false };
+    tingOn = true;
     sendShop(); hud('Back to 100%', '', 900);
   });
   showShop();
@@ -701,6 +713,8 @@ function showShop() {
     if (inp) inp.value = shop[c.key];
     if (v) v.textContent = shopReadout(c);
   });
+  var ts = document.getElementById('ting-switch'); if (ts) ts.classList.toggle('on', tingOn);
+  document.querySelectorAll('#shop .ting-ctl').forEach(function(g) { g.classList.toggle('bypassed', !tingOn); });
   document.getElementById('chord-len').value = chords.len;
   document.getElementById('v-chord-len').textContent = Math.round(chords.len) + '% · ' + Math.round(CHORD_SECONDS * chords.len / 100) + ' s';
   document.querySelectorAll('#chord-set-chips .schip').forEach(function(b, i) { b.classList.toggle('active', i === chords.set); });
