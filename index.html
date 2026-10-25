@@ -615,6 +615,9 @@ var SHOP = [
   { key: 'tubeDamp',    name: 'Chime damping',   base: 0.54 },
   { key: 'gap',         name: 'Chime gap',       base: 10.5 },
   { key: 'sensitivity', name: 'Wind susceptibility', base: 0.342 },
+  // Output: makeup gain on the chimes ahead of a soft limiter. 100% is +21 dB, which
+  // puts ordinary wind about level with speech; the readout is the gain in dB.
+  { key: 'outputGain', name: 'Output level', base: 11.2, voice: true, min: 25, max: 300, head: 'Output', fmt: function(v) { return (v >= 1 ? '+' : '') + (20 * Math.log10(v)).toFixed(1) + ' dB'; } },
   // The ting: the modes of a real tube beyond the sustain's four partials, from the
   // reference physical model at the strike's actual speed. At 100% the level is a 250th
   // of the model's balance against the fundamental, the decay 1.85× its times, and the
@@ -628,6 +631,7 @@ function shopMin(c) { return c.min == null ? 25 : c.min; }
 function shopMax(c) { return c.max == null ? 300 : c.max; }
 function shopReadout(c) {
   var pct = Math.round(shop[c.key]) + '%';
+  if (c.fmt) return pct + ' · ' + c.fmt(c.base * shop[c.key] / 100);
   if (c.unit == null) return pct;
   var v = c.base * shop[c.key] / 100;
   return pct + ' · ' + (v >= 10 ? Math.round(v) : v >= 1 ? v.toFixed(1) : v >= 0.1 ? v.toFixed(2) : v >= 0.01 ? v.toFixed(3) : v.toFixed(4)) + c.unit;

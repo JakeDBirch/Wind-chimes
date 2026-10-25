@@ -205,7 +205,10 @@ final class ChimeEngine {
     }
 
     func setVoiceParams(_ values: [String: Double]) {
-        queue.async { self.voiceParams.apply(values) }
+        queue.async {
+            self.voiceParams.apply(values)
+            if let gain = values["outputGain"] { self.synth.outputGain = Float(max(0, min(40, gain))) }
+        }
     }
 
     func setSound(_ mode: String) {

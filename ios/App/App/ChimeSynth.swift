@@ -248,6 +248,21 @@ final class ChimeSynth {
     let sampleRate: Double
     private let masterGain: Float = 0.9
 
+    /// Makeup gain on the chimes (not the wind), ahead of a soft limiter. Left as it was,
+    /// a day of ordinary wind sat around -40 dBFS RMS with peaks near -21, some 20 dB under
+    /// a podcast, so +21 dB (11.2×) brings it level with speech. The limiter is linear up
+    /// to 0.6 and rolls into 1.0 above it, so the dynamics below that are untouched and a
+    /// hard strike or a cluster of them is rounded off instead of clipping.
+    /// Set from the Workshop's Output level.
+    var outputGain: Float = 11.2
+
+    @inline(__always) private static func softLimit(_ x: Float) -> Float {
+        let a = abs(x)
+        if a <= 0.6 { return x }
+        let y = 0.6 + 0.4 * tanhf((a - 0.6) / 0.4)
+        return x < 0 ? -y : y
+    }
+
     /// Wind sound: a bed of brown-noise rumble, a pink-noise mid layer that brightens on
     /// gust fronts, and three slowly wandering resonant "whoosh" bands, all breathing with
     /// a slow random flutter. `windLevel` is written from the physics step
@@ -358,6 +373,11 @@ final class ChimeSynth {
             }
         }
         renderedVoiceCount = voices.count
+
+        let gain = outputGain
+        if gain != 1 {
+            for j in 0..<frameCount { out[j] = ChimeSynth.softLimit(out[j] * gain) }
+        }
 
         renderWind(into: out, frames: frameCount)
 
