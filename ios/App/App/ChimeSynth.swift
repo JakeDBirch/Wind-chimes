@@ -287,7 +287,7 @@ final class ChimeSynth {
     private var bodyDrift = 1.0, bodyDriftTarget = 1.0
     private var compEnvelope = 0.0, compGain = 1.0 // gentle compressor evens out the surges
 
-    private static let maxVoices = 768
+    private static let maxVoices = 1024
 
     /// While the microphone is open nothing else may sound: the output is silence and
     /// every voice, ringing or waiting, is dropped so nothing bursts out afterwards.
@@ -303,7 +303,7 @@ final class ChimeSynth {
         self.sampleRate = sampleRate
         lock = .allocate(capacity: 1)
         lock.initialize(to: os_unfair_lock())
-        voices.reserveCapacity(1024)
+        voices.reserveCapacity(1280)
         pending.reserveCapacity(128)
         incoming.reserveCapacity(128)
     }
@@ -358,7 +358,12 @@ final class ChimeSynth {
             voices.append(contentsOf: incoming)
             incoming.removeAll(keepingCapacity: true)
             if voices.count > ChimeSynth.maxVoices {
-                voices.removeFirst(voices.count - ChimeSynth.maxVoices)
+                // Over the limit, shed the voices that end soonest (a ting's modes, a
+                // note's last partials), never the oldest: those are the long ring tails,
+                // and dropping them cut sustains off short in a gust's cluster
+                let over = voices.count - ChimeSynth.maxVoices
+                voices.sort { $0.stopTime > $1.stopTime }
+                voices.removeLast(over)
             }
         }
 

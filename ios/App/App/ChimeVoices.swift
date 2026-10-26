@@ -38,6 +38,7 @@ struct SampleVoiceParams {
     // sustain don't carry, taken from the reference physical model (scripts/reference)
     // at the strike's actual speed: their amplitude relative to the fundamental's and
     // their decay are the model's; only the level is taste.
+    var sustain = 1.0           // × the ring time of every voice, metal and recorded (the Workshop's Ring time)
     var ting = 0.004            // level; 1 would be the model's balance against the fundamental, this is a 250th of it by ear
     var tingDecay = 1.85        // × the model's decay times
     var tingFrom = 2.0          // the lowest bending mode in the ting: the second, so it carries every mode above the fundamental
@@ -73,6 +74,7 @@ struct SampleVoiceParams {
             case "octaveGain": octaveGain = value
             case "octaveDecay": octaveDecay = value
             case "octaveCutoff": octaveCutoff = value
+            case "sustain": sustain = max(0.1, value)
             case "ting": ting = max(0, value)
             case "tingDecay": tingDecay = max(0.05, value)
             case "tingFrom": tingFrom = max(2, min(9, value))
@@ -116,7 +118,10 @@ enum ChimeVoices {
         // that: ∝ 1/f^0.6, anchored so A4 keeps the length it had, so an octave up rings
         // a third shorter and an octave down half as long again; clamped at both ends.
         let pitchRing = max(0.2, min(2.4, 0.867 * pow(440 / freq, 0.6)))
-        let baseDecay = decayMult * (1.2 + pow(velNorm, 0.7) * 24.0) * pitchRing
+        // The decay is the time to -80 dB, so a note is heard for about half of it: a soft
+        // touch at A4 rings for a few seconds, a hard strike for a dozen (Oct 26: the soft
+        // end doubled and the hard end a quarter longer, as they died too soon)
+        let baseDecay = decayMult * (2.5 + pow(velNorm, 0.7) * 30.0) * pitchRing * t.sustain
         let velBright = bright * (0.20 + velNorm * velNorm * 0.80)
         let startCutoffMult = 3.0 + velBright * 7.0
         let endCutoffMult = 0.85 + velBright * 0.4
@@ -134,7 +139,7 @@ enum ChimeVoices {
             func mix(_ soft: Double, _ hard: Double, _ x: Double) -> Double { soft + (hard - soft) * x }
             let ratio = sample.pitch > 0 ? freq / sample.pitch : freq / 440
             let hit = pow(velNorm, t.hitCurve)
-            let decay = decayMult * (t.decayMin + pow(velNorm, t.decayCurve) * t.decayMax)
+            let decay = decayMult * (t.decayMin + pow(velNorm, t.decayCurve) * t.decayMax) * t.sustain
                 * (1 - t.decayVariation + rand() * 2 * t.decayVariation) * max(0.3, min(2.0, 0.9 * pow(440 / freq, 0.45)))
             let attack = attackMult * mix(t.attackSoftMs, t.attackHardMs, velNorm) / 1000
             let level = vel * t.level * sample.loudness // evens out dense vs breathy material
