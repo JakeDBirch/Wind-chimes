@@ -250,16 +250,15 @@ final class ChimeSynth {
 
     /// Makeup gain on the chimes (not the wind), ahead of a soft limiter. Left as it was,
     /// a day of ordinary wind sat around -40 dBFS RMS with peaks near -21, some 20 dB under
-    /// a podcast, so +21 dB (11.2×) brings it level with speech. The limiter is linear up
-    /// to 0.6 and rolls into 1.0 above it, so the dynamics below that are untouched and a
-    /// hard strike or a cluster of them is rounded off instead of clipping.
-    /// Set from the Workshop's Output level.
-    var outputGain: Float = 11.2
+    /// a podcast; +21 dB with a limiter from 0.6 flattened the loud end, so this is +15 dB
+    /// (5.6×) with the limiter linear up to 0.85, where only the hardest strikes and a
+    /// gust's cluster are rounded off. Set from the Workshop's Output level.
+    var outputGain: Float = 5.6
 
     @inline(__always) private static func softLimit(_ x: Float) -> Float {
         let a = abs(x)
-        if a <= 0.6 { return x }
-        let y = 0.6 + 0.4 * tanhf((a - 0.6) / 0.4)
+        if a <= 0.85 { return x }
+        let y = 0.85 + 0.15 * tanhf((a - 0.85) / 0.15)
         return x < 0 ? -y : y
     }
 

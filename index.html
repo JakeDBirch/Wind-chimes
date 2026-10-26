@@ -18,7 +18,7 @@
   --overlay: rgba(238,232,218,0.9); --dim: rgba(60,50,30,0.25);
   --line: rgba(0,0,0,0.12); --track: rgba(0,0,0,0.12); --knob: #fffaf0; --knob-shadow: 0 2px 6px rgba(0,0,0,0.25);
   --chip-text: #5a6670; --chip-active: #1f262b; --chip-active-bg: rgba(0,0,0,0.06);
-  --switch-off: rgba(0,0,0,0.18); --switch-knob: #fffaf0; --accent: #4f9a6e;
+  --switch-off: rgba(0,0,0,0.18); --switch-knob: #fffaf0; --accent: #4f9a6e; --accent-glow: rgba(79,154,110,0.55); --accent-deep: #2d6e4b;
   --keys-fade: rgba(60,50,30,0.22); --key-bg: rgba(255,250,236,0.65); --key-border: rgba(0,0,0,0.12); --key-text: rgba(0,0,0,0.5);
   --key-black-bg: rgba(0,0,0,0.3); --key-black-text: rgba(255,255,255,0.75); --key-active-bg: #1f262b; --key-active-text: #ffffff;
   --input-bg: rgba(255,250,236,0.7); --meter-bg: rgba(0,0,0,0.06); --meter-fill: #6fae8c; --meter-mark: #1f262b;
@@ -32,7 +32,7 @@ html[data-theme="dark"] {
   --overlay: rgba(8,10,12,0.9); --dim: rgba(0,0,0,0.45);
   --line: rgba(255,255,255,0.1); --track: #2a3338; --knob: #e6ecf0; --knob-shadow: 0 2px 6px rgba(0,0,0,0.4);
   --chip-text: #678; --chip-active: #cde; --chip-active-bg: rgba(255,255,255,0.06);
-  --switch-off: #2a3338; --switch-knob: #e6ecf0; --accent: #5aa37a;
+  --switch-off: #2a3338; --switch-knob: #e6ecf0; --accent: #5aa37a; --accent-glow: rgba(90,163,122,0.6); --accent-deep: #8fd4ae;
   --keys-fade: rgba(0,0,0,0.5); --key-bg: rgba(255,255,255,0.05); --key-border: rgba(255,255,255,0.14); --key-text: rgba(255,255,255,0.55);
   --key-black-bg: rgba(0,0,0,0.35); --key-black-text: rgba(255,255,255,0.4); --key-active-bg: rgba(255,255,255,0.85); --key-active-text: #16181c;
   --input-bg: #0e1012; --meter-bg: #0e1012; --meter-fill: #4a7058; --meter-mark: #cde;
@@ -42,14 +42,24 @@ html[data-theme="dark"] {
 html, body { background: var(--bg); color: var(--text); font-family: ui-rounded, -apple-system, sans-serif; /* SF Pro Rounded on iOS; this page only runs there */ font-weight: 600; font-size: 22px; overflow: hidden; height: 100%; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 #viz { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
 /* A line of text that fades in on a gesture and out again */
-.hud { position: fixed; left: 0; right: 0; top: calc(76px + env(safe-area-inset-top)); text-align: center; font-size: 26px; font-weight: 700; letter-spacing: 0.02em; color: var(--hud); opacity: 0; transition: opacity 0.6s; pointer-events: none; text-shadow: var(--hud-shadow); }
+.hud { position: fixed; left: 0; right: 0; top: calc(44px + env(safe-area-inset-top)); text-align: center; font-size: 26px; font-weight: 700; letter-spacing: 0.02em; color: var(--hud); opacity: 0; transition: opacity 0.6s; pointer-events: none; text-shadow: var(--hud-shadow); }
 .hud.show { opacity: 1; transition: opacity 0.12s; }
-.hud.sub { top: calc(114px + env(safe-area-inset-top)); font-size: 19px; letter-spacing: 0.02em; color: var(--hud-sub); }
-/* Wind sound toggle */
-/* Help: a question mark top left, opening a guide to the gestures */
-#help-btn, #wind-btn, #theme-btn, #sleep-btn { color: var(--icon); }
-#help-btn { position: fixed; top: calc(14px + env(safe-area-inset-top)); left: calc(14px + env(safe-area-inset-left)); width: 52px; height: 52px; border: none; background: none; padding: 10px; outline: none; -webkit-tap-highlight-color: transparent; opacity: 0.6; }
+.hud.sub { top: calc(82px + env(safe-area-inset-top)); font-size: 19px; letter-spacing: 0.02em; color: var(--hud-sub); }
+html.keys-open .hud { top: calc(154px + env(safe-area-inset-top)); }
+html.keys-open .hud.sub { top: calc(192px + env(safe-area-inset-top)); }
+/* The icon row along the bottom: help and sleep on the left, settings, theme and wind on
+   the right. It dims a few seconds after the last touch; any touch brings it back. */
+#chrome { position: fixed; inset: 0; pointer-events: none; transition: opacity 1.4s; }
+#chrome > * { pointer-events: auto; }
+#chrome.faded { opacity: 0.12; transition: opacity 2s; }
+#chrome.faded > * { pointer-events: none; }
+#help-btn, #wind-btn, #theme-btn, #sleep-btn, #shop-btn, #sleep-left { color: var(--icon); }
+#help-btn { position: fixed; bottom: calc(14px + env(safe-area-inset-bottom)); left: calc(14px + env(safe-area-inset-left)); width: 52px; height: 52px; border: none; background: none; padding: 10px; outline: none; -webkit-tap-highlight-color: transparent; opacity: 0.6; }
 #help-btn svg { width: 32px; height: 32px; display: block; }
+#shop-btn { position: fixed; bottom: calc(14px + env(safe-area-inset-bottom)); right: calc(110px + env(safe-area-inset-right)); width: 52px; height: 52px; border: none; background: none; padding: 10px; outline: none; -webkit-tap-highlight-color: transparent; opacity: 0.6; }
+#shop-btn svg { width: 30px; height: 30px; display: block; }
+#sleep-left { position: fixed; bottom: calc(14px + env(safe-area-inset-bottom)); left: calc(112px + env(safe-area-inset-left)); height: 52px; line-height: 52px; font-size: 17px; font-weight: 700; opacity: 0; transition: opacity 0.3s; pointer-events: none; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
+#sleep-left.on { opacity: 0.75; }
 #help { position: fixed; inset: 0; z-index: 60; background: var(--overlay); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); opacity: 0; pointer-events: none; transition: opacity 0.25s; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: calc(22px + env(safe-area-inset-top)) 22px calc(30px + env(safe-area-inset-bottom)); }
 #help.open { opacity: 1; pointer-events: auto; }
 .help-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
@@ -59,15 +69,15 @@ html, body { background: var(--bg); color: var(--text); font-family: ui-rounded,
 .help-row svg { width: 56px; height: 56px; flex-shrink: 0; }
 .help-name { font-size: 20px; font-weight: 700; color: var(--text); margin-bottom: 3px; }
 .help-what { font-size: 16px; font-weight: 500; color: var(--text-dim); line-height: 1.4; }
-#wind-btn { position: fixed; top: calc(14px + env(safe-area-inset-top)); right: calc(14px + env(safe-area-inset-right)); width: 52px; height: 52px; border: none; background: none; padding: 10px; outline: none; -webkit-tap-highlight-color: transparent; opacity: 0.85; }
+#wind-btn { position: fixed; bottom: calc(14px + env(safe-area-inset-bottom)); right: calc(14px + env(safe-area-inset-right)); width: 52px; height: 52px; border: none; background: none; padding: 10px; outline: none; -webkit-tap-highlight-color: transparent; opacity: 0.85; }
 #wind-btn.off { opacity: 0.3; }
 #wind-btn.muted svg path { stroke-dasharray: 3 3; }
-#sleep-btn { position: fixed; top: calc(14px + env(safe-area-inset-top)); right: calc(110px + env(safe-area-inset-right)); width: 52px; height: 52px; border: none; background: none; padding: 10px; outline: none; -webkit-tap-highlight-color: transparent; opacity: 0.6; }
+#sleep-btn { position: fixed; bottom: calc(14px + env(safe-area-inset-bottom)); left: calc(62px + env(safe-area-inset-left)); width: 52px; height: 52px; border: none; background: none; padding: 10px; outline: none; -webkit-tap-highlight-color: transparent; opacity: 0.6; }
 #sleep-btn svg { width: 30px; height: 30px; display: block; }
 #sleep-btn.armed { opacity: 1; }
-#sleep-drawer { position: fixed; top: calc(66px + env(safe-area-inset-top)); right: calc(14px + env(safe-area-inset-right)); width: min(320px, calc(100vw - 28px)); background: var(--panel); border: 1px solid var(--panel-border); border-radius: 20px; padding: 18px 20px 16px; transform: translateY(-12px) scale(0.96); transform-origin: top right; opacity: 0; pointer-events: none; transition: transform 0.22s cubic-bezier(.2,.8,.2,1), opacity 0.18s; box-shadow: var(--panel-shadow); }
+#sleep-drawer { position: fixed; bottom: calc(70px + env(safe-area-inset-bottom)); left: calc(14px + env(safe-area-inset-left)); width: min(320px, calc(100vw - 28px)); background: var(--panel); border: 1px solid var(--panel-border); border-radius: 20px; padding: 18px 20px 16px; transform: translateY(12px) scale(0.96); transform-origin: bottom left; opacity: 0; pointer-events: none; transition: transform 0.22s cubic-bezier(.2,.8,.2,1), opacity 0.18s; box-shadow: var(--panel-shadow); }
 #sleep-drawer.open { transform: none; opacity: 1; pointer-events: auto; }
-#theme-btn { position: fixed; top: calc(14px + env(safe-area-inset-top)); right: calc(62px + env(safe-area-inset-right)); width: 52px; height: 52px; border: none; background: none; padding: 10px; outline: none; -webkit-tap-highlight-color: transparent; opacity: 0.6; }
+#theme-btn { position: fixed; bottom: calc(14px + env(safe-area-inset-bottom)); right: calc(62px + env(safe-area-inset-right)); width: 52px; height: 52px; border: none; background: none; padding: 10px; outline: none; -webkit-tap-highlight-color: transparent; opacity: 0.6; }
 #theme-btn svg { width: 30px; height: 30px; display: block; }
 #theme-btn .sun, #theme-btn .moon { display: none; }
 html[data-theme="dark"] #theme-btn .sun { display: block; }
@@ -76,7 +86,7 @@ html:not([data-theme="dark"]) #theme-btn .moon { display: block; }
 /* Wind drawer: drops down from the icon */
 #catch { position: fixed; inset: 0; display: none; }
 #catch.open { display: block; }
-#drawer { position: fixed; top: calc(66px + env(safe-area-inset-top)); right: calc(14px + env(safe-area-inset-right)); width: min(320px, calc(100vw - 28px)); background: var(--panel); border: 1px solid var(--panel-border); border-radius: 20px; padding: 18px 20px 14px; transform: translateY(-12px) scale(0.96); transform-origin: top right; opacity: 0; pointer-events: none; transition: transform 0.22s cubic-bezier(.2,.8,.2,1), opacity 0.18s; box-shadow: var(--panel-shadow); }
+#drawer { position: fixed; bottom: calc(70px + env(safe-area-inset-bottom)); right: calc(14px + env(safe-area-inset-right)); width: min(320px, calc(100vw - 28px)); background: var(--panel); border: 1px solid var(--panel-border); border-radius: 20px; padding: 18px 20px 14px; transform: translateY(12px) scale(0.96); transform-origin: bottom right; opacity: 0; pointer-events: none; transition: transform 0.22s cubic-bezier(.2,.8,.2,1), opacity 0.18s; box-shadow: var(--panel-shadow); }
 #drawer.open { transform: none; opacity: 1; pointer-events: auto; }
 .drow { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 .drow:last-child { margin-bottom: 4px; }
@@ -84,15 +94,20 @@ html:not([data-theme="dark"]) #theme-btn .moon { display: block; }
 .dval { font-size: 16px; color: var(--text-dim); min-width: 36px; text-align: right; font-variant-numeric: tabular-nums; }
 .dslider { display: block; width: 100%; margin-top: 8px; }
 .dgroup { margin-bottom: 14px; }
-/* Custom scale keyboard: an octave of keys along the bottom, shown while Custom is the scale */
-/* Power: the chimes start off; a round button at the bottom turns them on and off */
+/* The note keyboard along the top, shown while the last scale (your own notes) is on:
+   an octave from A to A laid as a piano, eight naturals at equal spacing with the five
+   accidentals raised and overlapping their boundaries. Naturals carry their letter at the
+   bottom, accidentals at the top; a chosen note glows in the accent color. */
 .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
 .chips .schip { padding: 6px 12px; font-size: 16px; }
-#keys { position: fixed; left: 0; right: 0; bottom: 0; display: flex; gap: 6px; align-items: flex-end; padding: 10px 12px calc(14px + env(safe-area-inset-bottom)); background: linear-gradient(to top, var(--keys-fade), transparent); transform: translateY(110%); transition: transform 0.3s cubic-bezier(.2,.8,.2,1); }
+#keys { position: fixed; left: 0; right: 0; top: 0; height: calc(128px + env(safe-area-inset-top)); padding: calc(10px + env(safe-area-inset-top)) 12px 0; background: linear-gradient(to bottom, var(--keys-fade), transparent); transform: translateY(-110%); transition: transform 0.3s cubic-bezier(.2,.8,.2,1); }
 #keys.open { transform: none; }
-.key { flex: 1; min-width: 0; height: 72px; border-radius: 14px; border: 1.5px solid var(--key-border); background: var(--key-bg); color: var(--key-text); font-family: inherit; font-weight: 700; font-size: 17px; outline: none; padding: 0; -webkit-tap-highlight-color: transparent; transition: background 0.15s, color 0.15s; }
-.key.black { height: 50px; background: var(--key-black-bg); color: var(--key-black-text); }
-.key.active { background: var(--key-active-bg); color: var(--key-active-text); border-color: var(--key-active-bg); }
+.keybed { position: relative; height: 104px; }
+.key { position: absolute; top: 0; border-radius: 12px; border: 1.5px solid var(--key-border); background: var(--key-bg); color: var(--key-text); font-family: inherit; font-weight: 700; font-size: 16px; outline: none; padding: 0; -webkit-tap-highlight-color: transparent; transition: background 0.15s, color 0.15s, box-shadow 0.15s; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 8px; height: 104px; }
+.key.black { height: 62px; background: var(--key-black-bg); color: var(--key-black-text); border-color: var(--panel); z-index: 2; align-items: flex-start; padding-top: 7px; padding-bottom: 0; border-radius: 10px; }
+.key.active { background: var(--accent); color: #fff; border-color: var(--accent); box-shadow: 0 0 18px 4px var(--accent-glow); }
+.key.black.active { background: var(--accent-deep); border-color: var(--panel); box-shadow: 0 0 16px 3px var(--accent-glow); }
+html[data-theme="dark"] .key.black.active { color: #16181c; }
 /* Toggle switch */
 .switch { position: relative; width: 52px; height: 30px; border-radius: 15px; background: var(--switch-off); border: none; outline: none; padding: 0; transition: background 0.2s; -webkit-tap-highlight-color: transparent; flex-shrink: 0; }
 .switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: var(--switch-knob); transition: transform 0.2s; }
@@ -163,6 +178,7 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px;
 <div class="hud" id="hud"></div>
 <div class="hud sub" id="hud2"></div>
 
+<div id="chrome">
 <button id="help-btn" aria-label="How to play">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
     <circle cx="12" cy="12" r="9.5"/>
@@ -170,12 +186,36 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px;
     <circle cx="12" cy="17.2" r="0.6" fill="currentColor"/>
   </svg>
 </button>
+<button id="sleep-btn" aria-label="Sleep timer">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="14" r="7"/><path d="M10 10v4l3 2"/><path d="M15.5 3h5l-5 5h5"/></svg>
+</button>
+<div id="sleep-left"></div>
+<button id="shop-btn" aria-label="Workshop">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21.2 3.6a4.6 4.6 0 0 0-6.1 5.9L4.6 20a1.8 1.8 0 0 0 2.5 2.5L17.6 12a4.6 4.6 0 0 0 5.9-6.1l-3 3-2.1-.6-.6-2.1z"/>
+    <path d="M3.2 6.4l3.2-3.2 2.9 2.9-3.2 3.2z"/>
+    <path d="M8.6 7.4l9.2 9.2"/>
+    <path d="M16.5 18.6l2.1-2.1 2 2-2.1 2.1z"/>
+  </svg>
+</button>
+<button id="theme-btn" aria-label="Light or dark">
+  <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>
+  <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/></svg>
+</button>
+<button id="wind-btn" aria-label="Wind sound">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+    <path d="M3 8h10a2.5 2.5 0 1 0-2.5-2.5"/>
+    <path d="M3 12h14a3 3 0 1 1-3 3"/>
+    <path d="M3 16h7a2 2 0 1 1-2 2"/>
+  </svg>
+</button>
+</div>
 
 <div id="help">
   <div class="help-head"><span class="help-title">How to play</span><button class="close" id="help-close">✕</button></div>
   <div class="help-row">
     <svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="48" height="36" rx="6" opacity="0.35"/><path d="M8 28h26"/><path d="M28 21l7 7-7 7"/><circle cx="8" cy="28" r="3.5" fill="currentColor"/></svg>
-    <div><div class="help-name">Swipe in from the edge</div><div class="help-what">Left or right for the next scale. Each one has its own color. Custom brings up a keyboard to pick your notes.</div></div>
+    <div><div class="help-name">Swipe in from the edge</div><div class="help-what">Left or right for the next scale. Each one has its own color. The last one brings up a keyboard to pick your own notes.</div></div>
   </div>
   <div class="help-row">
     <svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="28" cy="28" r="9" opacity="0.35"/><circle cx="28" cy="28" r="4" opacity="0.35"/><path d="M28 6a22 22 0 1 1-18 9.4"/><path d="M6 10l4 6 6-3"/></svg>
@@ -202,23 +242,10 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px;
     <div><div class="help-name">Sleep icon</div><div class="help-what">A timer that stops the wind after a while, for drifting off.</div></div>
   </div>
   <div class="help-row" id="help-shop">
-    <svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M34 10l12 12-20 20-12-12z"/><path d="M14 30L8 36a4 4 0 0 0 0 6l6 6a4 4 0 0 0 6 0l6-6" opacity="0.5"/><path d="M40 8l8 8" opacity="0.5"/></svg>
-    <div><div class="help-name">Workshop</div><div class="help-what">The numbers under the hood, as percentages of the default. Tap to open.</div></div>
+    <svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M46 8a10 10 0 0 0-13 13L10 44a4 4 0 0 0 5.5 5.5L38.5 26a10 10 0 0 0 13-13l-6.5 6.5-4.6-1.3-1.3-4.6z"/><path d="M8 14l6-6 6 6-6 6z" opacity="0.6"/><path d="M19 15l20 20" opacity="0.6"/></svg>
+    <div><div class="help-name">Wrench icon</div><div class="help-what">The Workshop: the numbers under the hood, as percentages of the default.</div></div>
   </div>
 </div>
-
-<button id="theme-btn" aria-label="Light or dark">
-  <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>
-  <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/></svg>
-</button>
-
-<button id="wind-btn" aria-label="Wind sound">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
-    <path d="M3 8h10a2.5 2.5 0 1 0-2.5-2.5"/>
-    <path d="M3 12h14a3 3 0 1 1-3 3"/>
-    <path d="M3 16h7a2 2 0 1 1-2 2"/>
-  </svg>
-</button>
 
 <div id="catch"></div>
 <div id="drawer">
@@ -234,15 +261,12 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px;
   </div>
 </div>
 
-<button id="sleep-btn" aria-label="Sleep timer">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="14" r="7"/><path d="M10 10v4l3 2"/><path d="M15.5 3h5l-5 5h5"/></svg>
-</button>
 <div id="sleep-drawer">
   <div class="drow"><span class="dlabel">Sleep</span><span class="dval" id="v-sleep"></span></div>
   <div class="chips" id="sleep-chips"></div>
 </div>
 
-<div id="keys"></div>
+<div id="keys"><div class="keybed" id="keybed"></div></div>
 
 <div id="egg">
   <div class="egg-card">
@@ -314,14 +338,24 @@ var WIND_SOUND_GAIN = 0.1; // -20 dB when on
 var SCALES = [
   { name: 'Pentatonic',  hue: 150 },
   { name: 'Major Pent',  hue: 45 },
+  { name: 'Egyptian',    hue: 180 }, // the suspended pentatonic, Egypt to China
   { name: 'Minor',       hue: 225 },
+  { name: 'Harmonic Minor', hue: 205 },
+  { name: 'Hungarian Minor', hue: 260 },
   { name: 'Lydian',      hue: 275 },
   { name: 'Whole Tone',  hue: 305 },
-  { name: 'Hirajoshi',   hue: 350 },
+  { name: 'Blues',       hue: 195 },
+  { name: 'Flamenco',    hue: 0 },   // Spain: Phrygian with both thirds
+  { name: 'Hijaz',       hue: 35 },  // the Middle East: maqam Hijaz
+  { name: 'Rast',        hue: 120 }, // maqam Rast, quarter-tone third and seventh
+  { name: 'Bhairav',     hue: 15 },  // North India: raga Bhairav
+  { name: 'Hirajoshi',   hue: 350 }, // Japan
+  { name: 'In Sen',      hue: 5 },   // Japan
   { name: 'Slendro',     hue: 25 },  // Javanese gamelan, five near-equal steps
   { name: 'Pelog',       hue: 330 }, // Javanese gamelan, uneven steps
+  { name: 'Balafon',     hue: 100 }, // West Africa: seven near-equal steps
   { name: 'Chord Seq',   hue: 85 },
-  { name: 'Custom',      hue: 55 }, // your own notes, picked on the keyboard
+  { name: 'Custom',      hue: 55 }, // your own notes, picked on the keyboard; never named on screen
 ];
 // Semitones above A, as the engine counts them
 var KEY_NAMES = ['A', 'A#', 'B', 'C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#'];
@@ -415,12 +449,16 @@ function showSleep(remaining) {
   var chips = document.querySelectorAll('#sleep-chips .schip');
   chips.forEach(function(c, i) { c.classList.toggle('active', SLEEP_CHOICES[i] === sleepMinutes); });
   document.getElementById('sleep-btn').classList.toggle('armed', sleepMinutes > 0);
-  var v = document.getElementById('v-sleep');
+  var v = document.getElementById('v-sleep'), left = document.getElementById('sleep-left');
   if (isNum(remaining) && remaining >= 0 && sleepMinutes > 0) {
     var m = Math.ceil(remaining / 60);
     v.textContent = m <= 1 ? 'under a minute' : m + ' min left';
+    left.textContent = remaining < 60 ? Math.max(0, Math.round(remaining)) + ' s' : m + ' min';
+    left.classList.add('on');
   } else {
     v.textContent = '';
+    left.classList.toggle('on', sleepMinutes > 0);
+    if (sleepMinutes > 0) left.textContent = sleepMinutes + ' min';
   }
 }
 
@@ -521,7 +559,6 @@ function pointerMove(e) {
       var next = clamp(tubeCount + step, 3, 12);
       if (next !== tubeCount) { tubeCount = next; sendParams(); }
     }
-    hud(tubeCount + ' chimes', '', 900);
   }
 }
 
@@ -555,7 +592,6 @@ function tap(x, y) {
 function gust() {
   _userChangedAt = Date.now();
   if (Engine) Engine.gust();
-  hud('Gust', '', 800);
 }
 
 
@@ -564,34 +600,67 @@ function changeScale(dir) {
   hueTarget = SCALES[scaleIndex].hue;
   showKeyboard();
   sendParams();
-  hud(SCALES[scaleIndex].name, '', 1300);
+  if (SCALES[scaleIndex].name !== 'Custom') hud(SCALES[scaleIndex].name, '', 1300); // the keyboard speaks for itself
 }
 
-// ── Custom scale keyboard ─────────────────────────────────
+// ── Note keyboard ─────────────────────────────────────────
 function showKeyboard() {
-  document.getElementById('keys').classList.toggle('open', SCALES[scaleIndex].name === 'Custom');
+  var open = SCALES[scaleIndex].name === 'Custom';
+  document.getElementById('keys').classList.toggle('open', open);
+  document.documentElement.classList.toggle('keys-open', open);
 }
+
+// An octave from A to A as a piano: the naturals at equal spacing, each accidental
+// raised over the boundary it sits on. The closing A is the opening A again.
+var NATURALS = [0, 2, 3, 5, 7, 8, 10, 0];   // A B C D E F G A
+var ACCIDENTALS = [1, 4, 6, 9, 11];         // A# C# D# F# G#, after naturals 1, 3, 4, 6, 7
+var ACC_AFTER = [1, 3, 4, 6, 7];
 
 function buildKeyboard() {
-  var el = document.getElementById('keys');
-  KEY_NAMES.forEach(function(name, semitone) {
+  var bed = document.getElementById('keybed');
+  var n = NATURALS.length, gap = 1.2, w = (100 - gap * (n - 1)) / n, bw = w * 0.62;
+  function make(semitone, cls, left, width) {
     var b = document.createElement('button');
-    b.className = 'key' + (name.length > 1 ? ' black' : '') + (customScale.indexOf(semitone) >= 0 ? ' active' : '');
-    b.textContent = name;
-    b.addEventListener('click', function() {
-      var i = customScale.indexOf(semitone);
-      if (i >= 0) {
-        if (customScale.length === 1) return; // keep at least one note
-        customScale.splice(i, 1);
-      } else {
-        customScale.push(semitone);
-      }
-      customScale.sort(function(a, b) { return a - b; });
-      b.classList.toggle('active', i < 0);
-      sendParams();
-    });
-    el.appendChild(b);
+    b.className = 'key' + cls + (customScale.indexOf(semitone) >= 0 ? ' active' : '');
+    b.style.left = left + '%'; b.style.width = width + '%';
+    b.textContent = KEY_NAMES[semitone];
+    b.dataset.semitone = semitone;
+    b.addEventListener('click', function() { toggleNote(semitone); });
+    bed.appendChild(b);
+  }
+  NATURALS.forEach(function(semi, i) { make(semi, '', i * (w + gap), w); });
+  ACCIDENTALS.forEach(function(semi, i) { make(semi, ' black', ACC_AFTER[i] * (w + gap) - gap / 2 - bw / 2, bw); });
+}
+
+function toggleNote(semitone) {
+  var i = customScale.indexOf(semitone);
+  if (i >= 0) {
+    if (customScale.length === 1) return; // keep at least one note
+    customScale.splice(i, 1);
+  } else {
+    customScale.push(semitone);
+  }
+  customScale.sort(function(a, b) { return a - b; });
+  document.querySelectorAll('#keybed .key').forEach(function(k) {
+    k.classList.toggle('active', customScale.indexOf(parseInt(k.dataset.semitone, 10)) >= 0);
   });
+  sendParams();
+}
+
+// ── Icon row: dims after a few seconds; any touch brings it back ──────────
+var CHROME_MS = 4000;
+var _chromeTimer = null;
+function wakeChrome() {
+  var el = document.getElementById('chrome');
+  el.classList.remove('faded');
+  clearTimeout(_chromeTimer);
+  _chromeTimer = setTimeout(fadeChrome, CHROME_MS);
+}
+function fadeChrome() {
+  // Not while something it opened is up
+  var up = ['drawer', 'sleep-drawer', 'help', 'shop', 'sheet'].some(function(id) { return document.getElementById(id).classList.contains('open'); });
+  if (up) { _chromeTimer = setTimeout(fadeChrome, CHROME_MS); return; }
+  document.getElementById('chrome').classList.add('faded');
 }
 
 // ── Wind drawer ───────────────────────────────────────────
@@ -615,9 +684,9 @@ var SHOP = [
   { key: 'tubeDamp',    name: 'Chime damping',   base: 0.54 },
   { key: 'gap',         name: 'Chime gap',       base: 10.5 },
   { key: 'sensitivity', name: 'Wind susceptibility', base: 0.342 },
-  // Output: makeup gain on the chimes ahead of a soft limiter. 100% is +21 dB, which
-  // puts ordinary wind about level with speech; the readout is the gain in dB.
-  { key: 'outputGain', name: 'Output level', base: 11.2, voice: true, min: 25, max: 300, head: 'Output', fmt: function(v) { return (v >= 1 ? '+' : '') + (20 * Math.log10(v)).toFixed(1) + ' dB'; } },
+  // Output: makeup gain on the chimes ahead of a soft limiter that only touches the
+  // loudest peaks. 100% is +15 dB; the readout is the gain in dB.
+  { key: 'outputGain', name: 'Output level', base: 5.6, voice: true, min: 25, max: 300, head: 'Output', fmt: function(v) { return (v >= 1 ? '+' : '') + (20 * Math.log10(v)).toFixed(1) + ' dB'; } },
   // The ting: the modes of a real tube beyond the sustain's four partials, from the
   // reference physical model at the strike's actual speed. At 100% the level is a 250th
   // of the model's balance against the fundamental, the decay 1.85× its times, and the
@@ -1106,6 +1175,8 @@ window.addEventListener('load', function() {
   canvas.addEventListener('pointermove', pointerMove);
   canvas.addEventListener('pointerup', pointerUp);
   canvas.addEventListener('pointercancel', function() { G = null; });
+  document.addEventListener('pointerdown', wakeChrome, true);
+  wakeChrome();
 
   document.getElementById('wind-btn').addEventListener('click', function() {
     openDrawer(!document.getElementById('drawer').classList.contains('open'));
@@ -1124,6 +1195,7 @@ window.addEventListener('load', function() {
   document.getElementById('help').addEventListener('click', function() { openHelp(false); });
   document.getElementById('egg-later').addEventListener('click', function() { document.getElementById('egg').classList.remove('open'); });
   buildShop();
+  document.getElementById('shop-btn').addEventListener('click', function() { openShop(!document.getElementById('shop').classList.contains('open')); });
   document.getElementById('help-shop').addEventListener('click', function(e) { e.stopPropagation(); openHelp(false); openShop(true); });
   document.getElementById('shop-close').addEventListener('click', function() { openShop(false); });
   document.getElementById('egg-claim').addEventListener('click', function(e) {

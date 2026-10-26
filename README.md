@@ -10,16 +10,17 @@ Nothing on screen but the chimes, with a scatter of dust that drifts with the wi
 
 | Gesture | What it does |
 | --- | --- |
-| **Swipe in from the left or right edge** | Next or previous scale (a straight horizontal stroke anywhere works too): Pentatonic, Major Pent, Minor, Lydian, Whole Tone, Hirajoshi, Slendro, Pelog (both Javanese gamelan tunings, off the piano's grid), Chord Seq, Custom. Each has its own color, so the screen takes on the scale's mood. Custom brings up an octave of keys along the bottom to pick the notes |
+| **Swipe in from the left or right edge** | Next or previous scale (a straight horizontal stroke anywhere works too): Pentatonic, Major Pent, Egyptian, Minor, Harmonic Minor, Hungarian Minor, Lydian, Whole Tone, Blues, Flamenco (Spain), Hijaz and Rast (the Middle East, Rast with quarter tones), Bhairav (North India), Hirajoshi and In Sen (Japan), Slendro and Pelog (Javanese gamelan), Balafon (West Africa, seven near-equal steps), Chord Seq, and your own notes. Each has its own color, so the screen takes on the scale's mood. The last one brings up a piano octave along the top to pick the notes |
 | **Circle a finger around the outside** | Pitch, one octave per turn, clockwise up, ±2 octaves |
 | **Circle a finger over the chimes** | Add a chime per sixth of a turn clockwise, remove one counterclockwise, 3–12 |
 | **Press and hold** | A two-second gust, wind on or off |
 | **Double-tap the clapper** | Opens the sound sheet: Metal or Recorded, the recorder (standby, trigger, arm, stop, 10 s cap) and the sample bank |
-| **? icon** (top left) | A guide to these gestures |
-| **Sun / moon icon** (top right) | Light mode (the default) or dark mode |
-| **Wind icon** (top right) | Opens the wind drawer: **Wind** on or off (off at launch; off, the chimes settle and the engine rests), wind sound on or off, **Strength** and **Constancy** sliders |
-| **Workshop** (last row of the ? guide) | The numbers under the hood as percentages of the default: clapper damping and gap, chime damping and gap, wind susceptibility, the output level (makeup gain ahead of a soft limiter), the metal voice's attack ting with an on/off switch, plus the Chord Seq scale's chord length, progression (Floating, Hymn, Drift, Drone) and order. 100% everywhere is the app as shipped |
-| **Sleep icon** (top right) | A timer that turns the wind off after 15, 30, 60 or 90 minutes, with the time left shown |
+| **? icon** (bottom left) | A guide to these gestures. The icon row along the bottom dims a few seconds after the last touch; any touch brings it back |
+| **Sleep icon** (bottom left) | A timer that turns the wind off after 15, 30, 60 or 90 minutes; the minutes left show beside it |
+| **Wrench icon** (bottom right) | The Workshop, below |
+| **Sun / moon icon** (bottom right) | Light mode (the default) or dark mode |
+| **Wind icon** (bottom right) | Opens the wind drawer: **Wind** on or off (off at launch; off, the chimes settle and the engine rests), wind sound on or off, **Strength** and **Constancy** sliders |
+| **Workshop** (the wrench icon) | The numbers under the hood as percentages of the default: clapper damping and gap, chime damping and gap, wind susceptibility, the output level (makeup gain ahead of a soft limiter), the metal voice's attack ting with an on/off switch, plus the Chord Seq scale's chord length, progression (Floating, Hymn, Drift, Drone) and order. 100% everywhere is the app as shipped |
 
 Pocket Chimes takes the audio for itself: it pauses whatever else was playing, and another app starting playback (or a call) stops the chimes. After a call they come back on their own; after music, tap the screen.
 

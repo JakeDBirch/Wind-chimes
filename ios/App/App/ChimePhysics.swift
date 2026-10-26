@@ -144,6 +144,21 @@ final class ChimePhysics {
         // typical seven-note tuning (0, 120, 258, 675, 785 cents).
         "Slendro": [0, 2.4, 4.8, 7.2, 9.6],
         "Pelog": [0, 1.2, 2.58, 6.75, 7.85],
+        "Harmonic Minor": [0, 2, 3, 5, 7, 8, 11],
+        "Hungarian Minor": [0, 2, 3, 6, 7, 8, 11],
+        // North India: raga Bhairav, the double harmonic scale, a flat second and sixth
+        // against a major third and seventh
+        "Bhairav": [0, 1, 4, 5, 7, 8, 11],
+        // Spain: the flamenco mode, Phrygian with both thirds
+        "Flamenco": [0, 1, 3, 4, 5, 7, 8, 10],
+        // The Middle East: maqam Hijaz, and maqam Rast with its neutral (quarter-tone)
+        // third and seventh
+        "Hijaz": [0, 1, 4, 5, 7, 8, 10],
+        "Rast": [0, 2, 3.5, 5, 7, 9, 10.5],
+        // West Africa: a balafon's seven near-equal steps (171 cents)
+        "Balafon": [0, 1.714, 3.429, 5.143, 6.857, 8.571, 10.286],
+        // The suspended pentatonic, heard from Egypt to China
+        "Egyptian": [0, 2, 5, 7, 10],
     ]
     // Chord sequences the "Chord Seq" scale cycles through, chosen in the Workshop by
     // index. Each chord is a set of semitone offsets from the root; tubes past the
@@ -591,7 +606,7 @@ final class ChimePhysics {
 
                     let strikeVel = abs(relVn)
                     strikeCount += 1
-                    strikeFlash[i] = min(1, strikeVel * 5)
+                    strikeFlash[i] = min(1, strikeVel * 7)
                     t.lastStrike = simTime
                     struck = strikeVel
                 }
@@ -658,8 +673,8 @@ final class ChimePhysics {
                     tips[b] = pb
 
                     if impulse > 0.002 {
-                        strikeFlash[a] = -min(1, impulse * 5)
-                        strikeFlash[b] = -min(1, impulse * 5)
+                        strikeFlash[a] = -min(1, impulse * 7)
+                        strikeFlash[b] = -min(1, impulse * 7)
                         strikeCount += 1
                         tubes[a].lastStrike = simTime
                         tubes[b].lastStrike = simTime
