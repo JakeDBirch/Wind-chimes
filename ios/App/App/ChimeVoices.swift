@@ -124,7 +124,9 @@ enum ChimeVoices {
         let baseDecay = decayMult * (2.5 + pow(velNorm, 0.7) * 30.0) * pitchRing * t.sustain
         let velBright = bright * (0.20 + velNorm * velNorm * 0.80)
         let startCutoffMult = 3.0 + velBright * 7.0
-        let endCutoffMult = 0.85 + velBright * 0.4
+        // The sweep ends well above each partial: closing onto it (it used to end at 0.85×)
+        // took another dozen dB off in the note's last stretch and made the end sudden
+        let endCutoffMult = 1.8 + velBright * 0.4
 
         // No per-strike pitch randomness: a tube struck again while ringing must land on
         // exactly the same frequencies, or the two notes beat and read as pitch wobble
@@ -247,10 +249,16 @@ enum ChimeVoices {
                 v.filterFrequency = cutoff
                 v.filter = Biquad(.lowpass, q: 0.5)
 
+                // Two-stage release: the ring falls to -50 dB over most of the decay, then
+                // the last stretch to silence takes its time, the way a lightly damped tube
+                // hangs on at the very end rather than snapping off
+                let peak = pGain * 0.5
+                let knee = now + attack + pDecay * 0.7
                 v.gain.setValue(0, at: now)
-                v.gain.linearRamp(to: pGain * 0.5, at: now + attack)
-                v.gain.exponentialRamp(to: 0.0001, at: now + attack + pDecay)
-                v.stopTime = now + attack + pDecay + 0.1
+                v.gain.linearRamp(to: peak, at: now + attack)
+                v.gain.exponentialRamp(to: peak * 0.00316, at: knee)
+                v.gain.exponentialRamp(to: peak * 0.0001, at: knee + pDecay * 0.9) // half the slope
+                v.stopTime = knee + pDecay * 0.9 + 0.05
                 voices.append(v)
             }
         }
