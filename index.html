@@ -235,7 +235,7 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px;
   </div>
   <div class="help-row">
     <svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 20h22a5 5 0 1 0-5-5"/><path d="M8 28h32a6 6 0 1 1-6 6"/><path d="M8 36h16a4 4 0 1 1-4 4"/></svg>
-    <div><div class="help-name">Wind icon</div><div class="help-what">Turns the wind on and off, and sets its sound, how strong it blows and how steady it is. With the wind off the chimes swing down and settle; a gust still pushes them.</div></div>
+    <div><div class="help-name">Wind icon</div><div class="help-what">Turns the wind on and off, and sets how loud it sounds, how strong it blows and how steady it is. With the wind off the chimes swing down and settle; a gust still pushes them.</div></div>
   </div>
   <div class="help-row">
     <svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="24" cy="32" r="16"/><path d="M24 22v10l7 4"/><path d="M36 8h10l-10 10h10"/></svg>
@@ -250,7 +250,10 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px;
 <div id="catch"></div>
 <div id="drawer">
   <div class="drow"><span class="dlabel">Wind</span><button class="switch" id="power-switch" aria-label="Wind on or off"></button></div>
-  <div class="drow"><span class="dlabel">Wind sound</span><button class="switch" id="wind-switch" aria-label="Wind sound"></button></div>
+  <div class="dgroup">
+    <div class="drow" style="margin-bottom:0;"><span class="dlabel">Wind loudness</span><span class="dval" id="v-loudness">50</span></div>
+    <input class="dslider" type="range" id="loudness" min="0" max="100" step="1" value="50">
+  </div>
   <div class="dgroup">
     <div class="drow" style="margin-bottom:0;"><span class="dlabel">Strength</span><span class="dval" id="v-strength">50</span></div>
     <input class="dslider" type="range" id="strength" min="0" max="100" step="1" value="50">
@@ -332,7 +335,7 @@ var Engine = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Pl
 var TUBE_R = 0.035;       // tube radius in meters, matches ChimePhysics.tubeR
 var CORD_LENGTH = 0.53;   // matches ChimeParams.cordLength
 var CLAPPER_GAP_MM = 7.5; // matches ChimeParams.clapperGap
-var WIND_SOUND_GAIN = 0.1; // -20 dB when on
+var WIND_SOUND_MAX = 0.3;  // the wind bed's gain at 100% loudness; 50% is the old on, -20 dB
 
 // Each scale has its own hue, so the whole screen takes on its mood
 var SCALES = [
@@ -364,7 +367,7 @@ var customScale = [0, 3, 5, 7, 10];
 var scaleIndex = 0;
 var register = 0;        // octaves, -2..2
 var tubeCount = 6;       // 3..12
-var windSound = true;
+var windLoudness = 50;     // 0–100, the drawer's Wind loudness slider; 0 is silent
 var currentSound = 'metal';   // 'metal' | 'recorded'
 var hasRecording = false;
 var activeSampleId = null;
@@ -384,7 +387,7 @@ var SETTINGS_KEY = 'pocketChimesGesture';
 function saveSettings() {
   try {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify({
-      theme: theme, scale: SCALES[scaleIndex].name, customScale: customScale, register: register, tubeCount: tubeCount, windSound: windSound,
+      theme: theme, scale: SCALES[scaleIndex].name, customScale: customScale, register: register, tubeCount: tubeCount, windLoudness: windLoudness,
       sound: currentSound, sampleId: activeSampleId, windStrength: windStrength, windConsistency: windConsistency
     }));
   } catch (e) {}
@@ -403,7 +406,8 @@ function loadSettings() {
   }
   if (isNum(s.register)) register = clamp(s.register, -2, 2);
   if (isNum(s.tubeCount)) tubeCount = clamp(Math.round(s.tubeCount), 3, 12);
-  if (typeof s.windSound === 'boolean') windSound = s.windSound;
+  if (isNum(s.windLoudness)) windLoudness = clamp(Math.round(s.windLoudness), 0, 100);
+  else if (typeof s.windSound === 'boolean') windLoudness = s.windSound ? 50 : 0; // the old on/off switch
   if (s.sound === 'recorded') currentSound = 'recorded';
   if (typeof s.sampleId === 'string') activeSampleId = s.sampleId;
   if (isNum(s.windStrength) && s.windStrength > 1) windStrength = clamp(Math.round(s.windStrength), 0, 100);
@@ -425,7 +429,8 @@ function sendParams(extra) {
     register: Math.round(register * 10) / 10,
     scale: SCALES[scaleIndex].name,
     customScale: customScale,
-    windSoundGain: windSound ? WIND_SOUND_GAIN : 0
+    // Loudness follows a perceptual curve: 50% is where the old switch sat, 0% is silent
+    windSoundGain: WIND_SOUND_MAX * Math.pow(windLoudness / 100, 1.6)
   };
   if (extra) for (var k in extra) p[k] = extra[k];
   if (Engine) Engine.setParams(p);
@@ -681,8 +686,9 @@ function fadeChrome() {
 
 // ── Wind drawer ───────────────────────────────────────────
 function showWind() {
-  document.getElementById('wind-btn').classList.toggle('muted', !windSound);
-  document.getElementById('wind-switch').classList.toggle('on', windSound);
+  document.getElementById('wind-btn').classList.toggle('muted', windLoudness === 0);
+  document.getElementById('loudness').value = windLoudness;
+  document.getElementById('v-loudness').textContent = windLoudness;
   document.getElementById('strength').value = windStrength;
   document.getElementById('consistency').value = windConsistency;
   document.getElementById('v-strength').textContent = windStrength;
@@ -1217,8 +1223,8 @@ window.addEventListener('load', function() {
   document.getElementById('egg-claim').addEventListener('click', function(e) {
     if (!CLAIM_FORM_URL) { e.preventDefault(); hud('Claims open soon', 'keep your code', 1600); }
   });
-  document.getElementById('wind-switch').addEventListener('click', function() {
-    windSound = !windSound;
+  document.getElementById('loudness').addEventListener('input', function() {
+    windLoudness = Math.round(parseFloat(this.value));
     showWind();
     sendParams();
   });
