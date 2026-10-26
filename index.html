@@ -227,7 +227,7 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px;
   </div>
   <div class="help-row">
     <svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="28" cy="28" r="6" fill="currentColor"/><circle cx="28" cy="28" r="13" opacity="0.5"/><circle cx="28" cy="28" r="20" opacity="0.25"/></svg>
-    <div><div class="help-name">Press and hold</div><div class="help-what">A gust of wind.</div></div>
+    <div><div class="help-name">Press and hold</div><div class="help-what">A gust of wind for as long as you hold. Slide up for stronger, down for gentler.</div></div>
   </div>
   <div class="help-row">
     <svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="28" cy="30" r="10" fill="currentColor" opacity="0.9"/><circle cx="28" cy="30" r="20" opacity="0.3"/><path d="M20 10l3 4M36 10l-3 4" opacity="0.8"/><path d="M28 6v6"/></svg>
@@ -492,7 +492,8 @@ var G = null;
 var EDGE = 36; // px from the left or right edge where a swipe can start
 var layout = { cx: 0, cy: 0, ringPx: 100, clapperX: 0, clapperY: 0, clapperR: 20 };
 var _clapperTapAt = 0, _holdTimer = null;
-var HOLD_MS = 380; // press and hold this long, without moving, for a gust
+var HOLD_MS = 380;   // press and hold this long, without moving, for a gust
+var GUST_PX = 240;   // sliding this far up from where the hold began takes the gust from medium to full
 
 function pointerDown(e) {
   if (G) return;
@@ -500,7 +501,7 @@ function pointerDown(e) {
   var x = e.clientX, y = e.clientY;
   clearTimeout(_holdTimer);
   _holdTimer = setTimeout(function() {
-    if (G && G.mode === 'pending' && Math.hypot(G.x - G.x0, G.y - G.y0) < 12) { G.mode = 'done'; gust(); }
+    if (G && G.mode === 'pending' && Math.hypot(G.x - G.x0, G.y - G.y0) < 12) { G.mode = 'gust'; G.gy = G.y; gustStart(); }
   }, HOLD_MS);
   G = { id: e.pointerId, x0: x, y0: y, t0: performance.now(), x: x, y: y, lastX: x, lastY: y,
         mode: 'pending', heading: null, turn: 0, angle: Math.atan2(y - layout.cy, x - layout.cx),
@@ -518,6 +519,7 @@ function pointerMove(e) {
   if (dAngle > Math.PI) dAngle -= Math.PI * 2; else if (dAngle < -Math.PI) dAngle += Math.PI * 2;
   G.angle = angle;
 
+  if (G.mode === 'gust') { gustMove(G.gy - y); return; } // sliding up strengthens it, down softens
   if (G.mode === 'pending') {
     G.pend += dAngle; // the turn made before the gesture is recognized counts too
     // From an edge, a horizontal move is a swipe as soon as it's clearly one
@@ -567,6 +569,7 @@ function pointerUp(e) {
   e.preventDefault();
   var g = G; G = null;
   clearTimeout(_holdTimer);
+  if (g.mode === 'gust') { gustEnd(); return; }
   if (g.mode !== 'pending') return;
   var dt = performance.now() - g.t0;
   var dx = g.x - g.x0, dy = g.y - g.y0, dist = Math.hypot(dx, dy);
@@ -589,11 +592,24 @@ function tap(x, y) {
   _clapperTapAt = onClapper ? now : 0;
 }
 
-function gust() {
+// The gust lasts as long as the finger is down. It starts at a middling level; sliding
+// up from there strengthens it, sliding down softens it.
+var _gustLevel = 0.5;
+function gustLevelFor(dy) { return clamp(0.5 + dy / GUST_PX, 0.05, 1); }
+function gustStart() {
   _userChangedAt = Date.now();
-  if (Engine) Engine.gust();
+  _gustLevel = 0.5;
+  if (Engine) Engine.setGust({ on: true, level: _gustLevel });
 }
-
+function gustMove(dy) {
+  var level = gustLevelFor(dy);
+  if (Math.abs(level - _gustLevel) < 0.01) return;
+  _gustLevel = level;
+  if (Engine) Engine.setGust({ on: true, level: level });
+}
+function gustEnd() {
+  if (Engine) Engine.setGust({ on: false, level: 0 });
+}
 
 function changeScale(dir) {
   scaleIndex = (scaleIndex + dir + SCALES.length) % SCALES.length;
@@ -1174,7 +1190,7 @@ window.addEventListener('load', function() {
   canvas.addEventListener('pointerdown', pointerDown);
   canvas.addEventListener('pointermove', pointerMove);
   canvas.addEventListener('pointerup', pointerUp);
-  canvas.addEventListener('pointercancel', function() { G = null; });
+  canvas.addEventListener('pointercancel', function() { if (G && G.mode === 'gust') gustEnd(); G = null; });
   document.addEventListener('pointerdown', wakeChrome, true);
   wakeChrome();
 

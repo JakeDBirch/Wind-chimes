@@ -13,7 +13,7 @@ Nothing on screen but the chimes, with a scatter of dust that drifts with the wi
 | **Swipe in from the left or right edge** | Next or previous scale (a straight horizontal stroke anywhere works too): Pentatonic, Major Pent, Egyptian, Minor, Harmonic Minor, Hungarian Minor, Lydian, Whole Tone, Blues, Flamenco (Spain), Hijaz and Rast (the Middle East, Rast with quarter tones), Bhairav (North India), Hirajoshi and In Sen (Japan), Slendro and Pelog (Javanese gamelan), Balafon (West Africa, seven near-equal steps), Chord Seq, and your own notes. Each has its own color, so the screen takes on the scale's mood. The last one brings up a piano octave along the top to pick the notes |
 | **Circle a finger around the outside** | Pitch, one octave per turn, clockwise up, ±2 octaves |
 | **Circle a finger over the chimes** | Add a chime per sixth of a turn clockwise, remove one counterclockwise, 3–12 |
-| **Press and hold** | A two-second gust, wind on or off |
+| **Press and hold** | A gust for as long as the finger is down, wind on or off; slide up while holding for stronger, down for gentler |
 | **Double-tap the clapper** | Opens the sound sheet: Metal or Recorded, the recorder (standby, trigger, arm, stop, 10 s cap) and the sample bank |
 | **? icon** (bottom left) | A guide to these gestures. The icon row along the bottom dims a few seconds after the last touch; any touch brings it back |
 | **Sleep icon** (bottom left) | A timer that turns the wind off after 15, 30, 60 or 90 minutes; the minutes left show beside it |

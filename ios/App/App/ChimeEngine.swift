@@ -173,6 +173,14 @@ final class ChimeEngine {
         }
     }
 
+    /// The press-and-hold gust: on with a level while the finger is down, off when it lifts.
+    func setGust(on: Bool, level: Double) {
+        queue.async {
+            if on && !self.physicsOn { self.applyPhysics(true) }
+            self.physics.setGust(on: on, level: level)
+        }
+    }
+
     // MARK: - Sleep timer
 
     private var sleepTimer: DispatchSourceTimer?

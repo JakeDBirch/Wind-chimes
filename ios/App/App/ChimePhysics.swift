@@ -194,7 +194,8 @@ final class ChimePhysics {
             [0, 2, 7, 9, 14, 19],    // sus2 with a sixth
         ],
     ]
-    static let gustDuration = 2.0   // seconds a Gust button push lasts
+    static let gustRise = 0.03      // per tick, the gust's climb toward the finger's level (about 0.3 s)
+    static let gustFall = 0.012     // per tick, its decay once the finger lifts (about 0.7 s)
 
     struct Pendulum { var ax = 0.0, vx = 0.0, ay = 0.0, vy = 0.0 }
 
@@ -260,8 +261,13 @@ final class ChimePhysics {
 
     private var chordIndex = 0
     private var chordTimer = 0.0
-    private var gustX = 0.0, gustY = 0.0
-    private var gustT = ChimePhysics.gustDuration
+    // The press-and-hold gust: on while the finger is down, its level set by the finger
+    // sliding up or down, blowing along the wind (or a direction chosen when it began)
+    private var gustOn = false
+    private var gustLevel = 0.0      // the finger's level, 0–1
+    private var gustAmp = 0.0        // eased toward the level, or toward 0 once released
+    private var gustDirX = 0.0, gustDirY = 0.0
+    private var gustForce = 0.0      // the push at level 1, from the wind strength
     private var simTime = 0.0
 
     init() {
@@ -327,15 +333,24 @@ final class ChimePhysics {
         if physicsOn { startWind(resetState: false) }
     }
 
-    /// Single gust: a push in the current wind direction (random if wind is off) that
-    /// rises quickly and dies away over gustDuration.
+    /// The gust under a held finger. `on` with a level starts it (choosing its direction
+    /// and force then) or moves it; `on: false` lets it die away.
+    func setGust(on: Bool, level: Double) {
+        if on && !gustOn {
+            let strength = params.windStrength != 0 ? params.windStrength : 1.0
+            let angle = windOn ? windAngle : rand() * .pi * 2
+            gustForce = strength * 2.5
+            gustDirX = cos(angle); gustDirY = sin(angle)
+        }
+        gustOn = on
+        gustLevel = on ? max(0, min(1, level)) : 0
+    }
+
+    /// A short gust at a middling level, for anything that still asks for the old one-shot.
     func gust() {
-        let strength = params.windStrength != 0 ? params.windStrength : 1.0
-        let angle = windOn ? windAngle : rand() * .pi * 2
-        let gustStrength = strength * (1.5 + rand())
-        gustX = cos(angle) * gustStrength
-        gustY = sin(angle) * gustStrength
-        gustT = 0
+        setGust(on: true, level: 0.5)
+        gustAmp = max(gustAmp, 0.5)
+        setGust(on: false, level: 0)
     }
 
     func tubeFrequency(_ index: Int) -> Double {
@@ -360,7 +375,7 @@ final class ChimePhysics {
     /// True once nothing is moving: no wind or gust pushing, every pendulum near rest,
     /// and no strike in the last few seconds. Lets the engine go quiet with the wind off.
     var isSettled: Bool {
-        if windOn || motionOn || gustT < Self.gustDuration { return false }
+        if windOn || motionOn || gustOn || gustAmp > 0.01 { return false }
         if abs(ring.vx) + abs(ring.vy) + abs(striker.vx) + abs(striker.vy) > 0.02 { return false }
         for t in tubes {
             if abs(t.tv) + abs(t.tvT) > 0.02 || abs(t.ta) + abs(t.tt) > 0.02 { return false }
@@ -825,15 +840,13 @@ final class ChimePhysics {
             windMeanY *= 0.97
         }
 
-        // ── Gust button: a push on top of whatever is driving the chimes
-        if gustT < Self.gustDuration {
-            gustT += DT
-            let rise = 0.25
-            let envelope = gustT < rise
-                ? gustT / rise
-                : max(0, 1 - (gustT - rise) / (Self.gustDuration - rise))
-            windX += gustX * envelope
-            windY += gustY * envelope
+        // ── The held gust: a push on top of whatever is driving the chimes, easing up to the
+        // finger's level while it's down and dying away once it lifts
+        let gustTarget = gustOn ? gustLevel : 0
+        gustAmp += (gustTarget - gustAmp) * (gustTarget > gustAmp ? Self.gustRise : Self.gustFall)
+        if gustAmp > 0.001 {
+            windX += gustDirX * gustForce * gustAmp
+            windY += gustDirY * gustForce * gustAmp
         }
 
         // Advance chord progression
