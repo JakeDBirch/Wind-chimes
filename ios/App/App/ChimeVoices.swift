@@ -161,8 +161,7 @@ enum ChimeVoices {
                 let startMult = mix(t.cutoffSoft, t.cutoffHard, hit) * bright / 0.55 * cutoffScale
                 let endMult = mix(t.cutoffEndSoft, t.cutoffEndHard, hit)
                 let filterDecay = decay * decayScale * mix(t.filterDecaySoft, t.filterDecayHard, hit)
-                var cutoff = Automation(freq * startMult * 0.5)
-                cutoff.setValue(freq * startMult, at: now + attack)
+                var cutoff = Automation(freq * startMult) // open from the first sample, no step at the attack's end
                 cutoff.exponentialRamp(to: freq * endMult, at: now + attack + filterDecay)
                 v.filterFrequency = cutoff
                 v.filter = Biquad(.lowpass, q: mix(t.resonanceSoft, t.resonanceHard, hit))
@@ -243,8 +242,11 @@ enum ChimeVoices {
                 v.frequency = Automation(pFreqD * pow(2, sign * split / 1200))
 
                 // Lowpass sweep from bright to dark as the note decays
-                var cutoff = Automation(350) // BiquadFilterNode default until the sweep starts
-                cutoff.setValue(pFreq * startCutoffMult, at: now + attack)
+                // The sweep starts open from the first sample. It used to sit at 350 Hz (the
+                // Web Audio default) through the attack ramp and jump open as the ramp ended:
+                // a 20 dB step in under a millisecond on the upper partials, the click that
+                // made soft strikes sound like a square wavefront
+                var cutoff = Automation(pFreq * startCutoffMult)
                 cutoff.exponentialRamp(to: pFreq * endCutoffMult, at: now + attack + pDecay)
                 v.filterFrequency = cutoff
                 v.filter = Biquad(.lowpass, q: 0.5)

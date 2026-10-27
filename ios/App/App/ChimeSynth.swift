@@ -154,7 +154,8 @@ final class SynthVoice {
     // Rendered as a decaying complex rotation, four multiplies and two adds a sample.
     var modal = false
     var modalAmp = 0.0, modalFreq = 0.0, modalDecay = 0.0
-    private var mre = 0.0, mim = 0.0, rotC = 0.0, rotS = 0.0, modalReady = false
+    var modalRise = 0.0004   // seconds: a strike's contact lasts about this, so a mode rises over it rather than at once
+    private var mre = 0.0, mim = 0.0, rotC = 0.0, rotS = 0.0, modalReady = false, riseLeft = 0, riseN = 1
 
     private var time = 0.0
     private var phase = 0.0
@@ -169,19 +170,30 @@ final class SynthVoice {
                 let g = exp(-modalDecay * invSr)
                 let w = 2.0 * Double.pi * modalFreq * invSr
                 rotC = cos(w) * g; rotS = sin(w) * g
-                mre = modalAmp; mim = 0           // the sine starts from zero: no click
+                mre = modalAmp; mim = 0           // the sine starts from zero
+                riseN = max(1, Int(modalRise * sampleRate)); riseLeft = riseN
             }
             let t0 = time
             time = t0 + Double(frames) * invSr
             let first = t0 < startTime ? min(frames, Int((startTime - t0) * sampleRate)) : 0
             var re = mre, im = mim
             let c = rotC, sn = rotS
+            var left = riseLeft
+            let n = Double(riseN)
             for k in first..<frames {
                 let nre = re * c - im * sn
                 im = re * sn + im * c
                 re = nre
-                out[k] += Float(im)
+                if left > 0 {
+                    // Raised-cosine rise over the contact time: no edge at the onset
+                    let x = Double(riseN - left + 1) / n
+                    out[k] += Float(im * 0.5 * (1 - cos(.pi * x)))
+                    left -= 1
+                } else {
+                    out[k] += Float(im)
+                }
             }
+            riseLeft = left
             mre = re; mim = im
             return modalAmp * exp(-modalDecay * max(0, time - startTime)) > 2e-5
         }
