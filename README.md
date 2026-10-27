@@ -15,7 +15,7 @@ Nothing on screen but the chimes, with a scatter of dust that drifts with the wi
 | **Circle a finger over the chimes** | Add a chime per sixth of a turn clockwise, remove one counterclockwise, 3–12 |
 | **Press and hold** | A gust for as long as the finger is down, wind on or off, starting at half strength; slide up while holding toward full, down toward a breath. Its strength is its own, not the wind slider's |
 | **Double-tap the clapper** | Opens the sound sheet: Metal or Recorded, the recorder (standby, trigger, arm, stop, 10 s cap) and the sample bank |
-| **? icon** (bottom left) | A guide to these gestures. The icon row along the bottom dims a few seconds after the last touch; any touch brings it back |
+| **? icon** (bottom left) | A guide to these gestures. The icon row along the bottom dims a few seconds after the last touch, and the system status bar hides with it; any touch brings both back |
 | **Sleep icon** (bottom left) | A timer that turns the wind off after 15, 30, 60 or 90 minutes; the minutes left show beside it |
 | **Wrench icon** (bottom right) | The Workshop, below |
 | **Sun / moon icon** (bottom right) | Light mode (the default) or dark mode |

@@ -671,8 +671,12 @@ function toggleNote(semitone) {
 // ── Icon row: dims after a few seconds; any touch brings it back ──────────
 var CHROME_MS = 4000;
 var _chromeTimer = null;
+function showStatusBar(shown) {
+  if (Engine && Engine.setStatusBar) Engine.setStatusBar({ hidden: !shown, dark: theme === 'dark' });
+}
 function wakeChrome() {
   var el = document.getElementById('chrome');
+  if (el.classList.contains('faded')) showStatusBar(true);
   el.classList.remove('faded');
   clearTimeout(_chromeTimer);
   _chromeTimer = setTimeout(fadeChrome, CHROME_MS);
@@ -682,6 +686,7 @@ function fadeChrome() {
   var up = ['drawer', 'sleep-drawer', 'help', 'shop', 'sheet'].some(function(id) { return document.getElementById(id).classList.contains('open'); });
   if (up) { _chromeTimer = setTimeout(fadeChrome, CHROME_MS); return; }
   document.getElementById('chrome').classList.add('faded');
+  showStatusBar(false); // the system's clock, signal and battery go with it
 }
 
 // ── Wind drawer ───────────────────────────────────────────
@@ -1201,6 +1206,7 @@ window.addEventListener('load', function() {
   canvas.addEventListener('pointercancel', function() { if (G && G.mode === 'gust') gustEnd(); G = null; });
   document.addEventListener('pointerdown', wakeChrome, true);
   wakeChrome();
+  showStatusBar(true);
 
   document.getElementById('wind-btn').addEventListener('click', function() {
     openDrawer(!document.getElementById('drawer').classList.contains('open'));
@@ -1215,6 +1221,7 @@ window.addEventListener('load', function() {
     theme = theme === 'dark' ? 'light' : 'dark';
     applyTheme();
     saveSettings();
+    showStatusBar(true);
   });
   document.getElementById('help').addEventListener('click', function() { openHelp(false); });
   document.getElementById('egg-later').addEventListener('click', function() { document.getElementById('egg').classList.remove('open'); });

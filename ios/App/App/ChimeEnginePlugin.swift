@@ -12,6 +12,7 @@ public class ChimeEnginePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "setWind", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "gust", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setGust", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setStatusBar", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setSleepTimer", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setSound", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setVoiceParams", returnType: CAPPluginReturnPromise),
@@ -67,6 +68,21 @@ public class ChimeEnginePlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func setWind(_ call: CAPPluginCall) {
         engine.setWind(call.getBool("on") ?? false)
         call.resolve()
+    }
+
+    /// The system status bar (clock, signal, battery) hides with the page's icon row and
+    /// comes back with it; its text follows the theme.
+    @objc func setStatusBar(_ call: CAPPluginCall) {
+        let hidden = call.getBool("hidden") ?? false
+        let dark = call.getBool("dark") ?? false
+        DispatchQueue.main.async {
+            if let vc = self.bridge?.viewController as? CAPBridgeViewController {
+                vc.setStatusBarAnimation(.fade)
+                vc.setStatusBarStyle(dark ? .lightContent : .darkContent)
+                vc.setStatusBarVisible(!hidden)
+            }
+            call.resolve()
+        }
     }
 
     @objc func setGust(_ call: CAPPluginCall) {
