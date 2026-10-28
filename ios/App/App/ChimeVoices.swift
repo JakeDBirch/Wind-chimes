@@ -101,11 +101,15 @@ enum ChimeVoices {
         func rand() -> Double { Double.random(in: 0..<1) }
 
         var voices: [SynthVoice] = []
+        // Every contact sounds as tube on tube (Oct 28): the clapper's own brighter, longer
+        // voice and its wooden-clapper ting are no longer used, so a clapper strike and a
+        // clash of neighbours differ only in speed. The lights still tell them apart.
+        let strike = ChimeStrike(frequency: strike.frequency, velocity: strike.velocity, speed: strike.speed, isClapper: false)
         let freq = strike.frequency
         let velNorm = min(1.0, strike.velocity)
         let isClapper = strike.isClapper
 
-        // ── Timbre by strike type: clapper hits ring bright and long, tube-on-tube is warmer
+        // ── Timbre by strike type (now always the tube-on-tube one)
         let bright = isClapper ? 0.55 : 0.30
         let gainScale = isClapper ? 1.0 : 0.75
         let partialRolloff = isClapper ? 1.0 : 0.55
