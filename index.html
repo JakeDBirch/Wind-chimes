@@ -716,14 +716,17 @@ var SHOP = [
   { key: 'outputGain', name: 'Output level', base: 5.6, voice: true, min: 25, max: 300, head: 'Output', fmt: function(v) { return (v >= 1 ? '+' : '') + (20 * Math.log10(v)).toFixed(1) + ' dB'; } },
   // Ring: the ring time of every voice, metal and recorded, as a multiple
   { key: 'sustain',   name: 'Ring time',      base: 1.0, voice: true, min: 25, max: 300, head: 'Ring', unit: '×' },
-  // The ting: the modes of a real tube beyond the sustain's four partials, from the
-  // reference physical model at the strike's actual speed. At 100% the level is a 250th
-  // of the model's balance against the fundamental, the decay 1.85× its times, and the
-  // ting starts at the second bending mode, which is where the ear put them on Oct 25.
-  // A saved percentage is kept only while its base is the one it was set against.
-  { key: 'ting',      name: 'Ting level',     base: 0.004, voice: true, min: 0, max: 400, head: 'Attack', unit: '' },
-  { key: 'tingDecay', name: 'Ting decay',     base: 1.85, voice: true, min: 0, max: 400, unit: '×' },
-  { key: 'tingFrom',  name: 'Ting from mode', base: 2,    voice: true, min: 100, max: 450, unit: '' }
+  // The ting: the modes of a real tube beyond the sustain's fundamental, from the
+  // reference physical model at the strike's actual speed. Each mode is a head (louder,
+  // shed in tens of milliseconds) over a tail (the mode at its own rate, the bending modes
+  // stretched by the decay). Level and decay are where the ear put them on Oct 30; a
+  // saved percentage is kept only while its base is the one it was set against.
+  { key: 'ting',       name: 'Ting level',       base: 0.0024, voice: true, min: 0, max: 400, head: 'Attack', unit: '' },
+  { key: 'tingDecay',  name: 'Ting decay',       base: 7.4,  voice: true, min: 0, max: 400, unit: '×' },
+  { key: 'tingFrom',   name: 'Ting from mode',   base: 2,    voice: true, min: 100, max: 450, unit: '' },
+  { key: 'tingHead',   name: 'Ting bite',        base: 2.0,  voice: true, min: 0, max: 400, unit: '× tail' },
+  { key: 'tingHeadMs', name: 'Ting bite length', base: 40,   voice: true, min: 25, max: 400, unit: ' ms' },
+  { key: 'tingVel',    name: 'Ting velocity',    base: 1.0,  voice: true, min: 0, max: 400, unit: '' }
 ];
 function shopMin(c) { return c.min == null ? 25 : c.min; }
 function shopMax(c) { return c.max == null ? 300 : c.max; }

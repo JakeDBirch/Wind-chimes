@@ -39,9 +39,12 @@ struct SampleVoiceParams {
     // at the strike's actual speed: their amplitude relative to the fundamental's and
     // their decay are the model's; only the level is taste.
     var sustain = 1.0           // × the ring time of every voice, metal and recorded (the Workshop's Ring time)
-    var ting = 0.004            // level; 1 would be the model's balance against the fundamental, this is a 250th of it by ear
-    var tingDecay = 1.85        // × the model's decay times
+    var ting = 0.0024           // level of the ting's tail; 1 would be the model's balance against the fundamental (Oct 30, by ear)
+    var tingDecay = 7.4         // × the model's decay times, for the tail of the bending modes (the wall's ovalling cluster keeps its own rate)
     var tingFrom = 2.0          // the lowest bending mode in the ting: the second, so it carries every mode above the fundamental
+    var tingHead = 2.0          // the head: every ting mode starts this many times its tail level and sheds the excess quickly
+    var tingHeadMs = 40.0       // how quickly: the head's time to -60 dB
+    var tingVel = 1.0           // the ting's velocity exponent: 1 follows the strike linearly, 0 is the same ting at every speed, 2.2 the sustain's own steep curve
 
     /// Apply any matching numeric keys from the page.
     mutating func apply(_ values: [String: Double]) {
@@ -78,6 +81,9 @@ struct SampleVoiceParams {
             case "ting": ting = max(0, value)
             case "tingDecay": tingDecay = max(0.05, value)
             case "tingFrom": tingFrom = max(2, min(9, value))
+            case "tingHead": tingHead = max(0, value)
+            case "tingHeadMs": tingHeadMs = max(2, value)
+            case "tingVel": tingVel = max(0, value)
             default: break
             }
         }
@@ -204,18 +210,38 @@ enum ChimeVoices {
         // the fundamental this voice is about to play, so the ting follows velocity the
         // way a struck tube's does. Instant onset, no filter.
         if t.ting > 0 {
-            let fundamental = vel * 0.65
+            // Scaled to the voice's full-strike fundamental, then by velocity on the ting's
+            // own exponent (1: linear, as a struck tube's modes scale) rather than the
+            // sustain's steep curve, which left soft strikes with no ting at all
+            let fundamentalAtFull = gainScale * 0.65
+            let scale = t.ting * fundamentalAtFull * pow(max(0.01, velNorm), t.tingVel)
+            let headDecay = 6.908 / (t.tingHeadMs / 1000)
             for m in referenceTing(for: strike, from: Int(t.tingFrom.rounded())) {
-                let level = t.ting * fundamental * m.relative
+                let level = scale * m.relative
                 if level < 2e-5 { continue }
-                let v = SynthVoice()
-                v.modal = true
-                v.startTime = now
-                v.modalFreq = m.frequency
-                v.modalAmp = level
-                v.modalDecay = m.decay / t.tingDecay
-                v.stopTime = now + log(level / 2e-5) / v.modalDecay + 0.01
-                voices.append(v)
+                // Tail: the mode at its own rate, the bending modes stretched by the decay
+                // slider; the wall's ovalling cluster is not, since stretched it beats with
+                // itself for half a second and reads as a digital artefact
+                let tail = SynthVoice()
+                tail.modal = true
+                tail.startTime = now
+                tail.modalFreq = m.frequency
+                tail.modalAmp = level
+                tail.modalDecay = m.shell ? m.decay : m.decay / t.tingDecay
+                tail.stopTime = now + log(level / 2e-5) / tail.modalDecay + 0.01
+                voices.append(tail)
+                // Head: the same mode, louder by the head multiple, shed in a few tens of
+                // milliseconds, so most of the ting's energy goes at the very top
+                if t.tingHead > 0 {
+                    let head = SynthVoice()
+                    head.modal = true
+                    head.startTime = now
+                    head.modalFreq = m.frequency
+                    head.modalAmp = level * t.tingHead
+                    head.modalDecay = headDecay
+                    head.stopTime = now + log(head.modalAmp / 2e-5) / headDecay + 0.01
+                    voices.append(head)
+                }
             }
         }
 
@@ -272,7 +298,7 @@ enum ChimeVoices {
         return voices
     }
 
-    struct TingMode { let frequency: Double; let relative: Double; let decay: Double }
+    struct TingMode { let frequency: Double; let relative: Double; let decay: Double; let shell: Bool }
 
     /// The reference model's modes for this strike beyond the sustain's partials: the
     /// bending modes from `from` up and the wall's ovalling modes, each with its
@@ -311,7 +337,7 @@ enum ChimeVoices {
             let level = exp(log(amp(a)) * (1 - tp) + log(amp(b)) * tp)
             let mf = f * ratio
             if mf > 16000 { return }
-            out.append(TingMode(frequency: mf, relative: level / reference, decay: zeta * 2 * .pi * mf))
+            out.append(TingMode(frequency: mf, relative: level / reference, decay: zeta * 2 * .pi * mf, shell: a.shell))
         }
         let first = max(1, from - 1)
         if first < min(loBend.count, hiBend.count) {
