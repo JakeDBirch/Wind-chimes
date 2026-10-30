@@ -39,6 +39,11 @@ struct SampleVoiceParams {
     // at the strike's actual speed: their amplitude relative to the fundamental's and
     // their decay are the model's; only the level is taste.
     var sustain = 1.0           // × the ring time of every voice, metal and recorded (the Workshop's Ring time)
+    // Soft strikes' overtones: the upper partials used to vanish below a velocity
+    // threshold, leaving a bare sine. Now they open at the loud strike's balance and
+    // die quickly into the attack (Oct 30)
+    var softOvertones = 1.0     // their level at a soft strike, × the loud strike's balance
+    var softOvertoneDecay = 0.08 // their ring at a soft strike, × the partial's full decay
     var ting = 0.0024           // level of the ting's tail; 1 would be the model's balance against the fundamental (Oct 30, by ear)
     var tingDecay = 7.4         // × the model's decay times, for the tail of the bending modes (the wall's ovalling cluster keeps its own rate)
     var tingFrom = 2.0          // the lowest bending mode in the ting: the second, so it carries every mode above the fundamental
@@ -78,6 +83,8 @@ struct SampleVoiceParams {
             case "octaveDecay": octaveDecay = value
             case "octaveCutoff": octaveCutoff = value
             case "sustain": sustain = max(0.1, value)
+            case "softOvertones": softOvertones = max(0, value)
+            case "softOvertoneDecay": softOvertoneDecay = max(0.005, min(1, value))
             case "ting": ting = max(0, value)
             case "tingDecay": tingDecay = max(0.05, value)
             case "tingFrom": tingFrom = max(2, min(9, value))
@@ -250,16 +257,28 @@ enum ChimeVoices {
             let pFreq = freq * partialRatios[i] * pitchWobble
             if pFreq > 16000 { continue }
 
-            // Higher partials only emerge on harder strikes
+            // Higher partials sustain only on harder strikes: above a threshold they ring
+            // with the note, at a level that grows with velocity. Below it they used to be
+            // left out altogether, and a soft strike was a bare sine, the one thing the
+            // loud strikes never were. Now a soft strike opens with the loud strike's
+            // overtone balance too, but those partials die quickly, into the attack
             let threshold = di * 0.12
-            if velNorm < threshold { continue }
             let partialVel = max(0, (velNorm - threshold) / (1 - threshold))
+            let sustained = pow(partialVel, 0.6)
+            // How much of the note is a loud one: 0 at the softest touch, 1 from a
+            // middling strike up, where the old voice is unchanged
+            let presence = i == 0 ? 1.0 : max(0, min(1, (velNorm - 0.05) / 0.5))
+            let flash = t.softOvertones * (1 - presence)
+            let levelFactor = max(sustained, flash)
+            if levelFactor <= 0.001 { continue }
 
             let pFreqD = pFreq
-            let pDecay = baseDecay * partialDecays[i]
+            // A soft strike's overtones ring a fraction of the full partial decay
+            let pDecay = baseDecay * partialDecays[i] * (t.softOvertoneDecay + (1 - t.softOvertoneDecay) * presence)
             let gainVar = 0.90 + rand() * 0.20
-            let pGain = vel * partialGains[i] * gainVar * pow(partialRolloff, di) * pow(partialVel, 0.6) * 0.65
-            let attack = attackMult * (0.006 + di * (0.006 + velNorm * 0.008))
+            let pGain = vel * partialGains[i] * gainVar * pow(partialRolloff, di) * levelFactor * 0.65
+            // ... and rise as fast as the fundamental, where a sustained partial swells in
+            let attack = attackMult * (0.006 + di * (0.006 + velNorm * 0.008) * presence)
 
             // Twin modes: a real tube is never perfectly round, so each partial is a pair
             // of modes a cent or two apart that beat slowly as the note rings. The split is

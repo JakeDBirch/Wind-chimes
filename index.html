@@ -716,6 +716,10 @@ var SHOP = [
   { key: 'outputGain', name: 'Output level', base: 5.6, voice: true, min: 25, max: 300, head: 'Output', fmt: function(v) { return (v >= 1 ? '+' : '') + (20 * Math.log10(v)).toFixed(1) + ' dB'; } },
   // Ring: the ring time of every voice, metal and recorded, as a multiple
   { key: 'sustain',   name: 'Ring time',      base: 1.0, voice: true, min: 25, max: 300, head: 'Ring', unit: '×' },
+  // Soft strikes' overtones: the upper partials open at the loud strike's balance and
+  // die quickly into the attack. Level × that balance; length × the partial's full decay.
+  { key: 'softOvertones',    name: 'Soft overtones',        base: 1.0,  voice: true, min: 0, max: 400, head: 'Soft strikes', unit: '×' },
+  { key: 'softOvertoneDecay', name: 'Soft overtone length', base: 0.08, voice: true, min: 25, max: 400, unit: '× decay' },
   // The ting: the modes of a real tube beyond the sustain's fundamental, from the
   // reference physical model at the strike's actual speed. Each mode is a head (louder,
   // shed in tens of milliseconds) over a tail (the mode at its own rate, the bending modes
