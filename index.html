@@ -711,27 +711,26 @@ var SHOP = [
   { key: 'tubeDamp',    name: 'Chime damping',   base: 0.54 },
   { key: 'gap',         name: 'Chime gap',       base: 10.5 },
   { key: 'sensitivity', name: 'Wind susceptibility', base: 0.342 },
+  // Brightness is the ting's level (its on/off switch is under Attack): how much of a
+  // strike's bright first instant there is
+  { key: 'ting',        name: 'Brightness',          base: 0.0006, voice: true, min: 0, max: 200 },
   // Output: makeup gain on the chimes ahead of a soft limiter that only touches the
   // loudest peaks. 100% is +15 dB; the readout is the gain in dB.
   { key: 'outputGain', name: 'Output level', base: 5.6, voice: true, min: 25, max: 300, head: 'Output', fmt: function(v) { return (v >= 1 ? '+' : '') + (20 * Math.log10(v)).toFixed(1) + ' dB'; } },
   // Ring: the ring time of every voice, metal and recorded, as a multiple
   { key: 'sustain',   name: 'Ring time',      base: 1.0, voice: true, min: 25, max: 300, head: 'Ring', unit: '×' },
-  // Soft strikes' overtones: the upper partials open at the loud strike's balance and
-  // die quickly into the attack. Level × that balance; length × the partial's full decay.
-  { key: 'softOvertones',    name: 'Soft overtones',        base: 1.0,  voice: true, min: 0, max: 400, head: 'Soft strikes', unit: '×' },
-  { key: 'softOvertoneDecay', name: 'Soft overtone length', base: 0.08, voice: true, min: 25, max: 400, unit: '× decay' },
   // The ting: the modes of a real tube beyond the sustain's fundamental, from the
   // reference physical model at the strike's actual speed. Each mode is a head (louder,
   // shed in tens of milliseconds) over a tail (the mode at its own rate, the bending modes
-  // stretched by the decay). The bases are where the ear put them on Nov 1, and each
-  // slider runs symmetrically about 100%, the middle of its track; a saved percentage is
-  // kept only while its base is the one it was set against.
-  { key: 'ting',       name: 'Ting level',       base: 0.0006, voice: true, min: 0,  max: 200, head: 'Attack', unit: '' },
-  { key: 'tingDecay',  name: 'Ting decay',       base: 14,     voice: true, min: 0,  max: 200, unit: '×' },
+  // stretched by the decay). The bases are where the ear put them on Nov 1 (the level is
+  // the standard Brightness slider above), and each slider runs symmetrically about 100%,
+  // the middle of its track; a saved percentage is kept only while its base is the one it
+  // was set against.
+  { key: 'tingDecay',  name: 'Ting decay',       base: 13.3,   voice: true, min: 0,  max: 200, head: 'Attack', unit: '×' },
   { key: 'tingFrom',   name: 'Ting from mode',   base: 3,      voice: true, min: 50, max: 150, unit: '' },
-  { key: 'tingHead',   name: 'Ting bite',        base: 2.2,    voice: true, min: 0,  max: 200, unit: '× tail' },
-  { key: 'tingHeadMs', name: 'Ting bite length', base: 36,     voice: true, min: 10, max: 190, unit: ' ms' },
-  { key: 'tingVel',    name: 'Ting velocity',    base: 0.45,   voice: true, min: 0,  max: 200, unit: '' }
+  { key: 'tingHead',   name: 'Ting bite',        base: 2.31,   voice: true, min: 0,  max: 200, unit: '× tail' },
+  { key: 'tingHeadMs', name: 'Ting bite length', base: 37.8,   voice: true, min: 10, max: 190, unit: ' ms' },
+  { key: 'tingVel',    name: 'Ting velocity',    base: 0.36,   voice: true, min: 0,  max: 200, unit: '' }
 ];
 function shopMin(c) { return c.min == null ? 25 : c.min; }
 function shopMax(c) { return c.max == null ? 300 : c.max; }
@@ -753,8 +752,7 @@ var chords = { len: 100, set: 0, shuffle: false };
 // Bypass switches, one per section that can be A/B'd: off sends the engine 0 for the
 // section's level key and dims its sliders, leaving their settings alone
 var SWITCHES = [
-  { id: 'ting', label: 'Ting',           first: 'ting',          zero: 'ting',          prefix: 'ting' },
-  { id: 'soft', label: 'Soft overtones', first: 'softOvertones', zero: 'softOvertones', prefix: 'softOvertone' }
+  { id: 'ting', label: 'Ting', first: 'tingDecay', zero: 'ting', prefix: 'ting' }
 ];
 var switchOn = {}; SWITCHES.forEach(function(w) { switchOn[w.id] = true; });
 
