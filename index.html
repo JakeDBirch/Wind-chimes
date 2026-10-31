@@ -717,8 +717,9 @@ var SHOP = [
   { key: 'tubeDamp',    name: 'Chime damping',   base: 0.54 },
   { key: 'gap',         name: 'Chime gap',       base: 10.5 },
   { key: 'sensitivity', name: 'Wind susceptibility', base: 0.342 },
-  // Brightness is the ting's level (its on/off switch is under Attack): how much of a
-  // strike's bright first instant there is
+  // Brightness is the ting's level, among the standard settings (the Attack section below
+  // has the same setting as Ting level, with its on/off switch and the rest of the ting):
+  // how much of a strike's bright first instant there is
   { key: 'ting',        name: 'Brightness',          base: 0.0006, voice: true, min: 0, max: 200 },
   // Output: makeup gain on the chimes ahead of a soft limiter that only touches the
   // loudest peaks. 100% is +15 dB; the readout is the gain in dB.
@@ -728,11 +729,12 @@ var SHOP = [
   // The ting: the modes of a real tube beyond the sustain's fundamental, from the
   // reference physical model at the strike's actual speed. Each mode is a head (louder,
   // shed in tens of milliseconds) over a tail (the mode at its own rate, the bending modes
-  // stretched by the decay). The bases are where the ear put them on Nov 1 (the level is
-  // the standard Brightness slider above), and each slider runs symmetrically about 100%,
+  // stretched by the decay). The bases are where the ear put them on Nov 1 (Ting level is
+  // the same setting as the standard Brightness slider above), and each slider runs symmetrically about 100%,
   // the middle of its track; a saved percentage is kept only while its base is the one it
   // was set against.
-  { key: 'tingDecay',  name: 'Ting decay',       base: 13.3,   voice: true, min: 0,  max: 200, head: 'Attack', unit: '×' },
+  { key: 'ting',       name: 'Ting level',       base: 0.0006, voice: true, min: 0,  max: 200, head: 'Attack', switchFirst: 'ting', unit: '' }, // the same setting as Brightness
+  { key: 'tingDecay',  name: 'Ting decay',       base: 13.3,   voice: true, min: 0,  max: 200, unit: '×' },
   { key: 'tingFrom',   name: 'Ting from mode',   base: 3,      voice: true, min: 50, max: 150, unit: '' },
   { key: 'tingHead',   name: 'Ting bite',        base: 2.31,   voice: true, min: 0,  max: 200, unit: '× tail' },
   { key: 'tingHeadMs', name: 'Ting bite length', base: 37.8,   voice: true, min: 10, max: 190, unit: ' ms' },
@@ -758,7 +760,7 @@ var chords = { len: 100, set: 0, shuffle: false };
 // Bypass switches, one per section that can be A/B'd: off sends the engine 0 for the
 // section's level key and dims its sliders, leaving their settings alone
 var SWITCHES = [
-  { id: 'ting', label: 'Ting', first: 'tingDecay', zero: 'ting', prefix: 'ting' }
+  { id: 'ting', label: 'Ting', zero: 'ting', prefix: 'ting' }
 ];
 var switchOn = {}; SWITCHES.forEach(function(w) { switchOn[w.id] = true; });
 
@@ -796,7 +798,7 @@ function buildShop() {
   SHOP.forEach(function(c) {
     if (c.head) { var h = document.createElement('div'); h.className = 'shop-head'; h.textContent = c.head; el.appendChild(h); }
     SWITCHES.forEach(function(w) {
-      if (c.key !== w.first) return;
+      if (c.switchFirst !== w.id) return;
       var tg = document.createElement('div'); tg.className = 'shop-group';
       tg.innerHTML = '<div class="drow" style="margin-bottom:0"><span class="dlabel">' + w.label + '</span><button class="switch" id="' + w.id + '-switch" aria-label="' + w.label + ' on or off"></button></div>';
       tg.querySelector('button').addEventListener('click', function() { switchOn[w.id] = !switchOn[w.id]; sendShop(); hud(w.label + (switchOn[w.id] ? ' on' : ' off'), '', 700); });
@@ -805,6 +807,7 @@ function buildShop() {
     var sw = SWITCHES.filter(function(w) { return c.key.indexOf(w.prefix) === 0; })[0];
     var g = document.createElement('div'); g.className = 'shop-group' + (sw ? ' sw-ctl' : '');
     if (sw) g.dataset.sw = sw.id;
+    g.dataset.idx = SHOP.indexOf(c); // two entries can share a setting, so find the row by position
     g.innerHTML = '<div class="drow" style="margin-bottom:0"><span class="dlabel">' + c.name + '</span><span class="dval" data-val="' + c.key + '"></span></div>' +
       '<input class="dslider" type="range" data-key="' + c.key + '" min="' + shopMin(c) + '" max="' + shopMax(c) + '" step="5">';
     g.querySelector('input').addEventListener('input', function() { shop[c.key] = parseFloat(this.value); sendShop(); });
@@ -832,10 +835,11 @@ function buildShop() {
   showShop();
 }
 function showShop() {
-  SHOP.forEach(function(c) {
-    var inp = document.querySelector('#shop input[data-key="' + c.key + '"]'), v = document.querySelector('#shop [data-val="' + c.key + '"]');
-    if (inp) inp.value = shop[c.key];
-    if (v) v.textContent = shopReadout(c);
+  SHOP.forEach(function(c, i) {
+    var row = document.querySelector('#shop-controls .shop-group[data-idx="' + i + '"]');
+    if (!row) return;
+    row.querySelector('input').value = shop[c.key];
+    row.querySelector('.dval').textContent = shopReadout(c);
   });
   SWITCHES.forEach(function(w) {
     var ts = document.getElementById(w.id + '-switch'); if (ts) ts.classList.toggle('on', switchOn[w.id]);
