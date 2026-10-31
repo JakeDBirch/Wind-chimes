@@ -44,12 +44,13 @@ struct SampleVoiceParams {
     // die quickly into the attack (Oct 30)
     var softOvertones = 1.0     // their level at a soft strike, × the loud strike's balance
     var softOvertoneDecay = 0.08 // their ring at a soft strike, × the partial's full decay
-    var ting = 0.0024           // level of the ting's tail; 1 would be the model's balance against the fundamental (Oct 30, by ear)
-    var tingDecay = 7.4         // × the model's decay times, for the tail of the bending modes (the wall's ovalling cluster keeps its own rate)
-    var tingFrom = 2.0          // the lowest bending mode in the ting: the second, so it carries every mode above the fundamental
-    var tingHead = 2.0          // the head: every ting mode starts this many times its tail level and sheds the excess quickly
-    var tingHeadMs = 40.0       // how quickly: the head's time to -60 dB
-    var tingVel = 1.0           // the ting's velocity exponent: 1 follows the strike linearly, 0 is the same ting at every speed, 2.2 the sustain's own steep curve
+    // The ting's defaults are where the ear put them on Nov 1
+    var ting = 0.0006           // level of the ting's tail; 1 would be the model's balance against the fundamental
+    var tingDecay = 14.0        // × the model's decay times, for the tail of the bending modes (the wall's ovalling cluster keeps its own rate)
+    var tingFrom = 3.0          // the lowest bending mode in the ting (rounded to a whole mode): the third
+    var tingHead = 2.2          // the head: every ting mode starts this many times its tail level and sheds the excess quickly
+    var tingHeadMs = 36.0       // how quickly: the head's time to -60 dB
+    var tingVel = 0.45          // the ting's velocity exponent: 1 follows the strike linearly, 0 is the same ting at every speed, 2.2 the sustain's own steep curve
 
     /// Apply any matching numeric keys from the page.
     mutating func apply(_ values: [String: Double]) {
