@@ -456,15 +456,21 @@ function showSleep(remaining) {
   document.getElementById('sleep-btn').classList.toggle('armed', sleepMinutes > 0);
   var v = document.getElementById('v-sleep'), left = document.getElementById('sleep-left');
   if (isNum(remaining) && remaining >= 0 && sleepMinutes > 0) {
-    var m = Math.ceil(remaining / 60);
-    v.textContent = m <= 1 ? 'under a minute' : m + ' min left';
-    left.textContent = remaining < 60 ? Math.max(0, Math.round(remaining)) + ' s' : m + ' min';
+    v.textContent = fmtClock(remaining) + ' left';
+    left.textContent = fmtClock(remaining);
     left.classList.add('on');
   } else {
     v.textContent = '';
     left.classList.toggle('on', sleepMinutes > 0);
-    if (sleepMinutes > 0) left.textContent = sleepMinutes + ' min';
+    if (sleepMinutes > 0) left.textContent = fmtClock(sleepMinutes * 60);
   }
+}
+
+// Seconds as m:SS (minutes unpadded, running past 59 for the longest timers: 90:00)
+function fmtClock(seconds) {
+  var total = Math.max(0, Math.ceil(seconds));
+  var s = total % 60;
+  return Math.floor(total / 60) + ':' + (s < 10 ? '0' : '') + s;
 }
 
 function setSleep(minutes) {
