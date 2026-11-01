@@ -248,7 +248,7 @@ final class ChimePhysics {
             [3, 8, 12, 15, 20, 24],  // F
             [2, 7, 11, 14, 19, 23],  // E
         ],
-        // 9 Tristan: the chord that opens Wagner's Prelude (1859), F–B–D♯–G♯, and its
+        // 9 Wagner: the Tristan chord that opens Wagner's Prelude (1859), F–B–D♯–G♯, and its
         // resolution onto E7
         [
             [8, 14, 18, 23],         // the Tristan chord: F B D♯ G♯
@@ -374,7 +374,7 @@ final class ChimePhysics {
         // 16 to 20 are from a research batch (Renaissance and Baroque), each a reduction in
         // A, with the researcher's confidence noted. Voiced up from the root with the lowest
         // two notes never a semitone apart; a suspension is its own chord.
-        // 16 Arianna: Monteverdi, Lamento d'Arianna (Lasciatemi morire), 1608. The dominant
+        // 16 Monteverdi: Lamento d'Arianna (Lasciatemi morire), 1608. The dominant
         // seventh stab, the pull to the minor, the tonic turned dominant. Chord sequence
         // inferred from the form (the opening dominant seventh is verified)
         [
@@ -389,7 +389,7 @@ final class ChimePhysics {
             [-5, -1, 2, 5, 7],       // E7
             [0, 3, 7, 12, 15],       // Am
         ],
-        // 17 Lachrimae: Dowland, Lachrimae Pavan, c. 1596 to 1604. The falling A G F E and
+        // 17 Dowland: Lachrimae Pavan, c. 1596 to 1604. The falling A G F E and
         // the Picardy close. Inferred from the strain structure, with verified anchors
         [
             [0, 3, 7, 12, 15],       // Am
@@ -403,7 +403,7 @@ final class ChimePhysics {
             [-5, -1, 2, 7, 11],      // E
             [0, 4, 7, 12, 16],       // A, the Picardy third
         ],
-        // 18 Moro, lasso: Gesualdo, Moro, lasso, al mio duolo, Madrigals Book 6, 1611. The
+        // 18 Gesualdo: Moro, lasso, al mio duolo, Madrigals Book 6, 1611. The
         // opening bars, verified by the researcher against two published discussions: four
         // chords that do not belong together, then a cadence that does. Seven chords, no more
         [
@@ -431,7 +431,7 @@ final class ChimePhysics {
             [5, 8, 12, 17, 20],      // Dm
             [0, 3, 7, 12, 15],       // Am
         ],
-        // 20 Dido: Purcell, When I am laid in earth, 1689. One statement of the chromatic
+        // 20 Purcell: When I am laid in earth, 1689. One statement of the chromatic
         // ground (G F♯ F E E♭ D B♭ C D G, here A A♭ G F♯ F E C D E A in the bass), each bass
         // note a chord tone. The ground is verified, the harmony inferred
         [
