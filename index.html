@@ -710,15 +710,13 @@ function showWind() {
 // underneath, each a slider from one plain word to another with the shipped setting in
 // the middle (100). Most are multiplicative, so a step either way is the same change in
 // feel: the value is the default times 3 to the power of the slider's distance from the
-// middle, in hundredths. "inv" flips it, for controls that were damping or distance and
-// are now swing or reach (more slider, less damping). Brightness is linear, since 0 is
-// none at all. `key` names the saved setting, `engine` the engine's own name for it.
+// middle, in hundredths. "inv" flips it, for the swings, which are damping underneath
+// (more swing, less damping). Brightness is linear, since 0 is none at all. `key` names the saved setting, `engine` the engine's own name for it.
 var SHOP = [
-  { key: 'strikerSwing', engine: 'clapperDamp', name: 'Striker swing', base: 0.72, inv: true, lo: 'Rigid', hi: 'Boundless', head: 'Motion' },
-  { key: 'strikerReach', engine: 'clapperGap',  name: 'Striker reach', base: 7.5,  inv: true, lo: 'Short', hi: 'Long' },
-  { key: 'chimeSway',    engine: 'tubeDamp',    name: 'Chime sway',    base: 0.54, inv: true, lo: 'Still', hi: 'Swinging' },
-  { key: 'chimeClink',   engine: 'gap',         name: 'Chime clink',   base: 10.5, inv: true, lo: 'Rare',  hi: 'Constant' },
-  { key: 'windResponse', engine: 'sensitivity', name: 'Wind response', base: 0.342, lo: 'Calm', hi: 'Restless' },
+  { key: 'strikerSwing',    engine: 'clapperDamp', name: 'Striker swing',    base: 0.72, inv: true, lo: 'Rigid', hi: 'Free', head: 'Motion' },
+  { key: 'strikerDistance', engine: 'clapperGap',  name: 'Striker distance', base: 7.5,  lo: 'Close', hi: 'Far' },
+  { key: 'chimeSwing',      engine: 'tubeDamp',    name: 'Chime swing',      base: 0.54, inv: true, lo: 'Rigid', hi: 'Free' },
+  { key: 'chimeDistance',   engine: 'gap',         name: 'Chime distance',   base: 10.5, lo: 'Close', hi: 'Far' },
   // Brightness is the level of the ting, the tube's bright first instant, whose other
   // settings (decay, bite, velocity, from-mode) are tuned and live in the engine
   { key: 'ting', name: 'Brightness', base: 0.0006, voice: true, lin: true, lo: 'Mellow', hi: 'Bright', head: 'Sound' },
@@ -1462,7 +1460,7 @@ function draw() {
   var dScy = rcy + Math.sin(S.striker[1]) * strikerL;
   c.beginPath(); c.strokeStyle = P.tubeCord; c.lineWidth = 0.8;
   c.moveTo(wx(rcx), wy(rcy)); c.lineTo(wx(dScx), wy(dScy)); c.stroke();
-  var clapperR = Math.max(4, (ringRadius - TUBE_R - (CLAPPER_GAP_MM * shopFactor(SHOP_BY_KEY.strikerReach) / 1000)) * scale);
+  var clapperR = Math.max(4, (ringRadius - TUBE_R - (CLAPPER_GAP_MM * shopFactor(SHOP_BY_KEY.strikerDistance) / 1000)) * scale);
   c.beginPath(); c.arc(wx(dScx), wy(dScy), clapperR, 0, Math.PI * 2);
   c.fillStyle = P.clapper; c.fill();
   c.strokeStyle = P.clapperEdge; c.lineWidth = 1.5; c.stroke();
