@@ -320,6 +320,39 @@ final class ChimePhysics {
             [2, 7, 11, 14, 19, 23],  // E
             [0, 3, 7, 12, 15, 19],   // Am
         ],
+        // 14 Adagietto: the skeleton of Mahler's Symphony No. 5, IV (1902), from a published
+        // reduction's play-through line (a reduction, not a transcription: the suspensions
+        // and chromatic inner voices that give the movement its sound are not in it). Mahler
+        // is in F major; here it is a major third up, in A. Section A, the middle section
+        // (the deceptive turn to the flat key, then the long dominant), and the return with
+        // its climax chromaticism
+        [
+            [2, 7, 11, 14, 19, 23],  // E       V   (F: C)
+            [0, 4, 7, 12, 16, 19],   // A       I   (F)
+            [2, 7, 11, 14, 19, 23],  // E       V
+            [2, 6, 9, 12, 14, 18],   // B7      V/V (G7)
+            [2, 5, 9, 14, 17, 21],   // Bm      ii  (Gm)
+            [0, 4, 7, 12, 16, 19],   // A       I
+            [4, 7, 11, 16, 19, 23],  // C♯m     iii (Am)
+            [0, 4, 7, 12, 16, 19],   // A       I
+            [3, 8, 12, 15, 20, 24],  // F       the Neapolitan (D♭)
+            [2, 7, 11, 14, 19, 23],  // E       V
+            [0, 4, 7, 12, 16, 19],   // A       I
+            [0, 4, 7, 10, 12, 16],   // A7      the middle section: F7, V7 of B♭
+            [2, 7, 10, 14, 19, 22],  // Em      ii  (Cm)
+            [0, 4, 7, 12, 16, 19],   // A       I
+            [1, 5, 8, 13, 17, 20],   // B♭      the deceptive turn (G♭)
+            [3, 6, 11, 15, 18, 23],  // G♯      the written key of E major
+            [4, 8, 11, 16, 20, 23],  // C♯      the long dominant (A, V of D)
+            [2, 7, 11, 14, 19, 23],  // E       V of the home key, the hinge back
+            [0, 4, 7, 12, 16, 19],   // A       the return
+            [2, 6, 9, 14, 18, 21],   // B       V/V
+            [2, 7, 11, 14, 19, 23],  // E       V
+            [0, 4, 7, 12, 16, 19],   // A       I
+            [5, 8, 12, 16, 17, 20],  // DmM7    the climax colour (B♭mM7)
+            [6, 9, 12, 16, 18, 21],  // D♯ø7    (Bø7)
+            [0, 4, 7, 12, 16, 19],   // A       the final tonic
+        ],
     ]
     static let gustRise = 0.03      // per tick, the gust's climb toward the finger's level (about 0.3 s)
     static let gustFall = 0.012     // per tick, its decay once the finger lifts (about 0.7 s)
