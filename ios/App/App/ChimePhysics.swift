@@ -371,6 +371,81 @@ final class ChimePhysics {
             [5, 9, 12, 17, 21, 24],  // D      up a minor third, F♯ shared
             [3, 8, 12, 15, 20, 24],  // F      up a minor third, A shared; and F to A, a major third up, closes the loop
         ],
+        // 16 to 20 are from a research batch (Renaissance and Baroque), each a reduction in
+        // A, with the researcher's confidence noted. Voiced up from the root with the lowest
+        // two notes never a semitone apart; a suspension is its own chord.
+        // 16 Arianna: Monteverdi, Lamento d'Arianna (Lasciatemi morire), 1608. The dominant
+        // seventh stab, the pull to the minor, the tonic turned dominant. Chord sequence
+        // inferred from the form (the opening dominant seventh is verified)
+        [
+            [-5, 0, 2, 7],           // Esus4
+            [-5, -1, 2, 5, 7],       // E7
+            [0, 3, 7, 12, 15],       // Am
+            [5, 8, 12, 17, 20],      // Dm
+            [-5, -1, 2, 5, 7],       // E7
+            [0, 3, 7, 12, 15],       // Am
+            [5, 9, 12, 17, 21],      // D
+            [0, 4, 7, 10, 12],       // A7
+            [-5, -1, 2, 5, 7],       // E7
+            [0, 3, 7, 12, 15],       // Am
+        ],
+        // 17 Lachrimae: Dowland, Lachrimae Pavan, c. 1596 to 1604. The falling A G F E and
+        // the Picardy close. Inferred from the strain structure, with verified anchors
+        [
+            [0, 3, 7, 12, 15],       // Am
+            [-2, 2, 5, 10, 14],      // G
+            [-4, 0, 3, 8, 12],       // F
+            [-5, -1, 2, 7, 11],      // E
+            [0, 3, 7, 12, 15],       // Am
+            [3, 7, 10, 15, 19],      // C
+            [5, 8, 12, 17, 20],      // Dm
+            [-5, 0, 2, 7],           // Esus4
+            [-5, -1, 2, 7, 11],      // E
+            [0, 4, 7, 12, 16],       // A, the Picardy third
+        ],
+        // 18 Moro, lasso: Gesualdo, Moro, lasso, al mio duolo, Madrigals Book 6, 1611. The
+        // opening bars, verified by the researcher against two published discussions: four
+        // chords that do not belong together, then a cadence that does. Seven chords, no more
+        [
+            [4, 8, 11, 16, 20],      // C♯
+            [0, 3, 7, 12, 15],       // Am
+            [2, 6, 9, 14, 18],       // B
+            [-2, 2, 5, 10, 14],      // G
+            [-5, -1, 2, 5, 7],       // E7
+            [-5, -1, 2, 7, 11],      // E
+            [0, 3, 7, 12, 15],       // Am
+        ],
+        // 19 Miserere: Allegri, Miserere mei, Deus, c. 1638. A falsobordone formula (root
+        // position chords, alternating the two choirs, a fourth apart), not a transcription:
+        // inferred. The second choir is the familiar modern transposition
+        [
+            [0, 3, 7, 12, 15],       // Am
+            [-4, 0, 3, 8, 12],       // F
+            [-5, 0, 2, 7],           // Esus4
+            [-5, -1, 2, 7, 11],      // E
+            [0, 3, 7, 12, 15],       // Am
+            [5, 8, 12, 17, 20],      // Dm
+            [1, 5, 8, 13, 17],       // B♭
+            [0, 5, 7, 12],           // Asus4
+            [0, 4, 7, 12, 16],       // A
+            [5, 8, 12, 17, 20],      // Dm
+            [0, 3, 7, 12, 15],       // Am
+        ],
+        // 20 Dido: Purcell, When I am laid in earth, 1689. One statement of the chromatic
+        // ground (G F♯ F E E♭ D B♭ C D G, here A A♭ G F♯ F E C D E A in the bass), each bass
+        // note a chord tone. The ground is verified, the harmony inferred
+        [
+            [0, 3, 7, 12, 15],       // Am
+            [-5, -1, 2, 7, 11],      // E
+            [3, 7, 10, 15, 19],      // C
+            [5, 9, 12, 17, 21],      // D
+            [-4, 0, 3, 8, 12],       // F
+            [-5, -1, 2, 7, 11],      // E
+            [3, 7, 10, 15, 19],      // C
+            [5, 8, 12, 17, 20],      // Dm
+            [-5, -1, 2, 7, 11],      // E
+            [0, 3, 7, 12, 15],       // Am
+        ],
     ]
     static let gustRise = 0.03      // per tick, the gust's climb toward the finger's level (about 0.3 s)
     static let gustFall = 0.012     // per tick, its decay once the finger lifts (about 0.7 s)
