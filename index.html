@@ -128,9 +128,10 @@ html[data-theme="dark"] .key.black.active { color: #16181c; }
 .shop-group { padding: 10px 0; border-bottom: 1px solid var(--line); }
 .shop-group:last-of-type { border-bottom: none; }
 .shop-head { font-size: 14px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dim); padding: 16px 0 2px; }
+.ends { display: flex; justify-content: space-between; font-size: 14px; font-weight: 500; color: var(--text-faint); margin-top: 4px; }
 .shop-note { font-size: 14px; font-weight: 500; color: var(--text-dim); line-height: 1.4; margin: 4px 0 10px; }
 .shop-actions { display: flex; gap: 8px; margin-top: 12px; }
-/* Sound sheet: opened by a double tap on the clapper */
+/* Sound sheet: opened by a double tap on the striker */
 #dim { position: fixed; inset: 0; background: var(--dim); opacity: 0; pointer-events: none; transition: opacity 0.25s; }
 #dim.open { opacity: 1; pointer-events: auto; }
 #sheet { position: fixed; left: 0; right: 0; bottom: 0; background: var(--panel); border-top: 1px solid var(--panel-border); border-radius: 16px 16px 0 0; padding: 14px 18px calc(18px + env(safe-area-inset-bottom)); transform: translateY(105%); transition: transform 0.3s cubic-bezier(.2,.8,.2,1); max-height: 80vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
@@ -229,7 +230,7 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px;
   </div>
   <div class="help-row">
     <svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="28" cy="30" r="10" fill="currentColor" opacity="0.9"/><circle cx="28" cy="30" r="20" opacity="0.3"/><path d="M20 10l3 4M36 10l-3 4" opacity="0.8"/><path d="M28 6v6"/></svg>
-    <div><div class="help-name">Double-tap the clapper</div><div class="help-what">Choose the sound: metal, or something you record with the mic and keep in your bank.</div></div>
+    <div><div class="help-name">Double-tap the striker</div><div class="help-what">Choose the sound: metal, or something you record with the mic and keep in your bank.</div></div>
   </div>
   <div class="help-row">
     <svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 20h22a5 5 0 1 0-5-5"/><path d="M8 28h32a6 6 0 1 1-6 6"/><path d="M8 36h16a4 4 0 1 1-4 4"/></svg>
@@ -241,7 +242,7 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px;
   </div>
   <div class="help-row" id="help-shop">
     <svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M46 8a10 10 0 0 0-13 13L10 44a4 4 0 0 0 5.5 5.5L38.5 26a10 10 0 0 0 13-13l-6.5 6.5-4.6-1.3-1.3-4.6z"/><path d="M8 14l6-6 6 6-6 6z" opacity="0.6"/><path d="M19 15l20 20" opacity="0.6"/></svg>
-    <div><div class="help-name">Wrench icon</div><div class="help-what">The Workshop: the numbers under the hood, as percentages of the default.</div></div>
+    <div><div class="help-name">Wrench icon</div><div class="help-what">The Workshop: how the chimes move and sound, one slider each.</div></div>
   </div>
 </div>
 
@@ -281,7 +282,7 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px;
 
 <div id="shop">
   <div class="sheet-head"><span class="stitle">Workshop</span><button class="close" id="shop-close">✕</button></div>
-  <div class="shop-note">The numbers under the hood, each as a percentage of this build's default. 100% everywhere is the app as shipped.</div>
+  <div class="shop-note">Every control rests in the middle, where the app ships. Slide either way to taste.</div>
   <div id="shop-controls"></div>
   <div class="shop-head">Chord sequence</div>
   <div class="shop-group" id="shop-chords">
@@ -293,7 +294,7 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px;
     <div class="chips" id="chord-order-chips"></div>
     <div class="shop-note" style="margin:10px 0 0">Heard on the Chord Seq scale, which moves through these chords one at a time.</div>
   </div>
-  <div class="shop-actions"><button class="schip" id="shop-reset">Back to 100%</button></div>
+  <div class="shop-actions"><button class="schip" id="shop-reset">Back to the middle</button></div>
 </div>
 
 <div id="dim"></div>
@@ -589,7 +590,7 @@ function pointerUp(e) {
   }
 }
 
-// A double tap on the clapper opens the sound sheet; any other tap does nothing.
+// A double tap on the striker opens the sound sheet; any other tap does nothing.
 function tap(x, y) {
   var onClapper = Math.hypot(x - layout.clapperX, y - layout.clapperY) < Math.max(layout.clapperR + 10, 28);
   var now = performance.now();
@@ -705,32 +706,41 @@ function showWind() {
 }
 
 // ── Workshop ──────────────────────────────────────────────
-// The numbers under the hood, each set as a percentage of this build's default and
-// sent to the engine as the absolute value (physics to setLab, the voice to
-// setVoiceParams), plus the chord sequence's length, progression and order. 100%
-// everywhere is the app as shipped.
+// The Workshop's controls, named for what you hear or see rather than the physics
+// underneath, each a slider from one plain word to another with the shipped setting in
+// the middle (100). Most are multiplicative, so a step either way is the same change in
+// feel: the value is the default times 3 to the power of the slider's distance from the
+// middle, in hundredths. "inv" flips it, for controls that were damping or distance and
+// are now swing or reach (more slider, less damping). Brightness is linear, since 0 is
+// none at all. `key` names the saved setting, `engine` the engine's own name for it.
 var SHOP = [
-  { key: 'clapperDamp', name: 'Clapper damping', base: 0.72 },
-  { key: 'clapperGap',  name: 'Clapper gap',     base: 7.5 },
-  { key: 'tubeDamp',    name: 'Chime damping',   base: 0.54 },
-  { key: 'gap',         name: 'Chime gap',       base: 10.5 },
-  { key: 'sensitivity', name: 'Wind susceptibility', base: 0.342 },
+  { key: 'strikerSwing', engine: 'clapperDamp', name: 'Striker swing', base: 0.72, inv: true, lo: 'Rigid', hi: 'Boundless', head: 'Motion' },
+  { key: 'strikerReach', engine: 'clapperGap',  name: 'Striker reach', base: 7.5,  inv: true, lo: 'Short', hi: 'Long' },
+  { key: 'chimeSway',    engine: 'tubeDamp',    name: 'Chime sway',    base: 0.54, inv: true, lo: 'Still', hi: 'Swinging' },
+  { key: 'chimeClink',   engine: 'gap',         name: 'Chime clink',   base: 10.5, inv: true, lo: 'Rare',  hi: 'Constant' },
+  { key: 'windResponse', engine: 'sensitivity', name: 'Wind response', base: 0.342, lo: 'Calm', hi: 'Restless' },
   // Brightness is the level of the ting, the tube's bright first instant, whose other
   // settings (decay, bite, velocity, from-mode) are tuned and live in the engine
-  { key: 'ting',        name: 'Brightness',          base: 0.0006, voice: true, min: 0, max: 200 },
-  // Output: makeup gain on the chimes ahead of a soft limiter that only touches the
-  // loudest peaks. 100% is +15 dB; the readout is the gain in dB.
-  { key: 'outputGain', name: 'Output level', base: 5.6, voice: true, min: 25, max: 300, head: 'Output', fmt: function(v) { return (v >= 1 ? '+' : '') + (20 * Math.log10(v)).toFixed(1) + ' dB'; } },
-  // Ring: the ring time of every voice, metal and recorded, as a multiple
-  { key: 'sustain',   name: 'Ring time',      base: 1.0, voice: true, min: 25, max: 300, head: 'Ring', unit: '×' },
+  { key: 'ting', name: 'Brightness', base: 0.0006, voice: true, lin: true, lo: 'Mellow', hi: 'Bright', head: 'Sound' },
+  // Loudness: makeup gain on the chimes ahead of a soft limiter that only touches the
+  // loudest peaks. 100 is +15 dB; the readout is the gain in dB
+  { key: 'chimeLoudness', engine: 'outputGain', name: 'Chime loudness', base: 5.6, voice: true, lo: 'Quieter', hi: 'Louder', fmt: function(v) { return (v >= 1 ? '+' : '') + (20 * Math.log10(v)).toFixed(1) + ' dB'; } },
+  // Ring time: the ring of every voice, metal and recorded, as a multiple
+  { key: 'ringTime', engine: 'sustain', name: 'Ring time', base: 1.0, voice: true, lo: 'Brief', hi: 'Lingering', unit: '×' }
 ];
-function shopMin(c) { return c.min == null ? 25 : c.min; }
-function shopMax(c) { return c.max == null ? 300 : c.max; }
+var SHOP_BY_KEY = {}; SHOP.forEach(function(c) { SHOP_BY_KEY[c.key] = c; });
+function shopMin(c) { return 0; }
+function shopMax(c) { return 200; }
+// What the slider's position means as a multiple of the shipped value
+function shopFactor(c) {
+  var p = shop[c.key];
+  return c.lin ? p / 100 : Math.pow(3, (c.inv ? -1 : 1) * (p - 100) / 100);
+}
 function shopReadout(c) {
   var pct = Math.round(shop[c.key]) + '%';
-  if (c.fmt) return pct + ' · ' + c.fmt(c.base * shop[c.key] / 100);
+  if (c.fmt) return pct + ' · ' + c.fmt(c.base * shopFactor(c));
   if (c.unit == null) return pct;
-  var v = c.base * shop[c.key] / 100;
+  var v = c.base * shopFactor(c);
   return pct + ' · ' + (v >= 10 ? Math.round(v) : v >= 1 ? v.toFixed(1) : v >= 0.1 ? v.toFixed(2) : v >= 0.01 ? v.toFixed(3) : v.toFixed(4)) + c.unit;
 }
 var shop = {}; // key → percent
@@ -760,7 +770,7 @@ function loadShop() {
 function saveShop() { try { var v = {}; SHOP.forEach(function(c) { v[c.key] = shop[c.key]; }); v.chords = chords; v.bases = {}; SHOP.forEach(function(c) { v.bases[c.key] = c.base; }); localStorage.setItem('pocketChimesShop', JSON.stringify(v)); } catch (e) {} }
 function sendShop() {
   var values = {}, voice = {};
-  SHOP.forEach(function(c) { (c.voice ? voice : values)[c.key] = c.base * shop[c.key] / 100; });
+  SHOP.forEach(function(c) { (c.voice ? voice : values)[c.engine || c.key] = c.base * shopFactor(c); });
   values.chordSeconds = CHORD_SECONDS * chords.len / 100;
   values.chordSet = chords.set;
   values.chordShuffle = chords.shuffle ? 1 : 0;
@@ -775,7 +785,8 @@ function buildShop() {
     var g = document.createElement('div'); g.className = 'shop-group';
     g.dataset.idx = SHOP.indexOf(c);
     g.innerHTML = '<div class="drow" style="margin-bottom:0"><span class="dlabel">' + c.name + '</span><span class="dval" data-val="' + c.key + '"></span></div>' +
-      '<input class="dslider" type="range" data-key="' + c.key + '" min="' + shopMin(c) + '" max="' + shopMax(c) + '" step="5">';
+      '<input class="dslider" type="range" data-key="' + c.key + '" min="' + shopMin(c) + '" max="' + shopMax(c) + '" step="5">' +
+      (c.lo ? '<div class="ends"><span>' + c.lo + '</span><span>' + c.hi + '</span></div>' : '');
     g.querySelector('input').addEventListener('input', function() { shop[c.key] = parseFloat(this.value); sendShop(); });
     el.appendChild(g);
   });
@@ -795,7 +806,7 @@ function buildShop() {
   document.getElementById('shop-reset').addEventListener('click', function() {
     SHOP.forEach(function(c) { shop[c.key] = 100; });
     chords = { len: 100, set: 0, shuffle: false };
-    sendShop(); hud('Back to 100%', '', 900);
+    sendShop(); hud('Back to the middle', '', 900);
   });
   showShop();
 }
@@ -1451,7 +1462,7 @@ function draw() {
   var dScy = rcy + Math.sin(S.striker[1]) * strikerL;
   c.beginPath(); c.strokeStyle = P.tubeCord; c.lineWidth = 0.8;
   c.moveTo(wx(rcx), wy(rcy)); c.lineTo(wx(dScx), wy(dScy)); c.stroke();
-  var clapperR = Math.max(4, (ringRadius - TUBE_R - (CLAPPER_GAP_MM * shop.clapperGap / 100 / 1000)) * scale);
+  var clapperR = Math.max(4, (ringRadius - TUBE_R - (CLAPPER_GAP_MM * shopFactor(SHOP_BY_KEY.strikerReach) / 1000)) * scale);
   c.beginPath(); c.arc(wx(dScx), wy(dScy), clapperR, 0, Math.PI * 2);
   c.fillStyle = P.clapper; c.fill();
   c.strokeStyle = P.clapperEdge; c.lineWidth = 1.5; c.stroke();

@@ -14,13 +14,13 @@ Nothing on screen but the chimes, with a scatter of dust that drifts with the wi
 | **Circle a finger around the outside** | Pitch, one octave per turn, clockwise up, ±2 octaves |
 | **Circle a finger over the chimes** | Add a chime per sixth of a turn clockwise, remove one counterclockwise, 3–12 |
 | **Press and hold** | A gust for as long as the finger is down, wind on or off, starting at half strength; slide up while holding toward full, down toward a breath. Its strength is its own, not the wind slider's |
-| **Double-tap the clapper** | Opens the sound sheet: Metal or Recorded, the recorder (standby, trigger, arm, stop, 10 s cap) and the sample bank |
+| **Double-tap the striker** | Opens the sound sheet: Metal or Recorded, the recorder (standby, trigger, arm, stop, 10 s cap) and the sample bank |
 | **? icon** (bottom left) | A guide to these gestures. The icon row along the bottom dims a few seconds after the last touch, and the system status bar hides with it; any touch brings both back |
 | **Sleep icon** (bottom left) | A timer that turns the wind off after 15, 30, 60 or 90 minutes; the time left counts down beside it as minutes and seconds |
 | **Wrench icon** (bottom right) | The Workshop, below |
 | **Sun / moon icon** (bottom right) | Light mode (the default) or dark mode |
 | **Wind icon** (bottom right) | Opens the wind drawer: **Wind** on or off (off at launch; off, the chimes settle and the engine rests), **Wind loudness** (0 is silent), **Strength** and **Constancy** sliders |
-| **Workshop** (the wrench icon) | The numbers under the hood as percentages of the default: clapper damping and gap, chime damping and gap, wind susceptibility, Brightness (the ting's level), the output level (makeup gain ahead of a soft limiter), the ring time, plus the Chord Seq scale's chord length, progression (Floating, Hymn, Drift, Drone, and five from public-domain music and tradition: Pachelbel's Canon, La Folia, the opening of Bach's C major Prelude, Satie's Gymnopédie No. 1, the Andalusian cadence, Wagner's Tristan chord resolving to E7, the changes of Gershwin's I Got Rhythm, a jazz blues, the circle of fifths, the Romanesca ground under Greensleeves, a skeleton of Mahler's Adagietto, and a loop of chromatic mediants, and five early works: Monteverdi's Lamento d'Arianna, Dowland's Lachrimae, Gesualdo's Moro, lasso, Allegri's Miserere and Purcell's Dido's Lament) and order. 100% everywhere is the app as shipped |
+| **Workshop** (the wrench icon) | How the chimes move and sound, each a slider between two plain words with the shipped setting in the middle: **Striker swing** (rigid to boundless), **Striker reach**, **Chime sway**, **Chime clink**, **Wind response**, then **Brightness**, **Chime loudness** and **Ring time**, then the Chord Seq scale's chord length, progression (twenty-one of them) and order |
 
 Pocket Chimes takes the audio for itself: it pauses whatever else was playing, and another app starting playback (or a call) stops the chimes. After a call they come back on their own; after music, tap the screen.
 
