@@ -199,7 +199,7 @@ final class ChimePhysics {
         // tonic, or A minor) and voiced upward from near the root, six notes where the
         // chord has them. A chord with fewer notes than the set has tubes simply doubles
         // upward an octave.
-        // 4 Canon: Pachelbel's Canon in D (c. 1680), I V vi iii IV I IV V
+        // 4 Pachelbel: Pachelbel's Canon in D (c. 1680), I V vi iii IV I IV V
         [
             [0, 4, 7, 12, 16, 19],   // A
             [2, 7, 11, 14, 19, 23],  // E
@@ -236,7 +236,7 @@ final class ChimePhysics {
             [2, 7, 11, 14, 19, 23],  // E
             [0, 4, 7, 12, 16, 19],   // A
         ],
-        // 7 Gymnopédie: Satie's No. 1 (1888), the two chords it rocks between, IV⁷ and I⁷
+        // 7 Satie: Gymnopédie No. 1 (1888), the two chords it rocks between, IV⁷ and I⁷
         [
             [5, 9, 12, 16, 21, 24],  // Dmaj7
             [0, 4, 7, 11, 16, 19],   // Amaj7
@@ -254,7 +254,7 @@ final class ChimePhysics {
             [8, 14, 18, 23],         // the Tristan chord: F B D♯ G♯
             [7, 11, 14, 17],         // E7: E G♯ B D
         ],
-        // 10 Rhythm: "rhythm changes", the changes of Gershwin's I Got Rhythm (1930, in the
+        // 10 Gershwin: "rhythm changes", the changes of Gershwin's I Got Rhythm (1930, in the
         // US public domain since 2026) that jazz has played ever since, in A rather than B♭.
         // The A section, then the bridge's chain of dominants III7 VI7 II7 V7
         [
@@ -322,7 +322,7 @@ final class ChimePhysics {
             [2, 7, 11, 14, 19, 23],  // E
             [0, 3, 7, 12, 15, 19],   // Am
         ],
-        // 14 Adagietto: the skeleton of Mahler's Symphony No. 5, IV (1902), from a published
+        // 14 Mahler: the Adagietto, the skeleton of Mahler's Symphony No. 5, IV (1902), from a published
         // reduction's play-through line (a reduction, not a transcription: the suspensions
         // and chromatic inner voices that give the movement its sound are not in it). Mahler
         // is in F major; here it is a major third up, in A. Section A, the middle section
@@ -415,7 +415,7 @@ final class ChimePhysics {
             [-5, -1, 2, 7, 11],      // E
             [0, 3, 7, 12, 15],       // Am
         ],
-        // 19 Miserere: Allegri, Miserere mei, Deus, c. 1638. A falsobordone formula (root
+        // 19 Allegri: Miserere mei, Deus, c. 1638. A falsobordone formula (root
         // position chords, alternating the two choirs, a fourth apart), not a transcription:
         // inferred. The second choir is the familiar modern transposition
         [
