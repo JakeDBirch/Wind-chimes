@@ -252,6 +252,61 @@ final class ChimePhysics {
             [8, 14, 18, 23],         // the Tristan chord: F B D♯ G♯
             [7, 11, 14, 17],         // E7: E G♯ B D
         ],
+        // 10 Rhythm: "rhythm changes", the changes of Gershwin's I Got Rhythm (1930, in the
+        // US public domain since 2026) that jazz has played ever since, in A rather than B♭.
+        // The A section, then the bridge's chain of dominants III7 VI7 II7 V7
+        [
+            [0, 4, 7, 12, 16, 19],   // A
+            [4, 7, 9, 13, 16, 19],   // F♯7
+            [2, 5, 9, 12, 14, 17],   // Bm7
+            [2, 5, 7, 11, 14, 17],   // E7
+            [4, 7, 11, 14, 16, 19],  // C♯m7
+            [4, 7, 9, 13, 16, 19],   // F♯7
+            [2, 5, 9, 12, 14, 17],   // Bm7
+            [2, 5, 7, 11, 14, 17],   // E7
+            [2, 5, 7, 10, 14, 17],   // Em7
+            [0, 4, 7, 10, 12, 16],   // A7
+            [5, 9, 12, 17, 21, 24],  // D
+            [6, 9, 12, 15, 18, 21],  // D♯°7
+            [7, 12, 16, 19, 24, 28], // A/E
+            [4, 7, 9, 13, 16, 19],   // F♯7
+            [2, 5, 9, 12, 14, 17],   // Bm7
+            [2, 5, 7, 11, 14, 17],   // E7
+            [4, 8, 11, 14, 16, 20],  // C♯7   the bridge
+            [4, 7, 9, 13, 16, 19],   // F♯7
+            [2, 6, 9, 12, 14, 18],   // B7
+            [2, 5, 7, 11, 14, 17],   // E7
+        ],
+        // 11 Jazz blues: the twelve-bar blues with the jazz player's turnarounds, in A
+        [
+            [0, 4, 7, 10, 12, 16],   // A7
+            [5, 9, 12, 15, 17, 21],  // D7
+            [0, 4, 7, 10, 12, 16],   // A7
+            [2, 5, 7, 10, 14, 17],   // Em7
+            [0, 4, 7, 10, 12, 16],   // A7
+            [5, 9, 12, 15, 17, 21],  // D7
+            [6, 9, 12, 15, 18, 21],  // D♯°7
+            [0, 4, 7, 10, 12, 16],   // A7
+            [4, 7, 11, 14, 16, 19],  // C♯m7
+            [4, 7, 9, 13, 16, 19],   // F♯7
+            [2, 5, 9, 12, 14, 17],   // Bm7
+            [2, 5, 7, 11, 14, 17],   // E7
+            [0, 4, 7, 10, 12, 16],   // A7
+            [4, 7, 9, 13, 16, 19],   // F♯7
+            [2, 5, 9, 12, 14, 17],   // Bm7
+            [2, 5, 7, 11, 14, 17],   // E7
+        ],
+        // 12 Fifths: the circle of fifths, i iv VII III VI ii° V in A minor, the Baroque
+        // sequence of Corelli and Vivaldi that jazz took as its ii–V–I chain
+        [
+            [0, 3, 7, 10, 12, 15],   // Am7
+            [5, 8, 12, 15, 17, 20],  // Dm7
+            [2, 5, 8, 10, 14, 17],   // G7
+            [3, 7, 10, 14, 15, 19],  // Cmaj7
+            [3, 7, 8, 12, 15, 19],   // Fmaj7
+            [2, 5, 8, 12, 14, 17],   // Bm7♭5
+            [2, 5, 7, 11, 14, 17],   // E7
+        ],
     ]
     static let gustRise = 0.03      // per tick, the gust's climb toward the finger's level (about 0.3 s)
     static let gustFall = 0.012     // per tick, its decay once the finger lifts (about 0.7 s)
