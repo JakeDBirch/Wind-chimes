@@ -162,8 +162,10 @@ final class ChimePhysics {
     ]
     // Chord sequences the "Chord Seq" scale cycles through, chosen in the Workshop by
     // index. Each chord is a set of semitone offsets from the root; tubes past the
-    // sixth take the same notes an octave up.
-    static let chordSets: [[[Int]]] = [
+    // sixth take the same notes an octave up. Offsets may be fractional, as the scales'
+    // are: 3.5 is a quarter tone below the fourth semitone, 0.14 a just third's comma
+    // (the pitch is 440 · 2^(offset/12), whatever the offset).
+    static let chordSets: [[[Double]]] = [
         // 0 Floating: minor ninths and elevenths that never quite resolve
         [
             [0, 3, 7, 10, 14, 17],   // im9add11 — tonic, open and floating
@@ -534,7 +536,7 @@ final class ChimePhysics {
         if params.scale == "Chord Seq" {
             let chords = Self.chordSets[params.lab.chordSet]
             let chord = chords[chordIndex % chords.count]
-            semitone = Double(chord[index % chord.count] + (index / chord.count) * 12)
+            semitone = chord[index % chord.count] + Double(index / chord.count) * 12
         } else {
             let scale: [Double]
             if params.scale == "Custom" {
