@@ -353,6 +353,22 @@ final class ChimePhysics {
             [6, 9, 12, 16, 18, 21],  // D♯ø7    (Bø7)
             [0, 4, 7, 12, 16, 19],   // A       the final tonic
         ],
+        // 15 Mediants: chromatic mediants, the move Gesualdo made a signature (A major
+        // against F♯ major with nothing between), then Schubert, Liszt and Wagner and, much
+        // later, film scores. An idiom, not a work: nine major triads a third apart, each
+        // sharing exactly one note with the last, none in a key with it, round to where it
+        // began: A C A♭ E G E♭ B D F
+        [
+            [0, 4, 7, 12, 16, 19],   // A      (A C♯ E)
+            [3, 7, 10, 15, 19, 22],  // C      up a minor third, E shared
+            [3, 6, 11, 15, 18, 23],  // A♭     down a major third, C shared
+            [2, 7, 11, 14, 19, 23],  // E      down a major third, G♯ shared
+            [2, 5, 10, 14, 17, 22],  // G      up a minor third, B shared
+            [1, 6, 10, 13, 18, 22],  // E♭     down a major third, G shared
+            [2, 6, 9, 14, 18, 21],   // B      down a major third, D♯ shared
+            [5, 9, 12, 17, 21, 24],  // D      up a minor third, F♯ shared
+            [3, 8, 12, 15, 20, 24],  // F      up a minor third, A shared; and F to A, a major third up, closes the loop
+        ],
     ]
     static let gustRise = 0.03      // per tick, the gust's climb toward the finger's level (about 0.3 s)
     static let gustFall = 0.012     // per tick, its decay once the finger lifts (about 0.7 s)
