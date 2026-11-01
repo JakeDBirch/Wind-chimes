@@ -193,6 +193,65 @@ final class ChimePhysics {
             [0, 4, 7, 11, 14, 19],   // Imaj9
             [0, 2, 7, 9, 14, 19],    // sus2 with a sixth
         ],
+        // The rest are from public-domain music and tradition, all put in A (so A is the
+        // tonic, or A minor) and voiced upward from near the root, six notes where the
+        // chord has them. A chord with fewer notes than the set has tubes simply doubles
+        // upward an octave.
+        // 4 Canon: Pachelbel's Canon in D (c. 1680), I V vi iii IV I IV V
+        [
+            [0, 4, 7, 12, 16, 19],   // A
+            [2, 7, 11, 14, 19, 23],  // E
+            [4, 9, 12, 16, 21, 24],  // F♯m
+            [4, 7, 11, 16, 19, 23],  // C♯m
+            [5, 9, 12, 17, 21, 24],  // D
+            [0, 4, 7, 12, 16, 19],   // A
+            [5, 9, 12, 17, 21, 24],  // D
+            [2, 7, 11, 14, 19, 23],  // E
+        ],
+        // 5 La Folia: the Iberian ground behind Corelli's and Vivaldi's variations, i V i VII III VII
+        [
+            [0, 3, 7, 12, 15, 19],   // Am
+            [2, 7, 11, 14, 19, 23],  // E
+            [0, 3, 7, 12, 15, 19],   // Am
+            [2, 5, 10, 14, 17, 22],  // G
+            [3, 7, 10, 15, 19, 22],  // C
+            [2, 5, 10, 14, 17, 22],  // G
+            [0, 3, 7, 12, 15, 19],   // Am
+            [2, 7, 11, 14, 19, 23],  // E
+            [0, 3, 7, 12, 15, 19],   // Am
+            [2, 5, 10, 14, 17, 22],  // G
+            [3, 7, 10, 15, 19, 22],  // C
+            [2, 5, 10, 14, 17, 22],  // G
+        ],
+        // 6 Bach: the opening of the C major Prelude, WTC I (1722), I ii⁷ V⁷ I vi II⁷ V I
+        [
+            [0, 4, 7, 12, 16, 19],   // A
+            [2, 5, 9, 12, 17, 21],   // Bm7
+            [2, 5, 7, 11, 14, 17],   // E7
+            [0, 4, 7, 12, 16, 19],   // A
+            [4, 9, 12, 16, 21, 24],  // F♯m
+            [2, 6, 9, 12, 18, 21],   // B7
+            [2, 7, 11, 14, 19, 23],  // E
+            [0, 4, 7, 12, 16, 19],   // A
+        ],
+        // 7 Gymnopédie: Satie's No. 1 (1888), the two chords it rocks between, IV⁷ and I⁷
+        [
+            [5, 9, 12, 16, 21, 24],  // Dmaj7
+            [0, 4, 7, 11, 16, 19],   // Amaj7
+        ],
+        // 8 Andalusian: the descending cadence of flamenco and a thousand folk songs, i VII VI V
+        [
+            [0, 3, 7, 12, 15, 19],   // Am
+            [2, 5, 10, 14, 17, 22],  // G
+            [3, 8, 12, 15, 20, 24],  // F
+            [2, 7, 11, 14, 19, 23],  // E
+        ],
+        // 9 Tristan: the chord that opens Wagner's Prelude (1859), F–B–D♯–G♯, and its
+        // resolution onto E7
+        [
+            [8, 14, 18, 23],         // the Tristan chord: F B D♯ G♯
+            [7, 11, 14, 17],         // E7: E G♯ B D
+        ],
     ]
     static let gustRise = 0.03      // per tick, the gust's climb toward the finger's level (about 0.3 s)
     static let gustFall = 0.012     // per tick, its decay once the finger lifts (about 0.7 s)
