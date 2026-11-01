@@ -307,6 +307,19 @@ final class ChimePhysics {
             [2, 5, 8, 12, 14, 17],   // Bm7♭5
             [2, 5, 7, 11, 14, 17],   // E7
         ],
+        // 13 Romanesca: the Renaissance ground under Greensleeves and Guárdame las vacas,
+        // III VII i V III VII i V i in A minor
+        [
+            [3, 7, 10, 15, 19, 22],  // C
+            [2, 5, 10, 14, 17, 22],  // G
+            [0, 3, 7, 12, 15, 19],   // Am
+            [2, 7, 11, 14, 19, 23],  // E
+            [3, 7, 10, 15, 19, 22],  // C
+            [2, 5, 10, 14, 17, 22],  // G
+            [0, 3, 7, 12, 15, 19],   // Am
+            [2, 7, 11, 14, 19, 23],  // E
+            [0, 3, 7, 12, 15, 19],   // Am
+        ],
     ]
     static let gustRise = 0.03      // per tick, the gust's climb toward the finger's level (about 0.3 s)
     static let gustFall = 0.012     // per tick, its decay once the finger lifts (about 0.7 s)
