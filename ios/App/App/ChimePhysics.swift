@@ -499,6 +499,37 @@ final class ChimePhysics {
             [-4, 0, 3, 8, 12],       // F         (bar 21)
             [0, 4, 7, 11, 14],       // Amaj9     (bar 26)
         ],
+        // 24 Coltrane: Giant Steps (1960), the sixteen bars, with their two chords to a
+        // bar as separate changes: three keys a major third apart, each reached by its
+        // dominant, then ii–V–I into each. Down a whole tone from B, so A is the first key
+        [
+            [0, 4, 7, 11, 12, 16],     // Amaj7   (Bmaj7)
+            [3, 7, 10, 13, 15, 19],    // C7      (D7)
+            [-4, 0, 3, 7, 8, 12],      // Fmaj7   (Gmaj7)
+            [-1, 3, 6, 9, 11, 15],     // Ab7     (Bb7)
+            [4, 8, 11, 15, 16, 20],    // Dbmaj7  (Ebmaj7)
+            [-2, 1, 5, 8, 10, 13],     // Gm7     (Am7)
+            [3, 7, 10, 13, 15, 19],    // C7      (D7)
+            [-4, 0, 3, 7, 8, 12],      // Fmaj7   (Gmaj7)
+            [-1, 3, 6, 9, 11, 15],     // Ab7     (Bb7)
+            [4, 8, 11, 15, 16, 20],    // Dbmaj7  (Ebmaj7)
+            [-5, -1, 2, 5, 7, 11],     // E7      (F#7)
+            [0, 4, 7, 11, 12, 16],     // Amaj7   (Bmaj7)
+            [-3, 0, 4, 7, 9, 12],      // Ebm7    (Fm7)
+            [-1, 3, 6, 9, 11, 15],     // Ab7     (Bb7)
+            [4, 8, 11, 15, 16, 20],    // Dbmaj7  (Ebmaj7)
+            [-2, 1, 5, 8, 10, 13],     // Gm7     (Am7)
+            [3, 7, 10, 13, 15, 19],    // C7      (D7)
+            [-4, 0, 3, 7, 8, 12],      // Fmaj7   (Gmaj7)
+            [2, 5, 9, 12, 14, 17],     // Bm7     (C#m7)
+            [-5, -1, 2, 5, 7, 11],     // E7      (F#7)
+            [0, 4, 7, 11, 12, 16],     // Amaj7   (Bmaj7)
+            [-3, 0, 4, 7, 9, 12],      // Ebm7    (Fm7)
+            [-1, 3, 6, 9, 11, 15],     // Ab7     (Bb7)
+            [4, 8, 11, 15, 16, 20],    // Dbmaj7  (Ebmaj7)
+            [2, 5, 9, 12, 14, 17],     // Bm7     (C#m7)
+            [-5, -1, 2, 5, 7, 11],     // E7      (F#7)
+        ],
     ]
     static let gustRise = 0.03      // per tick, the gust's climb toward the finger's level (about 0.3 s)
     static let gustFall = 0.012     // per tick, its decay once the finger lifts (about 0.7 s)
