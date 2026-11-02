@@ -1,6 +1,6 @@
 {
   "appId": "com.jakedbirch.windchimes",
-  "appName": "Pocket Chimes",
+  "appName": "Rustle",
   "webDir": "www",
   "ios": {
     "contentInset": "never",

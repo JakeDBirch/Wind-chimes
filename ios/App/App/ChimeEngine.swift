@@ -585,7 +585,7 @@ final class ChimeEngine {
                 try session.setCategory(.playback, mode: .default)
                 try session.setActive(true)
             } catch {
-                NSLog("Pocket Chimes: audio session error: \(error)")
+                NSLog("Rustle: audio session error: \(error)")
             }
         }
         attachSourceNode()
@@ -594,7 +594,7 @@ final class ChimeEngine {
             do {
                 try audioEngine.start()
             } catch {
-                NSLog("Pocket Chimes: audio engine failed to start: \(error)")
+                NSLog("Rustle: audio engine failed to start: \(error)")
             }
         }
     }

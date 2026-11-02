@@ -1,8 +1,8 @@
-# Pocket Chimes
+# Rustle
 
 A wind chime simulator. It plays the sound of wind chimes, and if you hang your phone up outside, it becomes a real wind chime that moves with the wind. Under the hood it's a top-down 2D pendulum simulation driven by wind, sound and the phone's motion sensors.
 
-Pocket Chimes is an iOS app built with [Capacitor](https://capacitorjs.com). The chime itself (physics, motion input and sound) runs natively in Swift so it keeps playing in the background and with the screen locked. The controls and the top-down view are a web page (`index.html`) shown inside the app. It no longer runs in a desktop or mobile browser.
+Rustle (formerly Pocket Chimes) is an iOS app built with [Capacitor](https://capacitorjs.com). The chime itself (physics, motion input and sound) runs natively in Swift so it keeps playing in the background and with the screen locked. The controls and the top-down view are a web page (`index.html`) shown inside the app. It no longer runs in a desktop or mobile browser.
 
 ## Controls (gesture branch)
 
@@ -22,7 +22,7 @@ Nothing on screen but the chimes, with a scatter of dust that drifts with the wi
 | **Wind icon** (bottom right) | Opens the wind drawer: **Wind** on or off (off at launch; off, the chimes settle and the engine rests), **Wind loudness** (0 is silent), **Strength** and **Constancy** sliders |
 | **Workshop** (the wrench icon) | How the chimes move and sound, each a slider between two plain words with the shipped setting in the middle: **Striker swing** and **Chime swing** (rigid to free), **Striker distance** and **Chime distance** (close to far), then **Brightness**, **Chime loudness** and **Ring time**, then the Chord Seq scale's chord length, progression (twenty-one of them) and order |
 
-Pocket Chimes takes the audio for itself: it pauses whatever else was playing, and another app starting playback (or a call) stops the chimes. After a call they come back on their own; after music, tap the screen.
+Rustle takes the audio for itself: it pauses whatever else was playing, and another app starting playback (or a call) stops the chimes. After a call they come back on their own; after music, tap the screen.
 
 Every setting is saved as it changes and restored the next time the app opens.
 
