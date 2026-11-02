@@ -162,6 +162,13 @@ final class ChimePhysics {
         // Whole and half steps alternating: Rimsky-Korsakov's scale for the sea and the
         // supernatural, Stravinsky's after him, jazz's "diminished" scale
         "Octatonic": [0, 2, 3, 5, 6, 8, 9, 11],
+        // Messiaen's modes of limited transposition, which repeat under a transposition
+        // smaller than an octave: mode 1 is Whole Tone, mode 2 Octatonic, these are 3 to 7
+        "Messiaen 3": [0, 2, 3, 4, 6, 7, 8, 10, 11],
+        "Messiaen 4": [0, 1, 2, 5, 6, 7, 8, 11],
+        "Messiaen 5": [0, 1, 5, 6, 7, 11],
+        "Messiaen 6": [0, 2, 4, 5, 6, 8, 10, 11],
+        "Messiaen 7": [0, 1, 2, 3, 5, 6, 7, 8, 9, 11],
     ]
     // Chord sequences the "Chord Seq" scale cycles through, chosen in the Workshop by
     // index. Each chord is a set of semitone offsets from the root; tubes past the
@@ -448,6 +455,49 @@ final class ChimePhysics {
             [5, 8, 12, 17, 20],      // Dm
             [-5, -1, 2, 7, 11],      // E
             [0, 3, 7, 12, 15],       // Am
+        ],
+        // 21 to 23 are from the research batch's addendum.
+        // 21 Rimsky-Korsakov: Scheherazade, the first movement's opening (1888): the wind
+        // chords that answer the Sultan's theme, the violin's tonic, the sea theme's cadence.
+        // Inferred from published descriptions, the wind chords verified in order
+        [
+            [0, 3, 7, 12, 15],       // Am
+            [-2, 2, 5, 10, 14],      // G
+            [-4, 0, 3, 8, 12],       // F
+            [2, 6, 9, 14, 18],       // B
+            [0, 4, 7, 12, 16],       // A
+            [7, 11, 14, 19, 23],     // E
+            [0, 4, 7, 12, 16],       // A
+            [0, 4, 7, 12, 16],       // A
+            [7, 11, 14, 19, 23],     // E
+            [0, 4, 7, 12, 16],       // A
+        ],
+        // 22 Stravinsky: the Augurs of Spring chord from The Rite of Spring (1913 edition),
+        // F♭ major under E♭7, here A major under A♭7 as the strings voice it, with the first
+        // page's separations into single chords. The chord is verified across analyses;
+        // the order of the interruptions is inferred. US public domain; elsewhere until 2042
+        [
+            [0, 4, 7, 11, 12, 15, 18, 21], // the Augurs chord
+            [0, 4, 7, 12, 16],       // A
+            [-4, 0, 3, 8, 12],       // F
+            [0, 3, 7, 12, 15],       // Am
+            [-1, 3, 6, 9],           // A♭7
+            [0, 4, 7, 11, 12, 15, 18, 21], // the Augurs chord again
+        ],
+        // 23 Debussy: Prélude à l'après-midi d'un faune (1894), bars 4 to 26, the chords
+        // under and between the flute's returns, each verified by two published analyses.
+        // A major third up, so E becomes A
+        [
+            [6, 9, 12, 16],          // D♯ø7      (bar 4)
+            [6, 10, 13, 16],         // E♭7, unresolving (bar 5)
+            [-2, 2, 5, 9, 14],       // Gmaj7     (bar 11)
+            [-2, 1, 5, 9, 13],       // Gm(maj7)  (bar 11)
+            [-5, -1, 2, 5, 16],      // E13       (bars 13–14)
+            [0, 4, 7, 9, 12],        // A6        (bars 13–14)
+            [9, 13, 16, 19],         // F♯7       (bars 19–21)
+            [0, 4, 7, 9, 12],        // A6        (bar 21)
+            [-4, 0, 3, 8, 12],       // F         (bar 21)
+            [0, 4, 7, 11, 14],       // Amaj9     (bar 26)
         ],
     ]
     static let gustRise = 0.03      // per tick, the gust's climb toward the finger's level (about 0.3 s)

@@ -357,6 +357,11 @@ var SCALES = [
   { name: 'Pelog',       hue: 330 }, // Javanese gamelan, uneven steps
   { name: 'Balafon',     hue: 100 }, // West Africa: seven near-equal steps
   { name: 'Octatonic',   hue: 290 }, // whole and half steps alternating: Rimsky-Korsakov, Stravinsky, jazz
+  { name: 'Messiaen 3',  hue: 240 }, // Messiaen's modes of limited transposition (1 and 2 are Whole Tone and Octatonic)
+  { name: 'Messiaen 4',  hue: 250 },
+  { name: 'Messiaen 5',  hue: 260 },
+  { name: 'Messiaen 6',  hue: 270 },
+  { name: 'Messiaen 7',  hue: 280 },
   { name: 'Chord Seq',   hue: 85 },
   { name: 'Custom',      hue: 55 }, // your own notes, picked on the keyboard; never named on screen
 ];
@@ -747,7 +752,7 @@ SHOP.forEach(function(c) { shop[c.key] = 100; });
 // The chord sequence: how long each chord lasts (as a percentage of 20 s), which
 // progression, and whether the chords come in turn or shuffled.
 var CHORD_SECONDS = 20;
-var CHORD_SETS = ['Floating', 'Hymn', 'Drift', 'Drone', 'Pachelbel', 'La Folia', 'Bach', 'Satie', 'Andalusian', 'Wagner', 'Gershwin', 'Jazz blues', 'Fifths', 'Romanesca', 'Mahler', 'Mediants', 'Monteverdi', 'Dowland', 'Gesualdo', 'Allegri', 'Purcell'];
+var CHORD_SETS = ['Floating', 'Hymn', 'Drift', 'Drone', 'Pachelbel', 'La Folia', 'Bach', 'Satie', 'Andalusian', 'Wagner', 'Gershwin', 'Jazz blues', 'Fifths', 'Romanesca', 'Mahler', 'Mediants', 'Monteverdi', 'Dowland', 'Gesualdo', 'Allegri', 'Purcell', 'Rimsky-Korsakov', 'Stravinsky', 'Debussy'];
 var CHORD_ORDERS = ['In turn', 'Shuffled'];
 var chords = { len: 100, set: 0, shuffle: false };
 
