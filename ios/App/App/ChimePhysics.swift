@@ -159,6 +159,9 @@ final class ChimePhysics {
         "Balafon": [0, 1.714, 3.429, 5.143, 6.857, 8.571, 10.286],
         // The suspended pentatonic, heard from Egypt to China
         "Egyptian": [0, 2, 5, 7, 10],
+        // Whole and half steps alternating: Rimsky-Korsakov's scale for the sea and the
+        // supernatural, Stravinsky's after him, jazz's "diminished" scale
+        "Octatonic": [0, 2, 3, 5, 6, 8, 9, 11],
     ]
     // Chord sequences the "Chord Seq" scale cycles through, chosen in the Workshop by
     // index. Each chord is a set of semitone offsets from the root; tubes past the
