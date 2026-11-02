@@ -174,165 +174,139 @@ final class ChimePhysics {
     // index. Each chord is a set of semitone offsets from the root; tubes past the
     // sixth take the same notes an octave up. Offsets may be fractional, as the scales'
     // are: 3.5 is a quarter tone below the fourth semitone, 0.14 a just third's comma
-    // (the pitch is 440 · 2^(offset/12), whatever the offset).
+    // (the pitch is 440 · 2^(offset/12), whatever the offset). Each set is one work's
+    // harmony, reduced to its chords and transposed so A is the tonal centre, voiced up
+    // from the bass with the lowest two notes never a semitone apart; a suspension or an
+    // inversion is its own chord. In order of the works' dates, the mediant cycle last.
     static let chordSets: [[[Double]]] = [
-        // 0 Floating: minor ninths and elevenths that never quite resolve
+        // 0 Dowland: Lachrimae Pavan, c. 1596 to 1604. The falling A G F E and
+        // the Picardy close. Inferred from the strain structure, with verified anchors
         [
-            [0, 3, 7, 10, 14, 17],   // im9add11 — tonic, open and floating
-            [5, 8, 12, 15, 19, 22],  // iv9 — subdominant with ninth and eleventh
-            [2, 5, 9, 12, 16, 21],   // II maj9 — bright borrowed chord
-            [7, 10, 14, 17, 21, 24], // v11 — dominant suspended, unresolved
-            [3, 7, 10, 14, 17, 22],  // IIImaj9 — warm mediant
-            [8, 12, 15, 19, 22, 26], // VI9 — relative major with extensions
+            [0, 3, 7, 12, 15],       // Am
+            [-2, 2, 5, 10, 14],      // G
+            [-4, 0, 3, 8, 12],       // F
+            [-5, -1, 2, 7, 11],      // E
+            [0, 3, 7, 12, 15],       // Am
+            [3, 7, 10, 15, 19],      // C
+            [5, 8, 12, 17, 20],      // Dm
+            [-5, 0, 2, 7],           // Esus4
+            [-5, -1, 2, 7, 11],      // E
+            [0, 4, 7, 12, 16],       // A, the Picardy third
         ],
-        // 1 Hymn: a plain major I–IV–vi–V, each chord with its ninth
+        // 1 Monteverdi: Lamento d'Arianna (Lasciatemi morire), 1608. The dominant
+        // seventh stab, the pull to the minor, the tonic turned dominant. Chord sequence
+        // inferred from the form (the opening dominant seventh is verified)
         [
-            [0, 4, 7, 11, 14, 19],   // Imaj9
-            [5, 9, 12, 16, 19, 24],  // IVmaj9
-            [9, 12, 16, 19, 23, 28], // vi9
-            [7, 11, 14, 17, 21, 26], // V9
+            [-5, 0, 2, 7],           // Esus4
+            [-5, -1, 2, 5, 7],       // E7
+            [0, 3, 7, 12, 15],       // Am
+            [5, 8, 12, 17, 20],      // Dm
+            [-5, -1, 2, 5, 7],       // E7
+            [0, 3, 7, 12, 15],       // Am
+            [5, 9, 12, 17, 21],      // D
+            [0, 4, 7, 10, 12],       // A7
+            [-5, -1, 2, 5, 7],       // E7
+            [0, 3, 7, 12, 15],       // Am
         ],
-        // 2 Drift: a modal two-chord vamp, minor tonic against its major fourth
+        // 2 Gesualdo: Moro, lasso, al mio duolo, Madrigals Book 6, 1611. The
+        // opening bars, verified by the researcher against two published discussions: four
+        // chords that do not belong together, then a cadence that does. Seven chords, no more
         [
-            [0, 3, 7, 10, 14, 17],   // im9
-            [5, 9, 12, 16, 19, 23],  // IV9
-            [0, 3, 7, 10, 14, 19],   // im9, fifth on top
-            [10, 14, 17, 21, 24, 29],// VIImaj9
+            [4, 8, 11, 16, 20],      // C♯
+            [0, 3, 7, 12, 15],       // Am
+            [2, 6, 9, 14, 18],       // B
+            [-2, 2, 5, 10, 14],      // G
+            [-5, -1, 2, 5, 7],       // E7
+            [-5, -1, 2, 7, 11],      // E
+            [0, 3, 7, 12, 15],       // Am
         ],
-        // 3 Drone: one tonic, breathing between an open and a warm voicing
+        // 3 Bach: the C minor Prelude, WTC I (1722), BWV 847, one harmony a bar from the
+        // Bach-Gesellschaft text, read off the score. Down a minor third so A is the
+        // tonic: the tonic pedal, the walk to the relative major, the chain of diminished
+        // sevenths onto the dominant pedal, the Presto and Adagio, the Picardy third
         [
-            [0, 7, 12, 14, 19, 24],  // open fifths and a ninth
-            [0, 4, 7, 11, 14, 19],   // Imaj9
-            [0, 2, 7, 9, 14, 19],    // sus2 with a sixth
+            [0, 3, 7, 12, 15],         // Am/A        (Cm/C), bar 1
+            [0, 5, 8, 12, 17],         // Dm/A        (Fm/C), bar 2
+            [0, 2, 5, 8, 11],          // G#dim7/A    (Bdim7/C), bar 3
+            [0, 3, 7, 12, 15],         // Am/A        (Cm/C), bar 4
+            [0, 3, 8, 12, 15],         // F/A         (Ab/C), bar 5
+            [0, 2, 6, 9, 12],          // B7/A        (D7/C), bar 6
+            [-2, 2, 7, 10, 14],        // Em/G        (Gm/Bb), bar 7
+            [-2, 0, 4, 7, 10],         // A7/G        (C7/Bb), bar 8
+            [-4, 0, 5, 8, 12],         // Dm/F        (Fm/Ab), bar 9
+            [-4, -2, 2, 5, 8],         // G7/F        (Bb7/Ab), bar 10
+            [-5, -2, 3, 7, 10],        // C/E         (Eb/G), bar 11
+            [0, 3, 7, 8, 12],          // Fmaj7/A     (Abmaj7/C), bar 12
+            [2, 5, 8, 10, 14],         // G7/B        (Bb7/D), bar 13
+            [3, 7, 10, 15, 19],        // C           (Eb), bar 14
+            [3, 5, 9, 12, 15],         // D7/C        (F7/Eb), bar 15
+            [2, 5, 8, 11, 14],         // G#dim7/B    (Bdim7/D), bar 16
+            [0, 2, 5, 8, 11],          // G#dim7/A    (Bdim7/C), bar 17
+            [0, 3, 7, 12, 15],         // Am          (Cm), bar 18
+            [-4, 0, 2, 5, 8],          // Bm7b5/F     (Dm7b5/Ab), bar 19
+            [-3, 0, 3, 6, 9],          // D#dim7/F#   (F#dim7/A), bar 20
+            [-5, 0, 3, 7, 12],         // Am/E        (Cm/G), bar 21, dominant pedal from here
+            [-5, -3, 0, 3, 6],         // D#dim7/E    (F#dim7/G), bar 22
+            [-5, 0, 2, 5, 7],          // E7sus4      (G7sus4), bar 23
+            [-5, 0, 2, 5, 8],          // Bm7b5/E     (Dm7b5/G), bar 24
+            [-5, -1, 2, 5, 8],         // E7b9        (G7b9), bar 25
+            [-5, 0, 3, 7, 12],         // Am/E        (Cm/G), bar 26
+            [-5, -3, 0, 3, 6],         // D#dim7/E    (F#dim7/G), bar 27
+            [-5, -1, 2, 5, 7],         // E7          (G7), bars 28 to 30, Presto
+            [3, 7, 12, 15, 19],        // Am/C        (Cm/Eb), bar 31
+            [-5, -1, 2, 5, 7],         // E7          (G7), bar 32
+            [3, 7, 12, 15, 19],        // Am/C        (Cm/Eb), bar 33
+            [0, 4, 7, 10, 12],         // A7          (C7), bar 34, Adagio
+            [5, 8, 12, 17, 20],        // Dm          (Fm), bar 34
+            [0, 2, 5, 8, 11],          // G#dim7/A    (Bdim7/C), bar 35, Allegro
+            [0, 4, 7, 10, 13],         // A7b9        (C7b9), bar 36
+            [0, 5, 8, 12, 17],         // Dm/A        (Fm/C), bar 36
+            [0, 4, 7, 10, 12],         // A7          (C7), bar 37
+            [0, 5, 8, 12, 17],         // Dm/A        (Fm/C), bar 38
+            [0, 4, 7, 12, 16],         // A           (C), bar 38, the Picardy third
         ],
-        // The rest are from public-domain music and tradition, all put in A (so A is the
-        // tonic, or A minor) and voiced upward from near the root, six notes where the
-        // chord has them. A chord with fewer notes than the set has tubes simply doubles
-        // upward an octave.
-        // 4 Pachelbel: Pachelbel's Canon in D (c. 1680), I V vi iii IV I IV V
-        [
-            [0, 4, 7, 12, 16, 19],   // A
-            [2, 7, 11, 14, 19, 23],  // E
-            [4, 9, 12, 16, 21, 24],  // F♯m
-            [4, 7, 11, 16, 19, 23],  // C♯m
-            [5, 9, 12, 17, 21, 24],  // D
-            [0, 4, 7, 12, 16, 19],   // A
-            [5, 9, 12, 17, 21, 24],  // D
-            [2, 7, 11, 14, 19, 23],  // E
-        ],
-        // 5 La Folia: the Iberian ground behind Corelli's and Vivaldi's variations, i V i VII III VII
-        [
-            [0, 3, 7, 12, 15, 19],   // Am
-            [2, 7, 11, 14, 19, 23],  // E
-            [0, 3, 7, 12, 15, 19],   // Am
-            [2, 5, 10, 14, 17, 22],  // G
-            [3, 7, 10, 15, 19, 22],  // C
-            [2, 5, 10, 14, 17, 22],  // G
-            [0, 3, 7, 12, 15, 19],   // Am
-            [2, 7, 11, 14, 19, 23],  // E
-            [0, 3, 7, 12, 15, 19],   // Am
-            [2, 5, 10, 14, 17, 22],  // G
-            [3, 7, 10, 15, 19, 22],  // C
-            [2, 5, 10, 14, 17, 22],  // G
-        ],
-        // 6 Bach: the opening of the C major Prelude, WTC I (1722), I ii⁷ V⁷ I vi II⁷ V I
-        [
-            [0, 4, 7, 12, 16, 19],   // A
-            [2, 5, 9, 12, 17, 21],   // Bm7
-            [2, 5, 7, 11, 14, 17],   // E7
-            [0, 4, 7, 12, 16, 19],   // A
-            [4, 9, 12, 16, 21, 24],  // F♯m
-            [2, 6, 9, 12, 18, 21],   // B7
-            [2, 7, 11, 14, 19, 23],  // E
-            [0, 4, 7, 12, 16, 19],   // A
-        ],
-        // 7 Satie: Gymnopédie No. 1 (1888), the two chords it rocks between, IV⁷ and I⁷
-        [
-            [5, 9, 12, 16, 21, 24],  // Dmaj7
-            [0, 4, 7, 11, 16, 19],   // Amaj7
-        ],
-        // 8 Andalusian: the descending cadence of flamenco and a thousand folk songs, i VII VI V
-        [
-            [0, 3, 7, 12, 15, 19],   // Am
-            [2, 5, 10, 14, 17, 22],  // G
-            [3, 8, 12, 15, 20, 24],  // F
-            [2, 7, 11, 14, 19, 23],  // E
-        ],
-        // 9 Wagner: the Tristan chord that opens Wagner's Prelude (1859), F–B–D♯–G♯, and its
+        // 4 Wagner: the Tristan chord that opens Wagner's Prelude (1859), F–B–D♯–G♯, and its
         // resolution onto E7
         [
             [8, 14, 18, 23],         // the Tristan chord: F B D♯ G♯
             [7, 11, 14, 17],         // E7: E G♯ B D
         ],
-        // 10 Gershwin: "rhythm changes", the changes of Gershwin's I Got Rhythm (1930, in the
-        // US public domain since 2026) that jazz has played ever since, in A rather than B♭.
-        // The A section, then the bridge's chain of dominants III7 VI7 II7 V7
+        // 5 Satie: Gymnopédie No. 1 (1888), the two chords it rocks between, IV⁷ and I⁷
         [
-            [0, 4, 7, 12, 16, 19],   // A
-            [4, 7, 9, 13, 16, 19],   // F♯7
-            [2, 5, 9, 12, 14, 17],   // Bm7
-            [2, 5, 7, 11, 14, 17],   // E7
-            [4, 7, 11, 14, 16, 19],  // C♯m7
-            [4, 7, 9, 13, 16, 19],   // F♯7
-            [2, 5, 9, 12, 14, 17],   // Bm7
-            [2, 5, 7, 11, 14, 17],   // E7
-            [2, 5, 7, 10, 14, 17],   // Em7
-            [0, 4, 7, 10, 12, 16],   // A7
-            [5, 9, 12, 17, 21, 24],  // D
-            [6, 9, 12, 15, 18, 21],  // D♯°7
-            [7, 12, 16, 19, 24, 28], // A/E
-            [4, 7, 9, 13, 16, 19],   // F♯7
-            [2, 5, 9, 12, 14, 17],   // Bm7
-            [2, 5, 7, 11, 14, 17],   // E7
-            [4, 8, 11, 14, 16, 20],  // C♯7   the bridge
-            [4, 7, 9, 13, 16, 19],   // F♯7
-            [2, 6, 9, 12, 14, 18],   // B7
-            [2, 5, 7, 11, 14, 17],   // E7
+            [5, 9, 12, 16, 21, 24],  // Dmaj7
+            [0, 4, 7, 11, 16, 19],   // Amaj7
         ],
-        // 11 Jazz blues: the twelve-bar blues with the jazz player's turnarounds, in A
+        // 6 Rimsky-Korsakov: Scheherazade, the first movement's opening (1888): the wind
+        // chords that answer the Sultan's theme, the violin's tonic, the sea theme's cadence.
+        // Inferred from published descriptions, the wind chords verified in order
         [
-            [0, 4, 7, 10, 12, 16],   // A7
-            [5, 9, 12, 15, 17, 21],  // D7
-            [0, 4, 7, 10, 12, 16],   // A7
-            [2, 5, 7, 10, 14, 17],   // Em7
-            [0, 4, 7, 10, 12, 16],   // A7
-            [5, 9, 12, 15, 17, 21],  // D7
-            [6, 9, 12, 15, 18, 21],  // D♯°7
-            [0, 4, 7, 10, 12, 16],   // A7
-            [4, 7, 11, 14, 16, 19],  // C♯m7
-            [4, 7, 9, 13, 16, 19],   // F♯7
-            [2, 5, 9, 12, 14, 17],   // Bm7
-            [2, 5, 7, 11, 14, 17],   // E7
-            [0, 4, 7, 10, 12, 16],   // A7
-            [4, 7, 9, 13, 16, 19],   // F♯7
-            [2, 5, 9, 12, 14, 17],   // Bm7
-            [2, 5, 7, 11, 14, 17],   // E7
+            [0, 3, 7, 12, 15],       // Am
+            [-2, 2, 5, 10, 14],      // G
+            [-4, 0, 3, 8, 12],       // F
+            [2, 6, 9, 14, 18],       // B
+            [0, 4, 7, 12, 16],       // A
+            [7, 11, 14, 19, 23],     // E
+            [0, 4, 7, 12, 16],       // A
+            [0, 4, 7, 12, 16],       // A
+            [7, 11, 14, 19, 23],     // E
+            [0, 4, 7, 12, 16],       // A
         ],
-        // 12 Fifths: the circle of fifths, i iv VII III VI ii° V in A minor, the Baroque
-        // sequence of Corelli and Vivaldi that jazz took as its ii–V–I chain
+        // 7 Debussy: Prélude à l'après-midi d'un faune (1894), bars 4 to 26, the chords
+        // under and between the flute's returns, each verified by two published analyses.
+        // A major third up, so E becomes A
         [
-            [0, 3, 7, 10, 12, 15],   // Am7
-            [5, 8, 12, 15, 17, 20],  // Dm7
-            [2, 5, 8, 10, 14, 17],   // G7
-            [3, 7, 10, 14, 15, 19],  // Cmaj7
-            [3, 7, 8, 12, 15, 19],   // Fmaj7
-            [2, 5, 8, 12, 14, 17],   // Bm7♭5
-            [2, 5, 7, 11, 14, 17],   // E7
+            [6, 9, 12, 16],          // D♯ø7      (bar 4)
+            [6, 10, 13, 16],         // E♭7, unresolving (bar 5)
+            [-2, 2, 5, 9, 14],       // Gmaj7     (bar 11)
+            [-2, 1, 5, 9, 13],       // Gm(maj7)  (bar 11)
+            [-5, -1, 2, 5, 16],      // E13       (bars 13–14)
+            [0, 4, 7, 9, 12],        // A6        (bars 13–14)
+            [9, 13, 16, 19],         // F♯7       (bars 19–21)
+            [0, 4, 7, 9, 12],        // A6        (bar 21)
+            [-4, 0, 3, 8, 12],       // F         (bar 21)
+            [0, 4, 7, 11, 14],       // Amaj9     (bar 26)
         ],
-        // 13 Romanesca: the Renaissance ground under Greensleeves and Guárdame las vacas,
-        // III VII i V III VII i V i in A minor
-        [
-            [3, 7, 10, 15, 19, 22],  // C
-            [2, 5, 10, 14, 17, 22],  // G
-            [0, 3, 7, 12, 15, 19],   // Am
-            [2, 7, 11, 14, 19, 23],  // E
-            [3, 7, 10, 15, 19, 22],  // C
-            [2, 5, 10, 14, 17, 22],  // G
-            [0, 3, 7, 12, 15, 19],   // Am
-            [2, 7, 11, 14, 19, 23],  // E
-            [0, 3, 7, 12, 15, 19],   // Am
-        ],
-        // 14 Mahler: the Adagietto, the skeleton of Mahler's Symphony No. 5, IV (1902), from a published
+        // 8 Mahler: the Adagietto, the skeleton of Mahler's Symphony No. 5, IV (1902), from a published
         // reduction's play-through line (a reduction, not a transcription: the suspensions
         // and chromatic inner voices that give the movement its sound are not in it). Mahler
         // is in F major; here it is a major third up, in A. Section A, the middle section
@@ -365,114 +339,7 @@ final class ChimePhysics {
             [6, 9, 12, 16, 18, 21],  // D♯ø7    (Bø7)
             [0, 4, 7, 12, 16, 19],   // A       the final tonic
         ],
-        // 15 Mediants: chromatic mediants, the move Gesualdo made a signature (A major
-        // against F♯ major with nothing between), then Schubert, Liszt and Wagner and, much
-        // later, film scores. An idiom, not a work: nine major triads a third apart, each
-        // sharing exactly one note with the last, none in a key with it, round to where it
-        // began: A C A♭ E G E♭ B D F
-        [
-            [0, 4, 7, 12, 16, 19],   // A      (A C♯ E)
-            [3, 7, 10, 15, 19, 22],  // C      up a minor third, E shared
-            [3, 6, 11, 15, 18, 23],  // A♭     down a major third, C shared
-            [2, 7, 11, 14, 19, 23],  // E      down a major third, G♯ shared
-            [2, 5, 10, 14, 17, 22],  // G      up a minor third, B shared
-            [1, 6, 10, 13, 18, 22],  // E♭     down a major third, G shared
-            [2, 6, 9, 14, 18, 21],   // B      down a major third, D♯ shared
-            [5, 9, 12, 17, 21, 24],  // D      up a minor third, F♯ shared
-            [3, 8, 12, 15, 20, 24],  // F      up a minor third, A shared; and F to A, a major third up, closes the loop
-        ],
-        // 16 to 20 are from a research batch (Renaissance and Baroque), each a reduction in
-        // A, with the researcher's confidence noted. Voiced up from the root with the lowest
-        // two notes never a semitone apart; a suspension is its own chord.
-        // 16 Monteverdi: Lamento d'Arianna (Lasciatemi morire), 1608. The dominant
-        // seventh stab, the pull to the minor, the tonic turned dominant. Chord sequence
-        // inferred from the form (the opening dominant seventh is verified)
-        [
-            [-5, 0, 2, 7],           // Esus4
-            [-5, -1, 2, 5, 7],       // E7
-            [0, 3, 7, 12, 15],       // Am
-            [5, 8, 12, 17, 20],      // Dm
-            [-5, -1, 2, 5, 7],       // E7
-            [0, 3, 7, 12, 15],       // Am
-            [5, 9, 12, 17, 21],      // D
-            [0, 4, 7, 10, 12],       // A7
-            [-5, -1, 2, 5, 7],       // E7
-            [0, 3, 7, 12, 15],       // Am
-        ],
-        // 17 Dowland: Lachrimae Pavan, c. 1596 to 1604. The falling A G F E and
-        // the Picardy close. Inferred from the strain structure, with verified anchors
-        [
-            [0, 3, 7, 12, 15],       // Am
-            [-2, 2, 5, 10, 14],      // G
-            [-4, 0, 3, 8, 12],       // F
-            [-5, -1, 2, 7, 11],      // E
-            [0, 3, 7, 12, 15],       // Am
-            [3, 7, 10, 15, 19],      // C
-            [5, 8, 12, 17, 20],      // Dm
-            [-5, 0, 2, 7],           // Esus4
-            [-5, -1, 2, 7, 11],      // E
-            [0, 4, 7, 12, 16],       // A, the Picardy third
-        ],
-        // 18 Gesualdo: Moro, lasso, al mio duolo, Madrigals Book 6, 1611. The
-        // opening bars, verified by the researcher against two published discussions: four
-        // chords that do not belong together, then a cadence that does. Seven chords, no more
-        [
-            [4, 8, 11, 16, 20],      // C♯
-            [0, 3, 7, 12, 15],       // Am
-            [2, 6, 9, 14, 18],       // B
-            [-2, 2, 5, 10, 14],      // G
-            [-5, -1, 2, 5, 7],       // E7
-            [-5, -1, 2, 7, 11],      // E
-            [0, 3, 7, 12, 15],       // Am
-        ],
-        // 19 Allegri: Miserere mei, Deus, c. 1638. A falsobordone formula (root
-        // position chords, alternating the two choirs, a fourth apart), not a transcription:
-        // inferred. The second choir is the familiar modern transposition
-        [
-            [0, 3, 7, 12, 15],       // Am
-            [-4, 0, 3, 8, 12],       // F
-            [-5, 0, 2, 7],           // Esus4
-            [-5, -1, 2, 7, 11],      // E
-            [0, 3, 7, 12, 15],       // Am
-            [5, 8, 12, 17, 20],      // Dm
-            [1, 5, 8, 13, 17],       // B♭
-            [0, 5, 7, 12],           // Asus4
-            [0, 4, 7, 12, 16],       // A
-            [5, 8, 12, 17, 20],      // Dm
-            [0, 3, 7, 12, 15],       // Am
-        ],
-        // 20 Purcell: When I am laid in earth, 1689. One statement of the chromatic
-        // ground (G F♯ F E E♭ D B♭ C D G, here A A♭ G F♯ F E C D E A in the bass), each bass
-        // note a chord tone. The ground is verified, the harmony inferred
-        [
-            [0, 3, 7, 12, 15],       // Am
-            [-5, -1, 2, 7, 11],      // E
-            [3, 7, 10, 15, 19],      // C
-            [5, 9, 12, 17, 21],      // D
-            [-4, 0, 3, 8, 12],       // F
-            [-5, -1, 2, 7, 11],      // E
-            [3, 7, 10, 15, 19],      // C
-            [5, 8, 12, 17, 20],      // Dm
-            [-5, -1, 2, 7, 11],      // E
-            [0, 3, 7, 12, 15],       // Am
-        ],
-        // 21 to 23 are from the research batch's addendum.
-        // 21 Rimsky-Korsakov: Scheherazade, the first movement's opening (1888): the wind
-        // chords that answer the Sultan's theme, the violin's tonic, the sea theme's cadence.
-        // Inferred from published descriptions, the wind chords verified in order
-        [
-            [0, 3, 7, 12, 15],       // Am
-            [-2, 2, 5, 10, 14],      // G
-            [-4, 0, 3, 8, 12],       // F
-            [2, 6, 9, 14, 18],       // B
-            [0, 4, 7, 12, 16],       // A
-            [7, 11, 14, 19, 23],     // E
-            [0, 4, 7, 12, 16],       // A
-            [0, 4, 7, 12, 16],       // A
-            [7, 11, 14, 19, 23],     // E
-            [0, 4, 7, 12, 16],       // A
-        ],
-        // 22 Stravinsky: the Augurs of Spring chord from The Rite of Spring (1913 edition),
+        // 9 Stravinsky: the Augurs of Spring chord from The Rite of Spring (1913 edition),
         // F♭ major under E♭7, here A major under A♭7 as the strings voice it, with the first
         // page's separations into single chords. The chord is verified across analyses;
         // the order of the interruptions is inferred. US public domain; elsewhere until 2042
@@ -484,22 +351,32 @@ final class ChimePhysics {
             [-1, 3, 6, 9],           // A♭7
             [0, 4, 7, 11, 12, 15, 18, 21], // the Augurs chord again
         ],
-        // 23 Debussy: Prélude à l'après-midi d'un faune (1894), bars 4 to 26, the chords
-        // under and between the flute's returns, each verified by two published analyses.
-        // A major third up, so E becomes A
+        // 10 Gershwin: "rhythm changes", the changes of Gershwin's I Got Rhythm (1930, in the
+        // US public domain since 2026) that jazz has played ever since, in A rather than B♭.
+        // The A section, then the bridge's chain of dominants III7 VI7 II7 V7
         [
-            [6, 9, 12, 16],          // D♯ø7      (bar 4)
-            [6, 10, 13, 16],         // E♭7, unresolving (bar 5)
-            [-2, 2, 5, 9, 14],       // Gmaj7     (bar 11)
-            [-2, 1, 5, 9, 13],       // Gm(maj7)  (bar 11)
-            [-5, -1, 2, 5, 16],      // E13       (bars 13–14)
-            [0, 4, 7, 9, 12],        // A6        (bars 13–14)
-            [9, 13, 16, 19],         // F♯7       (bars 19–21)
-            [0, 4, 7, 9, 12],        // A6        (bar 21)
-            [-4, 0, 3, 8, 12],       // F         (bar 21)
-            [0, 4, 7, 11, 14],       // Amaj9     (bar 26)
+            [0, 4, 7, 12, 16, 19],   // A
+            [4, 7, 9, 13, 16, 19],   // F♯7
+            [2, 5, 9, 12, 14, 17],   // Bm7
+            [2, 5, 7, 11, 14, 17],   // E7
+            [4, 7, 11, 14, 16, 19],  // C♯m7
+            [4, 7, 9, 13, 16, 19],   // F♯7
+            [2, 5, 9, 12, 14, 17],   // Bm7
+            [2, 5, 7, 11, 14, 17],   // E7
+            [2, 5, 7, 10, 14, 17],   // Em7
+            [0, 4, 7, 10, 12, 16],   // A7
+            [5, 9, 12, 17, 21, 24],  // D
+            [6, 9, 12, 15, 18, 21],  // D♯°7
+            [7, 12, 16, 19, 24, 28], // A/E
+            [4, 7, 9, 13, 16, 19],   // F♯7
+            [2, 5, 9, 12, 14, 17],   // Bm7
+            [2, 5, 7, 11, 14, 17],   // E7
+            [4, 8, 11, 14, 16, 20],  // C♯7   the bridge
+            [4, 7, 9, 13, 16, 19],   // F♯7
+            [2, 6, 9, 12, 14, 18],   // B7
+            [2, 5, 7, 11, 14, 17],   // E7
         ],
-        // 24 Coltrane: Giant Steps (1960), the sixteen bars, with their two chords to a
+        // 11 Coltrane: Giant Steps (1960), the sixteen bars, with their two chords to a
         // bar as separate changes: three keys a major third apart, each reached by its
         // dominant, then ii–V–I into each. Down a whole tone from B, so A is the first key
         [
@@ -529,6 +406,85 @@ final class ChimePhysics {
             [4, 8, 11, 15, 16, 20],    // Dbmaj7  (Ebmaj7)
             [2, 5, 9, 12, 14, 17],     // Bm7     (C#m7)
             [-5, -1, 2, 5, 7, 11],     // E7      (F#7)
+        ],
+        // 12 Wilson: God Only Knows (Brian Wilson and Tony Asher, 1966), intro, verse and
+        // chorus with every chord over the bass note the band plays; the inversions are
+        // the point. Up a fourth so the verse's tonic is A. Reduction inferred from a
+        // published analysis; charts differ on verse chords 4, 6 and 8
+        [
+            [5, 9, 12, 17, 21],        // D           (A), intro
+            [4, 7, 12, 16, 19],        // A/C#        (E/G#)
+            [2, 5, 9, 12, 14],         // Bm7         (F#m7)
+            [0, 4, 7, 12, 16],         // A           (E)
+            [5, 10, 14, 17, 22],       // G/D         (D/A), verse
+            [-5, -2, 2, 7, 10],        // Em          (Bm)
+            [2, 5, 9, 14, 17],         // Bm          (F#m)
+            [5, 9, 14, 17, 21],        // Bm/D        (F#m/A)
+            [-5, 0, 4, 7, 12],         // A/E         (E/B)
+            [-4, -1, 2, 8, 11],        // Fdim        (Cdim)
+            [-5, 0, 4, 7, 12],         // A/E         (E/B)
+            [6, 9, 12, 16, 18],        // D#m7b5      (A#m7b5)
+            [5, 9, 12, 17, 21],        // D           (A), chorus
+            [4, 7, 12, 16, 19],        // A/C#        (E/G#)
+            [2, 5, 9, 12, 14],         // Bm7         (F#m7)
+            [0, 4, 7, 12, 16],         // A           (E)
+        ],
+        // 13 Harrison: Something (1969). The verse with its falling line inside the minor
+        // chord, the three-chord riff, and the bridge in its new key, twice, the second
+        // time landing back in the verse. Down a minor third so the verse's tonic is A
+        [
+            [0, 4, 7, 12, 16],         // A           (C), verse
+            [0, 4, 7, 11, 12],         // Amaj7       (Cmaj7)
+            [0, 4, 7, 10, 12],         // A7          (C7)
+            [5, 9, 12, 17, 21],        // D           (F)
+            [2, 6, 9, 12, 14],         // B7          (D7)
+            [-5, -1, 2, 7, 11],        // E           (G)
+            [-3, 0, 4, 9, 12],         // F#m         (Am), the falling line
+            [-3, 0, 4, 8, 9],          // F#m(maj7)   (Am(maj7))
+            [-3, 0, 4, 7, 9],          // F#m7        (Am7)
+            [2, 6, 9, 12, 16],         // B9          (D9)
+            [5, 9, 12, 17, 21],        // D           (F), the riff
+            [3, 7, 10, 15, 19],        // C           (Eb)
+            [-5, -1, 2, 7, 11],        // E           (G)
+            [-3, 1, 4, 9, 13],         // F#          (A), bridge
+            [-4, 1, 4, 8, 13],         // A#m/F       (C#m/G#)
+            [6, 9, 13, 16, 18],        // D#m7        (F#m7)
+            [4, 9, 13, 16, 21],        // F#/C#       (A/E)
+            [2, 6, 9, 14, 18],         // B           (D)
+            [-5, -1, 2, 7, 11],        // E           (G)
+            [-3, 1, 4, 9, 13],         // F#          (A)
+            [-3, 1, 4, 9, 13],         // F#          (A), bridge, second time
+            [-4, 1, 4, 8, 13],         // A#m/F       (C#m/G#)
+            [6, 9, 13, 16, 18],        // D#m7        (F#m7)
+            [4, 9, 13, 16, 21],        // F#/C#       (A/E)
+            [2, 6, 9, 14, 18],         // B           (D)
+            [-5, -1, 2, 7, 11],        // E           (G)
+            [0, 4, 7, 12, 16],         // A           (C), back to the verse
+        ],
+        // 14 Cologne: Keith Jarrett, The Köln Concert (1975), Part I. The first twelve
+        // minutes vamp on these two chords; the last six sit on A major
+        [
+            [0, 3, 7, 10, 12],         // Am7, the vamp
+            [-2, 2, 5, 10, 14],        // G
+            [0, 3, 7, 10, 12],         // Am7
+            [-2, 2, 5, 10, 14],        // G
+            [0, 4, 7, 12, 16],         // A, the closing theme
+        ],
+        // 15 Mediants: chromatic mediants, the move Gesualdo made a signature (A major
+        // against F♯ major with nothing between), then Schubert, Liszt and Wagner and, much
+        // later, film scores. An idiom, not a work: nine major triads a third apart, each
+        // sharing exactly one note with the last, none in a key with it, round to where it
+        // began: A C A♭ E G E♭ B D F
+        [
+            [0, 4, 7, 12, 16, 19],   // A      (A C♯ E)
+            [3, 7, 10, 15, 19, 22],  // C      up a minor third, E shared
+            [3, 6, 11, 15, 18, 23],  // A♭     down a major third, C shared
+            [2, 7, 11, 14, 19, 23],  // E      down a major third, G♯ shared
+            [2, 5, 10, 14, 17, 22],  // G      up a minor third, B shared
+            [1, 6, 10, 13, 18, 22],  // E♭     down a major third, G shared
+            [2, 6, 9, 14, 18, 21],   // B      down a major third, D♯ shared
+            [5, 9, 12, 17, 21, 24],  // D      up a minor third, F♯ shared
+            [3, 8, 12, 15, 20, 24],  // F      up a minor third, A shared; and F to A, a major third up, closes the loop
         ],
     ]
     static let gustRise = 0.03      // per tick, the gust's climb toward the finger's level (about 0.3 s)

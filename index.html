@@ -755,7 +755,7 @@ SHOP.forEach(function(c) { shop[c.key] = 100; });
 // fast), which progression, and whether the chords come in turn or shuffled.
 var CHORD_SECONDS = 20;
 function chordSeconds() { return CHORD_SECONDS / Math.pow(3, (chords.speed - 100) / 100); }
-var CHORD_SETS = ['Floating', 'Hymn', 'Drift', 'Drone', 'Pachelbel', 'La Folia', 'Bach', 'Satie', 'Andalusian', 'Wagner', 'Gershwin', 'Jazz blues', 'Fifths', 'Romanesca', 'Mahler', 'Mediants', 'Monteverdi', 'Dowland', 'Gesualdo', 'Allegri', 'Purcell', 'Rimsky-Korsakov', 'Stravinsky', 'Debussy', 'Coltrane'];
+var CHORD_SETS = ['Dowland', 'Monteverdi', 'Gesualdo', 'Bach', 'Wagner', 'Satie', 'Rimsky-Korsakov', 'Debussy', 'Mahler', 'Stravinsky', 'Gershwin', 'Coltrane', 'Wilson', 'Harrison', 'Cologne', 'Mediants'];
 var CHORD_ORDERS = ['In turn', 'Shuffled'];
 var chords = { speed: 100, set: 0, shuffle: false };
 
@@ -768,13 +768,13 @@ function loadShop() {
       var ch = v.chords;
       if (ch && typeof ch === 'object') {
         if (isNum(ch.speed)) chords.speed = clamp(ch.speed, 0, 200);
-        if (isNum(ch.set)) chords.set = clamp(Math.round(ch.set), 0, CHORD_SETS.length - 1);
+        var si = CHORD_SETS.indexOf(ch.setName); if (si >= 0) chords.set = si;
         chords.shuffle = !!ch.shuffle;
       }
     }
   } catch (e) {}
 }
-function saveShop() { try { var v = {}; SHOP.forEach(function(c) { v[c.key] = shop[c.key]; }); v.chords = chords; v.bases = {}; SHOP.forEach(function(c) { v.bases[c.key] = c.base; }); localStorage.setItem('pocketChimesShop', JSON.stringify(v)); } catch (e) {} }
+function saveShop() { try { var v = {}; SHOP.forEach(function(c) { v[c.key] = shop[c.key]; }); v.chords = { speed: chords.speed, set: chords.set, setName: CHORD_SETS[chords.set], shuffle: chords.shuffle }; v.bases = {}; SHOP.forEach(function(c) { v.bases[c.key] = c.base; }); localStorage.setItem('pocketChimesShop', JSON.stringify(v)); } catch (e) {} }
 function sendShop() {
   var values = {}, voice = {};
   SHOP.forEach(function(c) { (c.voice ? voice : values)[c.engine || c.key] = c.base * shopFactor(c); });
