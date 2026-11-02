@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>Rustle</string>
+        <string>Billow</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -73,8 +73,8 @@
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Rustle records a short sound from the microphone to use as the voice of the chimes.</string>
+	<string>Billow records a short sound from the microphone to use as the voice of the chimes.</string>
 	<key>NSMotionUsageDescription</key>
-	<string>Rustle uses your phone's motion so tilting and shaking it moves the chimes.</string>
+	<string>Billow uses your phone's motion so tilting and shaking it moves the chimes.</string>
 </dict>
 </plist>
