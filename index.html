@@ -286,8 +286,9 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px;
   <div id="shop-controls"></div>
   <div class="shop-head">Chord sequence</div>
   <div class="shop-group" id="shop-chords">
-    <div class="drow" style="margin-bottom:0"><span class="dlabel">Chord length</span><span class="dval" id="v-chord-len"></span></div>
-    <input class="dslider" type="range" id="chord-len" min="25" max="300" step="5">
+    <div class="drow" style="margin-bottom:0"><span class="dlabel">Harmonic speed</span><span class="dval" id="v-chord-speed"></span></div>
+    <input class="dslider" type="range" id="chord-speed" min="0" max="200" step="5">
+    <div class="ends"><span>Slow</span><span>Fast</span></div>
     <div class="drow" style="margin:14px 0 0"><span class="dlabel">Progression</span></div>
     <div class="chips" id="chord-set-chips"></div>
     <div class="drow" style="margin:14px 0 0"><span class="dlabel">Order</span></div>
@@ -749,12 +750,14 @@ function shopReadout(c) {
 }
 var shop = {}; // key → percent
 SHOP.forEach(function(c) { shop[c.key] = 100; });
-// The chord sequence: how long each chord lasts (as a percentage of 20 s), which
-// progression, and whether the chords come in turn or shuffled.
+// The chord sequence: how fast the harmony moves (a percentage like the sliders
+// above, 100 meaning 20 s a chord, 200 three times as fast and 0 a third as
+// fast), which progression, and whether the chords come in turn or shuffled.
 var CHORD_SECONDS = 20;
+function chordSeconds() { return CHORD_SECONDS / Math.pow(3, (chords.speed - 100) / 100); }
 var CHORD_SETS = ['Floating', 'Hymn', 'Drift', 'Drone', 'Pachelbel', 'La Folia', 'Bach', 'Satie', 'Andalusian', 'Wagner', 'Gershwin', 'Jazz blues', 'Fifths', 'Romanesca', 'Mahler', 'Mediants', 'Monteverdi', 'Dowland', 'Gesualdo', 'Allegri', 'Purcell', 'Rimsky-Korsakov', 'Stravinsky', 'Debussy', 'Coltrane'];
 var CHORD_ORDERS = ['In turn', 'Shuffled'];
-var chords = { len: 100, set: 0, shuffle: false };
+var chords = { speed: 100, set: 0, shuffle: false };
 
 function loadShop() {
   try {
@@ -764,7 +767,7 @@ function loadShop() {
       SHOP.forEach(function(c) { if (isNum(v[c.key]) && bases[c.key] === c.base) shop[c.key] = clamp(v[c.key], shopMin(c), shopMax(c)); });
       var ch = v.chords;
       if (ch && typeof ch === 'object') {
-        if (isNum(ch.len)) chords.len = clamp(ch.len, 25, 300);
+        if (isNum(ch.speed)) chords.speed = clamp(ch.speed, 0, 200);
         if (isNum(ch.set)) chords.set = clamp(Math.round(ch.set), 0, CHORD_SETS.length - 1);
         chords.shuffle = !!ch.shuffle;
       }
@@ -775,7 +778,7 @@ function saveShop() { try { var v = {}; SHOP.forEach(function(c) { v[c.key] = sh
 function sendShop() {
   var values = {}, voice = {};
   SHOP.forEach(function(c) { (c.voice ? voice : values)[c.engine || c.key] = c.base * shopFactor(c); });
-  values.chordSeconds = CHORD_SECONDS * chords.len / 100;
+  values.chordSeconds = chordSeconds();
   values.chordSet = chords.set;
   values.chordShuffle = chords.shuffle ? 1 : 0;
   if (Engine) { Engine.setLab(values); Engine.setVoiceParams(voice); }
@@ -794,7 +797,7 @@ function buildShop() {
     g.querySelector('input').addEventListener('input', function() { shop[c.key] = parseFloat(this.value); sendShop(); });
     el.appendChild(g);
   });
-  document.getElementById('chord-len').addEventListener('input', function() { chords.len = parseFloat(this.value); sendShop(); });
+  document.getElementById('chord-speed').addEventListener('input', function() { chords.speed = parseFloat(this.value); sendShop(); });
   var setChips = document.getElementById('chord-set-chips');
   CHORD_SETS.forEach(function(name, i) {
     var b = document.createElement('button'); b.className = 'schip'; b.textContent = name;
@@ -809,7 +812,7 @@ function buildShop() {
   });
   document.getElementById('shop-reset').addEventListener('click', function() {
     SHOP.forEach(function(c) { shop[c.key] = 100; });
-    chords = { len: 100, set: 0, shuffle: false };
+    chords = { speed: 100, set: 0, shuffle: false };
     sendShop(); hud('Back to the middle', '', 900);
   });
   showShop();
@@ -821,8 +824,8 @@ function showShop() {
     row.querySelector('input').value = shop[c.key];
     row.querySelector('.dval').textContent = shopReadout(c);
   });
-  document.getElementById('chord-len').value = chords.len;
-  document.getElementById('v-chord-len').textContent = Math.round(chords.len) + '% · ' + Math.round(CHORD_SECONDS * chords.len / 100) + ' s';
+  document.getElementById('chord-speed').value = chords.speed;
+  document.getElementById('v-chord-speed').textContent = Math.round(chords.speed) + '% · ' + Math.round(chordSeconds()) + ' s a chord';
   document.querySelectorAll('#chord-set-chips .schip').forEach(function(b, i) { b.classList.toggle('active', i === chords.set); });
   document.querySelectorAll('#chord-order-chips .schip').forEach(function(b, i) { b.classList.toggle('active', (i === 1) === chords.shuffle); });
 }
