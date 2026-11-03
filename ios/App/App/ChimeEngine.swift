@@ -216,6 +216,7 @@ final class ChimeEngine {
         queue.async {
             self.voiceParams.apply(values)
             if let gain = values["outputGain"] { self.synth.outputGain = Float(max(0, min(40, gain))) }
+            if let space = values["space"] { self.synth.space.amount = Float(max(0, min(4, space))) }
         }
     }
 

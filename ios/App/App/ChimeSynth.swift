@@ -267,6 +267,93 @@ final class SynthVoice {
     }
 }
 
+/// A little outdoors around the chimes. Outside there is no hall, but there is a ground
+/// bounce, a wall or two and the air, so the chimes get a handful of early reflections,
+/// darkened as a wall and the ground darken a sound, and a short, dark tail: enough to
+/// hang somewhere rather than in an anechoic chamber. On the chime bus only; the wind is
+/// already diffuse. `amount` scales the whole thing, 1 as shipped, 0 dry.
+final class OutdoorSpace {
+    var amount: Float = 1
+
+    private let mask = 4095
+    private let bufL, bufR, l0, l1, l2, l3: UnsafeMutablePointer<Float>
+    private var pos = 0
+    private struct Tap { let delay: Int; let gain: Float; let cross: Bool }
+    private let tapsL: [Tap], tapsR: [Tap]
+    private let n0, n1, n2, n3: Int
+    private let g0, g1, g2, g3: Float
+    private let earlyCoef: Float, dampCoef: Float
+    private let earlyLevel: Float = 0.7, tailLevel: Float = 0.3
+    private var eL: Float = 0, eR: Float = 0
+    private var d0: Float = 0, d1: Float = 0, d2: Float = 0, d3: Float = 0
+
+    init(sampleRate sr: Double) {
+        func alloc() -> UnsafeMutablePointer<Float> {
+            let p = UnsafeMutablePointer<Float>.allocate(capacity: 4096)
+            p.initialize(repeating: 0, count: 4096)
+            return p
+        }
+        bufL = alloc(); bufR = alloc(); l0 = alloc(); l1 = alloc(); l2 = alloc(); l3 = alloc()
+        func samples(_ ms: Double) -> Int { max(1, min(4095, Int(ms / 1000 * sr))) }
+        // Milliseconds and gains of the reflections: the ground under the chimes first,
+        // then a near wall, then something farther off. Each side hears the other's too
+        tapsL = [Tap(delay: samples(9.1), gain: 0.28, cross: false), Tap(delay: samples(17.3), gain: 0.20, cross: false),
+                 Tap(delay: samples(26.9), gain: 0.14, cross: false), Tap(delay: samples(43.7), gain: 0.09, cross: false),
+                 Tap(delay: samples(13.7), gain: 0.16, cross: true), Tap(delay: samples(31.1), gain: 0.10, cross: true),
+                 Tap(delay: samples(52.3), gain: 0.06, cross: true)]
+        tapsR = [Tap(delay: samples(9.7), gain: 0.28, cross: false), Tap(delay: samples(18.9), gain: 0.20, cross: false),
+                 Tap(delay: samples(25.1), gain: 0.14, cross: false), Tap(delay: samples(46.3), gain: 0.09, cross: false),
+                 Tap(delay: samples(12.3), gain: 0.16, cross: true), Tap(delay: samples(33.7), gain: 0.10, cross: true),
+                 Tap(delay: samples(49.9), gain: 0.06, cross: true)]
+        // The tail: four delay lines fed back through a Householder mix, each damped,
+        // dying away in about 0.8 s
+        n0 = samples(31.7); n1 = samples(37.9); n2 = samples(43.1); n3 = samples(47.3)
+        let rt60 = 0.8
+        func fb(_ n: Int) -> Float { Float(pow(10.0, -3.0 * Double(n) / (rt60 * sr))) }
+        g0 = fb(n0); g1 = fb(n1); g2 = fb(n2); g3 = fb(n3)
+        earlyCoef = Float(1 - exp(-2 * Double.pi * 4500 / sr))
+        dampCoef = Float(1 - exp(-2 * Double.pi * 3000 / sr))
+    }
+
+    deinit {
+        for p in [bufL, bufR, l0, l1, l2, l3] { p.deallocate() }
+    }
+
+    func process(_ outL: UnsafeMutablePointer<Float>, _ outR: UnsafeMutablePointer<Float>, frames: Int) {
+        let amt = amount
+        if amt <= 0 { return }
+        let mask = self.mask
+        var pos = self.pos
+        var eL = self.eL, eR = self.eR
+        var d0 = self.d0, d1 = self.d1, d2 = self.d2, d3 = self.d3
+        for k in 0..<frames {
+            let inL = outL[k], inR = outR[k]
+            bufL[pos] = inL; bufR[pos] = inR
+            var sumL: Float = 0, sumR: Float = 0
+            for t in tapsL { sumL += (t.cross ? bufR : bufL)[(pos - t.delay) & mask] * t.gain }
+            for t in tapsR { sumR += (t.cross ? bufL : bufR)[(pos - t.delay) & mask] * t.gain }
+            eL += (sumL - eL) * earlyCoef
+            eR += (sumR - eR) * earlyCoef
+            d0 += (l0[(pos - n0) & mask] - d0) * dampCoef
+            d1 += (l1[(pos - n1) & mask] - d1) * dampCoef
+            d2 += (l2[(pos - n2) & mask] - d2) * dampCoef
+            d3 += (l3[(pos - n3) & mask] - d3) * dampCoef
+            let s = (d0 + d1 + d2 + d3) * 0.5
+            let injL = (inL + eL) * 0.25, injR = (inR + eR) * 0.25
+            l0[pos] = (d0 - s) * g0 + injL
+            l1[pos] = (d1 - s) * g1 + injR
+            l2[pos] = (d2 - s) * g2 + injL
+            l3[pos] = (d3 - s) * g3 + injR
+            outL[k] = inL + amt * (eL * earlyLevel + (d0 + d2) * 0.5 * tailLevel)
+            outR[k] = inR + amt * (eR * earlyLevel + (d1 + d3) * 0.5 * tailLevel)
+            pos = (pos + 1) & mask
+        }
+        self.pos = pos
+        self.eL = eL; self.eR = eR
+        self.d0 = d0; self.d1 = d1; self.d2 = d2; self.d3 = d3
+    }
+}
+
 /// Mixes strike voices on the audio thread. Voices are built elsewhere and handed
 /// over through `enqueue`; the render thread only ever try-locks, so it never blocks.
 final class ChimeSynth {
@@ -279,6 +366,8 @@ final class ChimeSynth {
     /// (5.6×) with the limiter linear up to 0.85, where only the hardest strikes and a
     /// gust's cluster are rounded off. Set from the Workshop's Output level.
     var outputGain: Float = 5.6
+    /// The outdoors around the chimes; its `amount` is the Workshop's Space slider
+    let space: OutdoorSpace
 
     @inline(__always) private static func softLimit(_ x: Float) -> Float {
         let a = abs(x)
@@ -331,6 +420,7 @@ final class ChimeSynth {
 
     init(sampleRate: Double) {
         self.sampleRate = sampleRate
+        space = OutdoorSpace(sampleRate: sampleRate)
         lock = .allocate(capacity: 1)
         lock.initialize(to: os_unfair_lock())
         scratch = .allocate(capacity: ChimeSynth.scratchFrames)
@@ -425,6 +515,7 @@ final class ChimeSynth {
             }
         }
 
+        space.process(outL, outR, frames: frameCount)
         renderWind(into: outL, outR, frames: frameCount)
 
         for j in 0..<frameCount {

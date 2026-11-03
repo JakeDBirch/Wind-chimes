@@ -20,7 +20,7 @@ Nothing on screen but the chimes, with a scatter of dust that drifts with the wi
 | **Wrench icon** (bottom right) | The Workshop, below |
 | **Sun / moon icon** (bottom right) | Light mode (the default) or dark mode |
 | **Wind icon** (bottom right) | Opens the wind drawer: **Wind** on or off (off at launch; off, the chimes settle and the engine rests), **Wind loudness** (0 is silent), **Strength** and **Constancy** sliders |
-| **Workshop** (the wrench icon) | How the chimes move and sound, each a slider between two plain words with the shipped setting in the middle: **Striker swing** and **Chime swing** (rigid to free), **Striker distance** and **Chime distance** (close to far), then **Brightness**, **Chime loudness** and **Ring time**, then the Chord Seq scale's harmonic speed (slow to fast), progression (sixteen, each a named work's harmony reduced to its chords) and order |
+| **Workshop** (the wrench icon) | How the chimes move and sound, each a slider between two plain words with the shipped setting in the middle: **Striker swing** and **Chime swing** (rigid to free), **Striker distance** and **Chime distance** (close to far), then **Brightness**, **Chime loudness**, **Ring time** and **Space** (dry to open: the ground bounce, a wall or two and a short tail around the chimes), then the Chord Seq scale's harmonic speed (slow to fast), progression (sixteen, each a named work's harmony reduced to its chords) and order |
 
 Billow takes the audio for itself: it pauses whatever else was playing, and another app starting playback (or a call) stops the chimes. After a call they come back on their own; after music, tap the screen.
 
