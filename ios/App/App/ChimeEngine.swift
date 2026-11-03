@@ -595,7 +595,7 @@ final class ChimeEngine {
                 try session.setCategory(.playback, mode: .default)
                 try session.setActive(true)
             } catch {
-                NSLog("Billow: audio session error: \(error)")
+                NSLog("Chimescape: audio session error: \(error)")
             }
         }
         attachSourceNode()
@@ -604,7 +604,7 @@ final class ChimeEngine {
             do {
                 try audioEngine.start()
             } catch {
-                NSLog("Billow: audio engine failed to start: \(error)")
+                NSLog("Chimescape: audio engine failed to start: \(error)")
             }
         }
     }

@@ -1,6 +1,6 @@
 {
   "appId": "com.jakedbirch.windchimes",
-  "appName": "Billow",
+  "appName": "Chimescape",
   "webDir": "www",
   "ios": {
     "contentInset": "never",
