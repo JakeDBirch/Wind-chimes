@@ -148,6 +148,15 @@ final class SynthVoice {
     var filter: Biquad?
     var filterFrequency: Automation? // nil = cutoff fixed when the voice was built
     var gain = Automation(1)
+    /// Left-right position, -1 to +1. Constant-power gains, scaled so a centred voice
+    /// is as loud in each channel as it was in mono.
+    var pan = 0.0 {
+        didSet {
+            let th = (max(-1, min(1, pan)) + 1) * .pi / 4
+            gainL = Float(2.0.squareRoot() * cos(th)); gainR = Float(2.0.squareRoot() * sin(th))
+        }
+    }
+    private var gainL: Float = 1, gainR: Float = 1
 
     // Modal fast path: one mode of a struck tube, a damped sine that starts at full
     // amplitude the instant the strike lands and decays at `modalDecay` per second.
@@ -161,9 +170,10 @@ final class SynthVoice {
     private var phase = 0.0
     private var samplePos = 0.0
 
-    /// Adds this voice into `out`. Returns false once the voice has finished.
-    func render(into out: UnsafeMutablePointer<Float>, frames: Int, sampleRate: Double) -> Bool {
+    /// Adds this voice into the two channels. Returns false once the voice has finished.
+    func render(into outL: UnsafeMutablePointer<Float>, _ outR: UnsafeMutablePointer<Float>, frames: Int, sampleRate: Double) -> Bool {
         let invSr = 1.0 / sampleRate
+        let gL = gainL, gR = gainR
         if modal {
             if !modalReady {
                 modalReady = true
@@ -187,10 +197,12 @@ final class SynthVoice {
                 if left > 0 {
                     // Raised-cosine rise over the contact time: no edge at the onset
                     let x = Double(riseN - left + 1) / n
-                    out[k] += Float(im * 0.5 * (1 - cos(.pi * x)))
+                    let v = Float(im * 0.5 * (1 - cos(.pi * x)))
+                    outL[k] += v * gL; outR[k] += v * gR
                     left -= 1
                 } else {
-                    out[k] += Float(im)
+                    let v = Float(im)
+                    outL[k] += v * gL; outR[k] += v * gR
                 }
             }
             riseLeft = left
@@ -243,7 +255,8 @@ final class SynthVoice {
                     phase += w * (f0 + fD * frac)
                 }
                 let y = hasFilter ? flt.process(x) : x
-                out[offset + k] += Float(y * (g0 + gD * frac))
+                let v = Float(y * (g0 + gD * frac))
+                outL[offset + k] += v * gL; outR[offset + k] += v * gR
             }
             offset += n
         }
@@ -290,11 +303,16 @@ final class ChimeSynth {
     private var bodyLP = Biquad(.lowpass, q: 1)
     private struct WhooshBand {
         var base: Double
+        var home: Double         // its place in the stereo field, which it wanders about
         var filter = Biquad(.bandpass, q: 6)
         var wander = 1.0, wanderTarget = 1.0
         var level = 0.7, levelTarget = 0.7
+        var pan = 0.0, panTarget = 0.0, gainL = 1.0, gainR = 1.0
     }
-    private var bands = [WhooshBand(base: 150), WhooshBand(base: 260), WhooshBand(base: 420)]
+    private var bands = [WhooshBand(base: 150, home: -0.5), WhooshBand(base: 260, home: 0), WhooshBand(base: 420, home: 0.5)]
+    /// Right channel when the output has only one: mixed down into it afterwards
+    private let scratch: UnsafeMutablePointer<Float>
+    private static let scratchFrames = 8192
     private var flutter = 1.0, flutterTarget = 1.0
     private var bodyDrift = 1.0, bodyDriftTarget = 1.0
     private var compEnvelope = 0.0, compGain = 1.0 // gentle compressor evens out the surges
@@ -315,6 +333,8 @@ final class ChimeSynth {
         self.sampleRate = sampleRate
         lock = .allocate(capacity: 1)
         lock.initialize(to: os_unfair_lock())
+        scratch = .allocate(capacity: ChimeSynth.scratchFrames)
+        scratch.initialize(repeating: 0, count: ChimeSynth.scratchFrames)
         voices.reserveCapacity(1280)
         pending.reserveCapacity(128)
         incoming.reserveCapacity(128)
@@ -323,6 +343,7 @@ final class ChimeSynth {
     deinit {
         lock.deinitialize(count: 1)
         lock.deallocate()
+        scratch.deallocate()
     }
 
     func enqueue(_ newVoices: [SynthVoice]) {
@@ -341,8 +362,14 @@ final class ChimeSynth {
 
     func render(frameCount: Int, buffers: UnsafeMutableAudioBufferListPointer) {
         guard buffers.count > 0, let raw = buffers[0].mData else { return }
-        let out = raw.assumingMemoryBound(to: Float.self)
-        out.update(repeating: 0, count: frameCount)
+        let outL = raw.assumingMemoryBound(to: Float.self)
+        outL.update(repeating: 0, count: frameCount)
+        // Stereo: strikes are placed by where their tube hangs, the wind's whoosh bands
+        // sit left, centre and right. With a single output channel the two are averaged
+        let stereo = buffers.count > 1 && buffers[1].mData != nil
+        guard stereo || frameCount <= ChimeSynth.scratchFrames else { return }
+        let outR: UnsafeMutablePointer<Float> = stereo ? buffers[1].mData!.assumingMemoryBound(to: Float.self) : scratch
+        outR.update(repeating: 0, count: frameCount)
 
         if muted {
             if os_unfair_lock_trylock(lock) {
@@ -381,7 +408,7 @@ final class ChimeSynth {
 
         var i = 0
         while i < voices.count {
-            if voices[i].render(into: out, frames: frameCount, sampleRate: sampleRate) {
+            if voices[i].render(into: outL, outR, frames: frameCount, sampleRate: sampleRate) {
                 i += 1
             } else {
                 voices.swapAt(i, voices.count - 1)
@@ -392,15 +419,22 @@ final class ChimeSynth {
 
         let gain = outputGain
         if gain != 1 {
-            for j in 0..<frameCount { out[j] = ChimeSynth.softLimit(out[j] * gain) }
+            for j in 0..<frameCount {
+                outL[j] = ChimeSynth.softLimit(outL[j] * gain)
+                outR[j] = ChimeSynth.softLimit(outR[j] * gain)
+            }
         }
 
-        renderWind(into: out, frames: frameCount)
+        renderWind(into: outL, outR, frames: frameCount)
 
         for j in 0..<frameCount {
-            out[j] = max(-1, min(1, out[j] * masterGain))
+            outL[j] = max(-1, min(1, outL[j] * masterGain))
+            outR[j] = max(-1, min(1, outR[j] * masterGain))
         }
-        for b in 1..<max(1, buffers.count) {
+        if !stereo {
+            for j in 0..<frameCount { outL[j] = 0.5 * (outL[j] + outR[j]) }
+        }
+        for b in 2..<max(2, buffers.count) {
             if let dst = buffers[b].mData {
                 dst.copyMemory(from: raw, byteCount: frameCount * MemoryLayout<Float>.size)
             }
@@ -414,8 +448,9 @@ final class ChimeSynth {
         return Double(noiseState) / Double(UInt32.max) * 2 - 1
     }
 
-    /// Mixes the wind layer into `out`. Same DSP as the Node prototype used to audition it.
-    private func renderWind(into out: UnsafeMutablePointer<Float>, frames: Int) {
+    /// Mixes the wind layer into both channels. Same DSP as the Node prototype used to
+    /// audition it, with the three whoosh bands spread across the field.
+    private func renderWind(into outL: UnsafeMutablePointer<Float>, _ outR: UnsafeMutablePointer<Float>, frames: Int) {
         var target = windSoundGain > 0 ? min(1, max(0, windLevel / 0.45)) : 0
         // Expander: below ~0.12 the level falls away to true silence instead of idling as hiss
         let gate = min(1, max(0, (target - 0.03) / (0.14 - 0.03)))
@@ -456,9 +491,13 @@ final class ChimeSynth {
                 if (whiteNoise() + 1) / 2 < blockD / (1.5 * sampleRate) {
                     bands[i].wanderTarget = 0.75 + (whiteNoise() + 1) / 2 * 0.5
                     bands[i].levelTarget = 0.15 + (whiteNoise() + 1) / 2 * 0.85
+                    bands[i].panTarget = bands[i].home + whiteNoise() * 0.3
                 }
                 bands[i].wander += (bands[i].wanderTarget - bands[i].wander) * walk
                 bands[i].level += (bands[i].levelTarget - bands[i].level) * walk
+                bands[i].pan += (bands[i].panTarget - bands[i].pan) * walk
+                let th = (max(-1, min(1, bands[i].pan)) + 1) * .pi / 4
+                bands[i].gainL = 2.0.squareRoot() * cos(th); bands[i].gainR = 2.0.squareRoot() * sin(th)
                 bands[i].filter.setFrequency(bands[i].base * (0.9 + w * 1.4) * bands[i].wander, sampleRate: sampleRate)
             }
             rumbleLP.setFrequency(110 + w * 160, sampleRate: sampleRate)
@@ -487,13 +526,20 @@ final class ChimeSynth {
 
                 let rumble = rumbleLP2.process(rumbleLP.process(brownOut))
                 let body = bodyLP.process(pink)
-                var whoosh = 0.0
-                for i in bands.indices { whoosh += bands[i].filter.process(pink) * bands[i].level }
+                var whooshL = 0.0, whooshR = 0.0
+                for i in bands.indices {
+                    let s = bands[i].filter.process(pink) * bands[i].level
+                    whooshL += s * bands[i].gainL; whooshR += s * bands[i].gainR
+                }
 
-                let y = (rumble * gRumble + body * gBody + whoosh * gWhoosh) * master * compGain
+                let mid = (rumble * gRumble + body * gBody) * master * compGain
+                let yL = mid + whooshL * gWhoosh * master * compGain
+                let yR = mid + whooshR * gWhoosh * master * compGain
+                let y = 0.5 * (yL + yR)
                 blockSum += y * y
                 // Soft clip tames what the compressor misses
-                out[offset + k] += Float(tanh(y * makeup * 1.6) / 1.6 * windSoundGain)
+                outL[offset + k] += Float(tanh(yL * makeup * 1.6) / 1.6 * windSoundGain)
+                outR[offset + k] += Float(tanh(yR * makeup * 1.6) / 1.6 * windSoundGain)
             }
             // Detector on this block's level before gain, applied from the next block
             let rms = (blockSum / Double(n)).squareRoot() / max(compGain, 1e-6)

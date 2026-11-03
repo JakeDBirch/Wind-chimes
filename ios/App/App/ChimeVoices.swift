@@ -111,7 +111,7 @@ enum ChimeVoices {
         // Every contact sounds as tube on tube (Oct 28): the clapper's own brighter, longer
         // voice and its wooden-clapper ting are no longer used, so a clapper strike and a
         // clash of neighbours differ only in speed. The lights still tell them apart.
-        let strike = ChimeStrike(frequency: strike.frequency, velocity: strike.velocity, speed: strike.speed, isClapper: false)
+        let strike = ChimeStrike(frequency: strike.frequency, velocity: strike.velocity, speed: strike.speed, isClapper: false, pan: strike.pan)
         let freq = strike.frequency
         let velNorm = min(1.0, strike.velocity)
         let isClapper = strike.isClapper
@@ -201,7 +201,7 @@ enum ChimeVoices {
                 let presence = (velNorm - t.octaveThreshold) / max(0.01, 1 - t.octaveThreshold)
                 voices.append(layer(octave: 2, gainScale: t.octaveGain * pow(presence, 0.7), decayScale: t.octaveDecay, cutoffScale: t.octaveCutoff))
             }
-            return voices
+            return panned(voices, strike.pan)
         }
 
         // ── The ting: the first instant of a real strike is the tube's high modes, which the
@@ -296,6 +296,13 @@ enum ChimeVoices {
             }
         }
 
+        return panned(voices, strike.pan)
+    }
+
+    /// Places a strike's voices in the stereo field. The width is held short of the
+    /// edges so no tube is heard from one ear alone.
+    private static func panned(_ voices: [SynthVoice], _ pan: Double) -> [SynthVoice] {
+        for v in voices { v.pan = pan * 0.75 }
         return voices
     }
 

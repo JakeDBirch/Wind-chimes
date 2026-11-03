@@ -2,7 +2,7 @@
 
 A wind chime simulator. It plays the sound of wind chimes, and if you hang your phone up outside, it becomes a real wind chime that moves with the wind. Under the hood it's a top-down 2D pendulum simulation driven by wind, sound and the phone's motion sensors.
 
-Billow (formerly Pocket Chimes) is an iOS app built with [Capacitor](https://capacitorjs.com). The chime itself (physics, motion input and sound) runs natively in Swift so it keeps playing in the background and with the screen locked. The controls and the top-down view are a web page (`index.html`) shown inside the app. It no longer runs in a desktop or mobile browser.
+Billow (formerly Pocket Chimes) is an iOS app built with [Capacitor](https://capacitorjs.com). The chime itself (physics, motion input and sound) runs natively in Swift so it keeps playing in the background and with the screen locked. The sound is stereo: each chime is heard from where it hangs on the ring, left to right as you see it on screen, and the wind moves across the field. The controls and the top-down view are a web page (`index.html`) shown inside the app. It no longer runs in a desktop or mobile browser.
 
 ## Controls (gesture branch)
 

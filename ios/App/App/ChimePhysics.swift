@@ -114,6 +114,7 @@ struct ChimeStrike {
     let velocity: Double   // 0–1, the soft curve the voice's sustain uses
     let speed: Double      // the approach speed in m/s, for the reference-fitted ting
     let isClapper: Bool
+    let pan: Double        // where the tube hangs on the ring as seen on screen, -1 left to +1 right
 }
 
 /// Top-down 2D pendulum model of the chime: a ring hanging from a fixed point, tubes
@@ -744,7 +745,10 @@ final class ChimePhysics {
     private func clampAngle(_ a: Double) -> Double { max(-.pi / 2, min(.pi / 2, a)) }
 
     private func emitStrike(_ index: Int, velocity: Double, speed: Double, isClapper: Bool) {
-        onStrike?(ChimeStrike(frequency: tubeFrequency(index), velocity: velocity, speed: speed, isClapper: isClapper))
+        // The tube's mount on the ring places it in the stereo field: the screen draws
+        // physics x left to right, so cos of the mount angle is its left-right position
+        let pan = tubes.isEmpty ? 0 : cos(Double(index) / Double(tubes.count) * .pi * 2)
+        onStrike?(ChimeStrike(frequency: tubeFrequency(index), velocity: velocity, speed: speed, isClapper: isClapper, pan: pan))
     }
 
     /// Strike velocity for the voice, 0–1, from an approach speed or impulse. A soft
