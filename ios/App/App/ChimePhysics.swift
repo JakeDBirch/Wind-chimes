@@ -130,46 +130,22 @@ final class ChimePhysics {
     /// params.customScale.
     static let scales: [String: [Double]] = [
         "Pentatonic": [0, 3, 5, 7, 10],
-        "Major Pent": [0, 2, 4, 7, 9],
+        // A major seventh chord with its ninth and thirteenth, no fourth, so the chimes
+        // ring as one lush chord however they fall
+        "7th": [0, 2, 4, 7, 9, 11],
         "Major": [0, 2, 4, 5, 7, 9, 11],
-        "Minor": [0, 2, 3, 5, 7, 8, 10],
         "Dorian": [0, 2, 3, 5, 7, 9, 10],
-        "Lydian": [0, 2, 4, 6, 7, 9, 11],
         "Mixolydian": [0, 2, 4, 5, 7, 9, 10],
         "Whole Tone": [0, 2, 4, 6, 8, 10],
-        "Blues": [0, 3, 5, 6, 7, 10],
         "Hirajoshi": [0, 2, 3, 7, 8],
-        "In Sen": [0, 1, 5, 7, 10],
-        // Javanese gamelan. Slendro divides the octave into five near-equal steps of
-        // 240 cents; pelog's steps are uneven, here the five-note bem selection of a
-        // typical seven-note tuning (0, 120, 258, 675, 785 cents).
-        "Slendro": [0, 2.4, 4.8, 7.2, 9.6],
-        "Pelog": [0, 1.2, 2.58, 6.75, 7.85],
-        "Harmonic Minor": [0, 2, 3, 5, 7, 8, 11],
-        "Hungarian Minor": [0, 2, 3, 6, 7, 8, 11],
-        // North India: raga Bhairav, the double harmonic scale, a flat second and sixth
-        // against a major third and seventh
-        "Bhairav": [0, 1, 4, 5, 7, 8, 11],
-        // Spain: the flamenco mode, Phrygian with both thirds
-        "Flamenco": [0, 1, 3, 4, 5, 7, 8, 10],
-        // The Middle East: maqam Hijaz, and maqam Rast with its neutral (quarter-tone)
-        // third and seventh
-        "Hijaz": [0, 1, 4, 5, 7, 8, 10],
-        "Rast": [0, 2, 3.5, 5, 7, 9, 10.5],
+        // Javanese gamelan: pelog, its steps uneven, here the five-note bem selection
+        // of a typical seven-note tuning (0, 120, 258, 675, 785 cents)
+        "Gamelan": [0, 1.2, 2.58, 6.75, 7.85],
         // West Africa: a balafon's seven near-equal steps (171 cents)
         "Balafon": [0, 1.714, 3.429, 5.143, 6.857, 8.571, 10.286],
-        // The suspended pentatonic, heard from Egypt to China
-        "Egyptian": [0, 2, 5, 7, 10],
         // Whole and half steps alternating: Rimsky-Korsakov's scale for the sea and the
         // supernatural, Stravinsky's after him, jazz's "diminished" scale
         "Octatonic": [0, 2, 3, 5, 6, 8, 9, 11],
-        // Messiaen's modes of limited transposition, which repeat under a transposition
-        // smaller than an octave: mode 1 is Whole Tone, mode 2 Octatonic, these are 3 to 7
-        "Messiaen 3": [0, 2, 3, 4, 6, 7, 8, 10, 11],
-        "Messiaen 4": [0, 1, 2, 5, 6, 7, 8, 11],
-        "Messiaen 5": [0, 1, 5, 6, 7, 11],
-        "Messiaen 6": [0, 2, 4, 5, 6, 8, 10, 11],
-        "Messiaen 7": [0, 1, 2, 3, 5, 6, 7, 8, 9, 11],
     ]
     // Chord sequences the "Chord Seq" scale cycles through, chosen in the Workshop by
     // index. Each chord is a set of semitone offsets from the root; tubes past the
