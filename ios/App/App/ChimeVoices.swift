@@ -299,10 +299,11 @@ enum ChimeVoices {
         return panned(voices, strike.pan)
     }
 
-    /// Places a strike's voices in the stereo field. The width is held short of the
-    /// edges so no tube is heard from one ear alone.
+    /// Places a strike's voices in the stereo field. The width is modest: a chime set a
+    /// few steps away spans a small angle, and wider than this the listener's head sat
+    /// in the middle of the ring.
     private static func panned(_ voices: [SynthVoice], _ pan: Double) -> [SynthVoice] {
-        for v in voices { v.pan = pan * 0.75 }
+        for v in voices { v.pan = pan * 0.3 }
         return voices
     }
 

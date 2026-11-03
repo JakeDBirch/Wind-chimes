@@ -34,6 +34,13 @@ struct Automation {
         return Automation.evaluate(events, cursor - 1, defaultValue, time)
     }
 
+    /// Value at `time` without moving the cursor, for a look at any time at all
+    func peek(at time: Double) -> Double {
+        var k = events.count - 1
+        while k >= 0 && events[k].time > time { k -= 1 }
+        return Automation.evaluate(events, k, defaultValue, time)
+    }
+
     private mutating func add(_ kind: Kind, _ value: Double, _ time: Double) {
         var k = events.count - 1
         while k >= 0 && events[k].time > time { k -= 1 }
@@ -158,6 +165,20 @@ final class SynthVoice {
     }
     private var gainL: Float = 1, gainR: Float = 1
 
+    // A voice shed to make room is not dropped but faded over `fadeLen`, so the cut is
+    // never heard as a cut
+    private var fadeFrom = Double.infinity
+    private let fadeLen = 0.04
+    var isReleasing: Bool { fadeFrom < .infinity }
+    func release() { if fadeFrom == .infinity { fadeFrom = time } }
+    /// About how loud the voice is now (or is about to be, for one still waiting to
+    /// start): what the cull sorts by, so the quietest tails go first
+    var audibleLevel: Double {
+        if modal { return modalAmp * exp(-modalDecay * max(0, time - startTime)) }
+        let t = max(time, startTime)
+        return max(gain.peek(at: t), gain.peek(at: t + 0.05))
+    }
+
     // Modal fast path: one mode of a struck tube, a damped sine that starts at full
     // amplitude the instant the strike lands and decays at `modalDecay` per second.
     // Rendered as a decaying complex rotation, four multiplies and two adds a sample.
@@ -174,6 +195,8 @@ final class SynthVoice {
     func render(into outL: UnsafeMutablePointer<Float>, _ outR: UnsafeMutablePointer<Float>, frames: Int, sampleRate: Double) -> Bool {
         let invSr = 1.0 / sampleRate
         let gL = gainL, gR = gainR
+        let fading = fadeFrom < .infinity
+        if fading && time >= fadeFrom + fadeLen { return false }
         if modal {
             if !modalReady {
                 modalReady = true
@@ -190,23 +213,27 @@ final class SynthVoice {
             let c = rotC, sn = rotS
             var left = riseLeft
             let n = Double(riseN)
+            var fade: Float = fading ? Float(max(0, min(1, 1 - (t0 + Double(first) * invSr - fadeFrom) / fadeLen))) : 1
+            let fadeStep: Float = fading ? Float(-invSr / fadeLen) : 0
             for k in first..<frames {
                 let nre = re * c - im * sn
                 im = re * sn + im * c
                 re = nre
+                if fading { fade = max(0, fade + fadeStep) }
                 if left > 0 {
                     // Raised-cosine rise over the contact time: no edge at the onset
                     let x = Double(riseN - left + 1) / n
-                    let v = Float(im * 0.5 * (1 - cos(.pi * x)))
+                    let v = Float(im * 0.5 * (1 - cos(.pi * x))) * fade
                     outL[k] += v * gL; outR[k] += v * gR
                     left -= 1
                 } else {
-                    let v = Float(im)
+                    let v = Float(im) * fade
                     outL[k] += v * gL; outR[k] += v * gR
                 }
             }
             riseLeft = left
             mre = re; mim = im
+            if fading && time >= fadeFrom + fadeLen { return false }
             return modalAmp * exp(-modalDecay * max(0, time - startTime)) > 2e-5
         }
         let w = 2.0 * Double.pi * invSr
@@ -232,6 +259,8 @@ final class SynthVoice {
             let ta = max(t0, startTime)
             let invSpan = t1 > ta ? 1.0 / (t1 - ta) : 0
             let g0 = gain.value(at: ta), gD = gain.value(at: t1) - g0
+            let fa = fading ? max(0, min(1, 1 - (ta - fadeFrom) / fadeLen)) : 1
+            let fD = fading ? max(0, min(1, 1 - (t1 - fadeFrom) / fadeLen)) - fa : 0
             let f0 = frequency.value(at: ta), fD = frequency.value(at: t1) - f0
             if sweepsFilter { flt.setFrequency(filterFrequency!.value(at: ta), sampleRate: sampleRate) }
             let step = isSample ? sampleStep * pitchBend.value(at: ta) : 0
@@ -255,7 +284,7 @@ final class SynthVoice {
                     phase += w * (f0 + fD * frac)
                 }
                 let y = hasFilter ? flt.process(x) : x
-                let v = Float(y * (g0 + gD * frac))
+                let v = Float(y * (g0 + gD * frac) * (fa + fD * frac))
                 outL[offset + k] += v * gL; outR[offset + k] += v * gR
             }
             offset += n
@@ -263,6 +292,7 @@ final class SynthVoice {
 
         if hasFilter { filter = flt }
         phase = phase.truncatingRemainder(dividingBy: 2.0 * Double.pi)
+        if fading && time >= fadeFrom + fadeLen { return false }
         return time < stopTime
     }
 }
@@ -487,12 +517,26 @@ final class ChimeSynth {
             voices.append(contentsOf: incoming)
             incoming.removeAll(keepingCapacity: true)
             if voices.count > ChimeSynth.maxVoices {
-                // Over the limit, shed the voices that end soonest (a ting's modes, a
-                // note's last partials), never the oldest: those are the long ring tails,
-                // and dropping them cut sustains off short in a gust's cluster
-                let over = voices.count - ChimeSynth.maxVoices
-                voices.sort { $0.stopTime > $1.stopTime }
-                voices.removeLast(over)
+                // Over the limit, shed the quietest voices, which are the ring tails
+                // already down near silence, and fade them out rather than drop them.
+                // Shedding by soonest end time cut off a fresh strike's upper partials and
+                // its ting, loud and short, in every gust; and a dropped voice was a click
+                let releasing = voices.reduce(0) { $0 + ($1.isReleasing ? 1 : 0) }
+                let over = voices.count - releasing - ChimeSynth.maxVoices
+                if over > 0 {
+                    voices.sort { $0.audibleLevel > $1.audibleLevel }
+                    var shed = 0
+                    var i = voices.count - 1
+                    while shed < over && i >= 0 {
+                        if !voices[i].isReleasing { voices[i].release(); shed += 1 }
+                        i -= 1
+                    }
+                }
+                // Hard ceiling while the fades run out, so a runaway cluster cannot grow
+                if voices.count > ChimeSynth.maxVoices + 256 {
+                    voices.sort { $0.audibleLevel > $1.audibleLevel }
+                    voices.removeLast(voices.count - ChimeSynth.maxVoices - 256)
+                }
             }
         }
 
