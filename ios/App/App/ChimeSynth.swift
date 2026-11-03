@@ -155,15 +155,27 @@ final class SynthVoice {
     var filter: Biquad?
     var filterFrequency: Automation? // nil = cutoff fixed when the voice was built
     var gain = Automation(1)
-    /// Left-right position, -1 to +1. Constant-power gains, scaled so a centred voice
-    /// is as loud in each channel as it was in mono.
+    /// Left-right position, -1 to +1, placed across `panWidth` of the field: a chime set
+    /// a few steps away spans a small angle, and wider than this the listener's head sat
+    /// in the middle of the ring. Constant-power gains, scaled so a centred voice is as
+    /// loud in each channel as it was in mono.
+    static let panWidth = 0.3
     var pan = 0.0 {
         didSet {
-            let th = (max(-1, min(1, pan)) + 1) * .pi / 4
+            let th = (max(-1, min(1, pan)) * SynthVoice.panWidth + 1) * .pi / 4
             gainL = Float(2.0.squareRoot() * cos(th)); gainR = Float(2.0.squareRoot() * sin(th))
         }
     }
     private var gainL: Float = 1, gainR: Float = 1
+    /// The tube this voice belongs to, -1 for none: the synth feeds it the tube's motion
+    var tube = -1
+    private var motionPitch: Float = 1, motionGain: Float = 1
+    /// The tube's motion as the listener hears it, set before each render: a pitch ratio
+    /// (Doppler), a gain (which way its vibration faces) and where it is
+    func motion(pitch: Float, gain: Float, pan p: Float) {
+        motionPitch = pitch; motionGain = gain
+        if abs(Double(p) - pan) > 0.002 { pan = Double(p) }
+    }
 
     // A voice shed to make room is not dropped but faded over `fadeLen`, so the cut is
     // never heard as a cut
@@ -186,6 +198,7 @@ final class SynthVoice {
     var modalAmp = 0.0, modalFreq = 0.0, modalDecay = 0.0
     var modalRise = 0.0004   // seconds: a strike's contact lasts about this, so a mode rises over it rather than at once
     private var mre = 0.0, mim = 0.0, rotC = 0.0, rotS = 0.0, modalReady = false, riseLeft = 0, riseN = 1
+    private var modalW = 0.0, modalG = 1.0, appliedPitch: Float = 0
 
     private var time = 0.0
     private var phase = 0.0
@@ -194,17 +207,21 @@ final class SynthVoice {
     /// Adds this voice into the two channels. Returns false once the voice has finished.
     func render(into outL: UnsafeMutablePointer<Float>, _ outR: UnsafeMutablePointer<Float>, frames: Int, sampleRate: Double) -> Bool {
         let invSr = 1.0 / sampleRate
-        let gL = gainL, gR = gainR
+        let gL = gainL * motionGain, gR = gainR * motionGain
         let fading = fadeFrom < .infinity
         if fading && time >= fadeFrom + fadeLen { return false }
         if modal {
             if !modalReady {
                 modalReady = true
-                let g = exp(-modalDecay * invSr)
-                let w = 2.0 * Double.pi * modalFreq * invSr
-                rotC = cos(w) * g; rotS = sin(w) * g
+                modalG = exp(-modalDecay * invSr)
+                modalW = 2.0 * Double.pi * modalFreq * invSr
                 mre = modalAmp; mim = 0           // the sine starts from zero
                 riseN = max(1, Int(modalRise * sampleRate)); riseLeft = riseN
+            }
+            if motionPitch != appliedPitch {      // the Doppler shift, re-set per render
+                appliedPitch = motionPitch
+                let w = modalW * Double(motionPitch)
+                rotC = cos(w) * modalG; rotS = sin(w) * modalG
             }
             let t0 = time
             time = t0 + Double(frames) * invSr
@@ -236,7 +253,8 @@ final class SynthVoice {
             if fading && time >= fadeFrom + fadeLen { return false }
             return modalAmp * exp(-modalDecay * max(0, time - startTime)) > 2e-5
         }
-        let w = 2.0 * Double.pi * invSr
+        let w = 2.0 * Double.pi * invSr * Double(motionPitch)
+        let pitch = Double(motionPitch)
         let hasFilter = filter != nil
         let sweepsFilter = filterFrequency != nil
         var flt = filter ?? Biquad(.lowpass, q: 0)
@@ -263,7 +281,7 @@ final class SynthVoice {
             let fadeD = fading ? max(0, min(1, 1 - (t1 - fadeFrom) / fadeLen)) - fadeA : 0
             let f0 = frequency.value(at: ta), fD = frequency.value(at: t1) - f0
             if sweepsFilter { flt.setFrequency(filterFrequency!.value(at: ta), sampleRate: sampleRate) }
-            let step = isSample ? sampleStep * pitchBend.value(at: ta) : 0
+            let step = isSample ? sampleStep * pitchBend.value(at: ta) * pitch : 0
 
             for k in 0..<n {
                 let ts = t0 + Double(k) * invSr
@@ -304,6 +322,11 @@ final class SynthVoice {
 /// already diffuse. `amount` scales the whole thing, 1 as shipped, 0 dry.
 final class OutdoorSpace {
     var amount: Float = 1
+    /// The set's displacement toward the listener, metres: the reflections' paths change
+    /// by about this much, so their comb sweeps slightly as the chimes swing
+    var sway: Float = 0
+    private var shift: Float = 0
+    private let samplesPerMetre: Float
 
     private let mask = 4095
     private let bufL, bufR, l0, l1, l2, l3: UnsafeMutablePointer<Float>
@@ -324,7 +347,8 @@ final class OutdoorSpace {
             return p
         }
         bufL = alloc(); bufR = alloc(); l0 = alloc(); l1 = alloc(); l2 = alloc(); l3 = alloc()
-        func samples(_ ms: Double) -> Int { max(1, min(4095, Int(ms / 1000 * sr))) }
+        samplesPerMetre = Float(sr / 343)
+        func samples(_ ms: Double) -> Int { max(1, min(4000, Int(ms / 1000 * sr))) }
         // Milliseconds and gains of the reflections: the ground under the chimes first,
         // then a near wall, then something farther off. Each side hears the other's too
         tapsL = [Tap(delay: samples(9.1), gain: 0.28, cross: false), Tap(delay: samples(17.3), gain: 0.20, cross: false),
@@ -356,12 +380,24 @@ final class OutdoorSpace {
         var pos = self.pos
         var eL = self.eL, eR = self.eR
         var d0 = self.d0, d1 = self.d1, d2 = self.d2, d3 = self.d3
+        var shift = self.shift
+        let shiftStep = (max(-60, min(60, sway * samplesPerMetre)) - shift) / Float(frames)
         for k in 0..<frames {
             let inL = outL[k], inR = outR[k]
             bufL[pos] = inL; bufR[pos] = inR
+            shift += shiftStep
+            let whole = Int(shift.rounded(.down)), fr = shift - Float(whole)
             var sumL: Float = 0, sumR: Float = 0
-            for t in tapsL { sumL += (t.cross ? bufR : bufL)[(pos - t.delay) & mask] * t.gain }
-            for t in tapsR { sumR += (t.cross ? bufL : bufR)[(pos - t.delay) & mask] * t.gain }
+            for t in tapsL {
+                let b = t.cross ? bufR : bufL
+                let i0 = pos - t.delay - whole
+                sumL += (b[i0 & mask] * (1 - fr) + b[(i0 - 1) & mask] * fr) * t.gain
+            }
+            for t in tapsR {
+                let b = t.cross ? bufL : bufR
+                let i0 = pos - t.delay - whole
+                sumR += (b[i0 & mask] * (1 - fr) + b[(i0 - 1) & mask] * fr) * t.gain
+            }
             eL += (sumL - eL) * earlyCoef
             eR += (sumR - eR) * earlyCoef
             d0 += (l0[(pos - n0) & mask] - d0) * dampCoef
@@ -379,6 +415,7 @@ final class OutdoorSpace {
             pos = (pos + 1) & mask
         }
         self.pos = pos
+        self.shift = shift
         self.eL = eL; self.eR = eR
         self.d0 = d0; self.d1 = d1; self.d2 = d2; self.d3 = d3
     }
@@ -432,6 +469,14 @@ final class ChimeSynth {
     /// Right channel when the output has only one: mixed down into it afterwards
     private let scratch: UnsafeMutablePointer<Float>
     private static let scratchFrames = 8192
+    /// Per-tube motion, three floats a tube (pitch ratio, gain, pan), written from the
+    /// physics step and read here each render; a float store is atomic on this hardware
+    private let tubeMotion: UnsafeMutablePointer<Float>
+    private static let maxTubes = 64
+    func setTubeMotion(_ tube: Int, pitch: Float, gain: Float, pan: Float) {
+        guard tube >= 0 && tube < ChimeSynth.maxTubes else { return }
+        tubeMotion[tube * 3] = pitch; tubeMotion[tube * 3 + 1] = gain; tubeMotion[tube * 3 + 2] = pan
+    }
     private var flutter = 1.0, flutterTarget = 1.0
     private var bodyDrift = 1.0, bodyDriftTarget = 1.0
     private var compEnvelope = 0.0, compGain = 1.0 // gentle compressor evens out the surges
@@ -455,6 +500,8 @@ final class ChimeSynth {
         lock.initialize(to: os_unfair_lock())
         scratch = .allocate(capacity: ChimeSynth.scratchFrames)
         scratch.initialize(repeating: 0, count: ChimeSynth.scratchFrames)
+        tubeMotion = .allocate(capacity: ChimeSynth.maxTubes * 3)
+        for i in 0..<ChimeSynth.maxTubes { tubeMotion[i * 3] = 1; tubeMotion[i * 3 + 1] = 1; tubeMotion[i * 3 + 2] = 0 }
         voices.reserveCapacity(1280)
         pending.reserveCapacity(128)
         incoming.reserveCapacity(128)
@@ -464,6 +511,7 @@ final class ChimeSynth {
         lock.deinitialize(count: 1)
         lock.deallocate()
         scratch.deallocate()
+        tubeMotion.deallocate()
     }
 
     func enqueue(_ newVoices: [SynthVoice]) {
@@ -542,6 +590,10 @@ final class ChimeSynth {
 
         var i = 0
         while i < voices.count {
+            let tube = voices[i].tube
+            if tube >= 0 && tube < ChimeSynth.maxTubes {
+                voices[i].motion(pitch: tubeMotion[tube * 3], gain: tubeMotion[tube * 3 + 1], pan: tubeMotion[tube * 3 + 2])
+            }
             if voices[i].render(into: outL, outR, frames: frameCount, sampleRate: sampleRate) {
                 i += 1
             } else {

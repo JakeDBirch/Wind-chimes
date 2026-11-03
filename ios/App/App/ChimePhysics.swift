@@ -115,6 +115,18 @@ struct ChimeStrike {
     let speed: Double      // the approach speed in m/s, for the reference-fitted ting
     let isClapper: Bool
     let pan: Double        // where the tube hangs on the ring as seen on screen, -1 left to +1 right
+    let tube: Int          // which tube, so its voices can follow the tube's motion as they ring
+}
+
+/// What a listener in front of the set (below the screen) hears of a tube's motion while it
+/// rings, written every tick for the synth to read: the Doppler shift from its velocity
+/// toward the listener, as a fraction of pitch; how much of its sound reaches the listener
+/// given which way its vibration faces (a bending tube radiates like a dipole, loud
+/// broadside and quiet off the ends); and where it sits left to right.
+struct TubeMotion {
+    var doppler = 0.0    // v/c, positive approaching
+    var radiation = 1.0  // 0.6 off the ends of the vibration plane to 1 broadside
+    var pan = 0.0        // -1 to 1
 }
 
 /// Top-down 2D pendulum model of the chime: a ring hanging from a fixed point, tubes
@@ -412,6 +424,13 @@ final class ChimePhysics {
     private(set) var striker = Pendulum()
     private(set) var tubes: [Tube] = []
     private(set) var strikeFlash: [Double] = []
+    private(set) var tubeMotion: [TubeMotion] = []
+    /// The ring's displacement toward the listener, metres: the space's reflections slide with it
+    private(set) var swayToward = 0.0
+    // The whole set twists on its cord (a torsional pendulum, about four seconds a turn,
+    // pushed about by turbulence): audio only, turning each tube's radiation pattern past
+    // the listener, which is the breathing of a real chime. The screen does not show it
+    private var yaw = 0.0, yawVel = 0.0
     private(set) var ringRadius = 0.187
     private(set) var windX = 0.0, windY = 0.0
     // The wind without the gust button's push, so a gust adds to the wind once rather
@@ -628,6 +647,7 @@ final class ChimePhysics {
         updateRingRadius()
         tubes = []
         strikeFlash = []
+        tubeMotion = Array(repeating: TubeMotion(), count: n)
         // Tube length from pitch: f = K/L^2 => L ∝ 1/sqrt(f); mass ∝ length
         let freqRef = tubeFrequency(n / 2)
         for i in 0..<n {
@@ -645,10 +665,8 @@ final class ChimePhysics {
     private func clampAngle(_ a: Double) -> Double { max(-.pi / 2, min(.pi / 2, a)) }
 
     private func emitStrike(_ index: Int, velocity: Double, speed: Double, isClapper: Bool) {
-        // The tube's mount on the ring places it in the stereo field: the screen draws
-        // physics x left to right, so cos of the mount angle is its left-right position
-        let pan = tubes.isEmpty ? 0 : cos(Double(index) / Double(tubes.count) * .pi * 2)
-        onStrike?(ChimeStrike(frequency: tubeFrequency(index), velocity: velocity, speed: speed, isClapper: isClapper, pan: pan))
+        let pan = index < tubeMotion.count ? tubeMotion[index].pan : 0
+        onStrike?(ChimeStrike(frequency: tubeFrequency(index), velocity: velocity, speed: speed, isClapper: isClapper, pan: pan, tube: index))
     }
 
     /// Strike velocity for the voice, 0–1, from an approach speed or impulse. A soft
@@ -1044,6 +1062,28 @@ final class ChimePhysics {
         if gustAmp > 0.001 {
             windX += gustDirX * Self.gustFull * gustAmp
             windY += gustDirY * Self.gustFull * gustAmp
+        }
+
+        // ── What the listener hears of the motion. The twist: a damped torsional swing
+        // kicked by the flow, sized so a moderate wind turns the set some twenty degrees
+        // rms and a gust twice that
+        do {
+            let flow = (windX * windX + windY * windY).squareRoot()
+            let omega = 2 * Double.pi * 0.25, zeta = 0.15
+            yawVel += (-omega * omega * yaw - 2 * zeta * omega * yawVel) * DT + gaussian() * 0.139 * flow
+            yaw = max(-1.2, min(1.2, yaw + yawVel * DT))
+            let ringVy = cos(ring.ay) * ring.vy * ringL
+            for i in 0..<min(n, tubeMotion.count) {
+                let t = tubes[i]
+                let m = Double(i) / Double(n) * .pi * 2 + yaw
+                let tL = tubeL * t.lenFactor
+                let rX = -cos(m), rY = -sin(m), tX = -sin(m), tY = cos(m)
+                let vy = ringVy + cos(t.ta) * t.tv * tL * rY + cos(t.tt) * t.tvT * tL * tY
+                let x = rcx + cos(m) * ringRadius + sin(t.ta) * tL * rX + sin(t.tt) * tL * tX
+                tubeMotion[i] = TubeMotion(doppler: vy / 343, radiation: 0.6 + 0.4 * abs(sin(m)),
+                                           pan: max(-1, min(1, x / ringRadius)))
+            }
+            swayToward = rcy
         }
 
         // Advance chord progression

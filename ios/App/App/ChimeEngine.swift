@@ -17,6 +17,8 @@ final class ChimeEngine {
     private var sourceNode: AVAudioSourceNode?
     private let motion = CMMotionManager()
     private var physicsTimer: DispatchSourceTimer?
+    /// How much of the chimes' motion reaches the sound (Doppler, radiation, sway); 1 as shipped
+    private var motionDepth = 1.0
     private var idleTimer: DispatchSourceTimer?
     private var lastStepTime: UInt64 = 0
     private var accumulator = 0.0
@@ -217,6 +219,7 @@ final class ChimeEngine {
             self.voiceParams.apply(values)
             if let gain = values["outputGain"] { self.synth.outputGain = Float(max(0, min(40, gain))) }
             if let space = values["space"] { self.synth.space.amount = Float(max(0, min(4, space))) }
+            if let motion = values["motion"] { self.motionDepth = max(0, min(4, motion)) }
         }
     }
 
@@ -541,6 +544,12 @@ final class ChimeEngine {
             physics.tick()
             accumulator -= ChimePhysics.dt
         }
+        // What the listener hears of the motion, scaled by the Workshop's Motion slider
+        let depth = Float(motionDepth)
+        for (i, m) in physics.tubeMotion.enumerated() {
+            synth.setTubeMotion(i, pitch: 1 + depth * Float(m.doppler), gain: 1 - depth * Float(1 - m.radiation), pan: Float(m.pan))
+        }
+        synth.space.sway = depth * Float(physics.swayToward)
 
         // With the wind off, once everything has been still for a few seconds, go quiet
         if !windEnabled && source == "wind" && physics.isSettled && !synth.isActive {

@@ -715,7 +715,8 @@ var SHOP = [
   { key: 'chimeLoudness', engine: 'outputGain', name: 'Chime loudness', base: 5.6, voice: true, lo: 'Quieter', hi: 'Louder', fmt: function(v) { return (v >= 1 ? '+' : '') + (20 * Math.log10(v)).toFixed(1) + ' dB'; } },
   // Ring time: the ring of every voice, metal and recorded, as a multiple
   { key: 'ringTime', engine: 'sustain', name: 'Ring time', base: 1.0, voice: true, lo: 'Brief', hi: 'Lingering', unit: '×' },
-  { key: 'space', name: 'Space', base: 1.0, voice: true, lin: true, lo: 'Dry', hi: 'Open' }
+  { key: 'space', name: 'Space', base: 1.0, voice: true, lin: true, lo: 'Dry', hi: 'Open' },
+  { key: 'motion', name: 'Motion', base: 1.0, voice: true, lin: true, lo: 'Still', hi: 'Lively' }
 ];
 var SHOP_BY_KEY = {}; SHOP.forEach(function(c) { SHOP_BY_KEY[c.key] = c; });
 function shopMin(c) { return 0; }
