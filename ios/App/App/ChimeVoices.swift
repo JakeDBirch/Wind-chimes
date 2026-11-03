@@ -103,9 +103,43 @@ enum ChimeVoices {
     // ring settles. Only the ting uses them.
     static let tingRatios = [1, 2.756, 5.404, 8.933, 13.34, 18.64]
 
+    /// Round robin. No two strikes of a real tube are alike: the striker lands a little
+    /// higher or lower along it and a little more or less squarely, which shifts the
+    /// balance of the partials (each mode's shape has its own value at the strike point),
+    /// the brightness, the ting and the onset, and never the pitch. Six pre-rolled
+    /// strikes, each a consistent character, subtle enough that none reads as a
+    /// different tube; a tube cycles through them in a random order that never repeats
+    /// the one just played.
+    private struct Variant {
+        let partials: [Double]   // multipliers on the four partials' gains, the fundamental fixed
+        let bright: Double       // on the filter's opening
+        let ting: Double         // on the ting's level
+        let attack: Double       // on the partials' onset time
+        let decay: Double        // on the ring time
+        let twinBias: Double     // which of each partial's twin modes is the louder
+    }
+    private static let variants = [
+        Variant(partials: [1, 1.00, 1.00, 1.00], bright: 1.00, ting: 1.00, attack: 1.00, decay: 1.00, twinBias: 0.00),
+        Variant(partials: [1, 0.88, 1.12, 0.95], bright: 0.92, ting: 1.15, attack: 1.15, decay: 0.97, twinBias: 0.08),
+        Variant(partials: [1, 1.10, 0.90, 1.08], bright: 1.08, ting: 0.85, attack: 0.90, decay: 1.03, twinBias: -0.08),
+        Variant(partials: [1, 0.95, 1.05, 1.15], bright: 0.96, ting: 1.05, attack: 1.00, decay: 1.00, twinBias: 0.05),
+        Variant(partials: [1, 1.06, 0.94, 0.85], bright: 1.04, ting: 0.92, attack: 1.10, decay: 0.98, twinBias: -0.05),
+        Variant(partials: [1, 0.92, 1.08, 1.05], bright: 1.12, ting: 1.20, attack: 0.85, decay: 1.02, twinBias: 0.06),
+    ]
+    private static var lastVariant: [Int: Int] = [:]   // by tube pitch; touched on the engine queue only
+    private static func nextVariant(for frequency: Double) -> Variant {
+        let key = Int(frequency.rounded())
+        let n = variants.count
+        let last = lastVariant[key] ?? -1
+        let next = last < 0 ? Int.random(in: 0..<n) : (last + 1 + Int.random(in: 0..<(n - 1))) % n
+        lastVariant[key] = next
+        return variants[next]
+    }
+
     static func make(for strike: ChimeStrike, sample: UserSample?, tuning t: SampleVoiceParams = SampleVoiceParams(),
                      sampleRate sr: Double) -> [SynthVoice] {
         func rand() -> Double { Double.random(in: 0..<1) }
+        let variant = nextVariant(for: strike.frequency)
 
         var voices: [SynthVoice] = []
         // Every contact sounds as tube on tube (Oct 28): the clapper's own brighter, longer
@@ -134,7 +168,7 @@ enum ChimeVoices {
         // end doubled and the hard end a quarter longer, as they died too soon)
         let baseDecay = decayMult * (2.5 + pow(velNorm, 0.7) * 30.0) * pitchRing * t.sustain
         let velBright = bright * (0.20 + velNorm * velNorm * 0.80)
-        let startCutoffMult = 3.0 + velBright * 7.0
+        let startCutoffMult = (3.0 + velBright * 7.0) * variant.bright
         // The sweep ends well above each partial: closing onto it (it used to end at 0.85×)
         // took another dozen dB off in the note's last stretch and made the end sudden
         let endCutoffMult = 1.8 + velBright * 0.4
@@ -215,7 +249,7 @@ enum ChimeVoices {
             // own exponent (1: linear, as a struck tube's modes scale) rather than the
             // sustain's steep curve, which left soft strikes with no ting at all
             let fundamentalAtFull = gainScale * 0.65
-            let scale = t.ting * fundamentalAtFull * pow(max(0.01, velNorm), t.tingVel)
+            let scale = t.ting * fundamentalAtFull * pow(max(0.01, velNorm), t.tingVel) * variant.ting
             let headDecay = 6.908 / (t.tingHeadMs / 1000)
             for m in referenceTing(for: strike, from: Int(t.tingFrom.rounded())) {
                 let level = scale * m.relative
@@ -257,10 +291,10 @@ enum ChimeVoices {
             let partialVel = max(0, (velNorm - threshold) / (1 - threshold))
 
             let pFreqD = pFreq
-            let pDecay = baseDecay * partialDecays[i]
-            let gainVar = 0.90 + rand() * 0.20
-            let pGain = vel * partialGains[i] * gainVar * pow(partialRolloff, di) * pow(partialVel, 0.6) * 0.65
-            let attack = attackMult * (0.006 + di * (0.006 + velNorm * 0.008))
+            let pDecay = baseDecay * partialDecays[i] * variant.decay
+            let gainVar = 0.95 + rand() * 0.10
+            let pGain = vel * partialGains[i] * gainVar * variant.partials[i] * pow(partialRolloff, di) * pow(partialVel, 0.6) * 0.65
+            let attack = attackMult * (0.006 + di * (0.006 + velNorm * 0.008)) * variant.attack
 
             // Twin modes: a real tube is never perfectly round, so each partial is a pair
             // of modes a cent or two apart that beat slowly as the note rings. The split is
@@ -285,7 +319,7 @@ enum ChimeVoices {
                 // Two-stage release: the ring falls to -50 dB over most of the decay, then
                 // the last stretch to silence takes its time, the way a lightly damped tube
                 // hangs on at the very end rather than snapping off
-                let peak = pGain * 0.5
+                let peak = pGain * 0.5 * (1 + sign * 2 * variant.twinBias)
                 let knee = now + attack + pDecay * 0.7
                 v.gain.setValue(0, at: now)
                 v.gain.linearRamp(to: peak, at: now + attack)
