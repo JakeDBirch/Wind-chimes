@@ -259,8 +259,8 @@ final class SynthVoice {
             let ta = max(t0, startTime)
             let invSpan = t1 > ta ? 1.0 / (t1 - ta) : 0
             let g0 = gain.value(at: ta), gD = gain.value(at: t1) - g0
-            let fa = fading ? max(0, min(1, 1 - (ta - fadeFrom) / fadeLen)) : 1
-            let fD = fading ? max(0, min(1, 1 - (t1 - fadeFrom) / fadeLen)) - fa : 0
+            let fadeA = fading ? max(0, min(1, 1 - (ta - fadeFrom) / fadeLen)) : 1
+            let fadeD = fading ? max(0, min(1, 1 - (t1 - fadeFrom) / fadeLen)) - fadeA : 0
             let f0 = frequency.value(at: ta), fD = frequency.value(at: t1) - f0
             if sweepsFilter { flt.setFrequency(filterFrequency!.value(at: ta), sampleRate: sampleRate) }
             let step = isSample ? sampleStep * pitchBend.value(at: ta) : 0
@@ -284,7 +284,7 @@ final class SynthVoice {
                     phase += w * (f0 + fD * frac)
                 }
                 let y = hasFilter ? flt.process(x) : x
-                let v = Float(y * (g0 + gD * frac) * (fa + fD * frac))
+                let v = Float(y * (g0 + gD * frac) * (fadeA + fadeD * frac))
                 outL[offset + k] += v * gL; outR[offset + k] += v * gR
             }
             offset += n
