@@ -756,7 +756,7 @@ SHOP.forEach(function(c) { shop[c.key] = 100; });
 // fast), which progression, and whether the chords come in turn or shuffled.
 var CHORD_SECONDS = 20;
 function chordSeconds() { return CHORD_SECONDS / Math.pow(3, (chords.speed - 100) / 100); }
-var CHORD_SETS = ['Dowland', 'Monteverdi', 'Gesualdo', 'Bach', 'Wagner', 'Satie', 'Rimsky-Korsakov', 'Debussy', 'Mahler', 'Stravinsky', 'Gershwin', 'Coltrane', 'Wilson', 'Harrison', 'Cologne', 'Mediants'];
+var CHORD_SETS = ['Gesualdo', 'Bach', 'Wagner', 'Satie', 'Rimsky-Korsakov', 'Debussy', 'Mahler', 'Stravinsky', 'Gershwin', 'Coltrane', 'Wilson', 'Cologne'];
 var CHORD_ORDERS = ['In turn', 'Shuffled'];
 var chords = { speed: 100, set: 0, shuffle: false };
 

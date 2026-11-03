@@ -178,38 +178,9 @@ final class ChimePhysics {
     // (the pitch is 440 · 2^(offset/12), whatever the offset). Each set is one work's
     // harmony, reduced to its chords and transposed so A is the tonal centre, voiced up
     // from the bass with the lowest two notes never a semitone apart; a suspension or an
-    // inversion is its own chord. In order of the works' dates, the mediant cycle last.
+    // inversion is its own chord. In order of the works' dates.
     static let chordSets: [[[Double]]] = [
-        // 0 Dowland: Lachrimae Pavan, c. 1596 to 1604. The falling A G F E and
-        // the Picardy close. Inferred from the strain structure, with verified anchors
-        [
-            [0, 3, 7, 12, 15],       // Am
-            [-2, 2, 5, 10, 14],      // G
-            [-4, 0, 3, 8, 12],       // F
-            [-5, -1, 2, 7, 11],      // E
-            [0, 3, 7, 12, 15],       // Am
-            [3, 7, 10, 15, 19],      // C
-            [5, 8, 12, 17, 20],      // Dm
-            [-5, 0, 2, 7],           // Esus4
-            [-5, -1, 2, 7, 11],      // E
-            [0, 4, 7, 12, 16],       // A, the Picardy third
-        ],
-        // 1 Monteverdi: Lamento d'Arianna (Lasciatemi morire), 1608. The dominant
-        // seventh stab, the pull to the minor, the tonic turned dominant. Chord sequence
-        // inferred from the form (the opening dominant seventh is verified)
-        [
-            [-5, 0, 2, 7],           // Esus4
-            [-5, -1, 2, 5, 7],       // E7
-            [0, 3, 7, 12, 15],       // Am
-            [5, 8, 12, 17, 20],      // Dm
-            [-5, -1, 2, 5, 7],       // E7
-            [0, 3, 7, 12, 15],       // Am
-            [5, 9, 12, 17, 21],      // D
-            [0, 4, 7, 10, 12],       // A7
-            [-5, -1, 2, 5, 7],       // E7
-            [0, 3, 7, 12, 15],       // Am
-        ],
-        // 2 Gesualdo: Moro, lasso, al mio duolo, Madrigals Book 6, 1611. The
+        // 0 Gesualdo: Moro, lasso, al mio duolo, Madrigals Book 6, 1611. The
         // opening bars, verified by the researcher against two published discussions: four
         // chords that do not belong together, then a cadence that does. Seven chords, no more
         [
@@ -221,7 +192,7 @@ final class ChimePhysics {
             [-5, -1, 2, 7, 11],      // E
             [0, 3, 7, 12, 15],       // Am
         ],
-        // 3 Bach: the C minor Prelude, WTC I (1722), BWV 847, one harmony a bar from the
+        // 1 Bach: the C minor Prelude, WTC I (1722), BWV 847, one harmony a bar from the
         // Bach-Gesellschaft text, read off the score. Down a minor third so A is the
         // tonic: the tonic pedal, the walk to the relative major, the chain of diminished
         // sevenths onto the dominant pedal, the Presto and Adagio, the Picardy third
@@ -266,18 +237,18 @@ final class ChimePhysics {
             [0, 5, 8, 12, 17],         // Dm/A        (Fm/C), bar 38
             [0, 4, 7, 12, 16],         // A           (C), bar 38, the Picardy third
         ],
-        // 4 Wagner: the Tristan chord that opens Wagner's Prelude (1859), F–B–D♯–G♯, and its
+        // 2 Wagner: the Tristan chord that opens Wagner's Prelude (1859), F–B–D♯–G♯, and its
         // resolution onto E7
         [
             [8, 14, 18, 23],         // the Tristan chord: F B D♯ G♯
             [7, 11, 14, 17],         // E7: E G♯ B D
         ],
-        // 5 Satie: Gymnopédie No. 1 (1888), the two chords it rocks between, IV⁷ and I⁷
+        // 3 Satie: Gymnopédie No. 1 (1888), the two chords it rocks between, IV⁷ and I⁷
         [
             [5, 9, 12, 16, 21, 24],  // Dmaj7
             [0, 4, 7, 11, 16, 19],   // Amaj7
         ],
-        // 6 Rimsky-Korsakov: Scheherazade, the first movement's opening (1888): the wind
+        // 4 Rimsky-Korsakov: Scheherazade, the first movement's opening (1888): the wind
         // chords that answer the Sultan's theme, the violin's tonic, the sea theme's cadence.
         // Inferred from published descriptions, the wind chords verified in order
         [
@@ -292,7 +263,7 @@ final class ChimePhysics {
             [7, 11, 14, 19, 23],     // E
             [0, 4, 7, 12, 16],       // A
         ],
-        // 7 Debussy: Prélude à l'après-midi d'un faune (1894), bars 4 to 26, the chords
+        // 5 Debussy: Prélude à l'après-midi d'un faune (1894), bars 4 to 26, the chords
         // under and between the flute's returns, each verified by two published analyses.
         // A major third up, so E becomes A
         [
@@ -307,7 +278,7 @@ final class ChimePhysics {
             [-4, 0, 3, 8, 12],       // F         (bar 21)
             [0, 4, 7, 11, 14],       // Amaj9     (bar 26)
         ],
-        // 8 Mahler: the Adagietto, the skeleton of Mahler's Symphony No. 5, IV (1902), from a published
+        // 6 Mahler: the Adagietto, the skeleton of Mahler's Symphony No. 5, IV (1902), from a published
         // reduction's play-through line (a reduction, not a transcription: the suspensions
         // and chromatic inner voices that give the movement its sound are not in it). Mahler
         // is in F major; here it is a major third up, in A. Section A, the middle section
@@ -340,7 +311,7 @@ final class ChimePhysics {
             [6, 9, 12, 16, 18, 21],  // D♯ø7    (Bø7)
             [0, 4, 7, 12, 16, 19],   // A       the final tonic
         ],
-        // 9 Stravinsky: the Augurs of Spring chord from The Rite of Spring (1913 edition),
+        // 7 Stravinsky: the Augurs of Spring chord from The Rite of Spring (1913 edition),
         // F♭ major under E♭7, here A major under A♭7 as the strings voice it, with the first
         // page's separations into single chords. The chord is verified across analyses;
         // the order of the interruptions is inferred. US public domain; elsewhere until 2042
@@ -352,7 +323,7 @@ final class ChimePhysics {
             [-1, 3, 6, 9],           // A♭7
             [0, 4, 7, 11, 12, 15, 18, 21], // the Augurs chord again
         ],
-        // 10 Gershwin: "rhythm changes", the changes of Gershwin's I Got Rhythm (1930, in the
+        // 8 Gershwin: "rhythm changes", the changes of Gershwin's I Got Rhythm (1930, in the
         // US public domain since 2026) that jazz has played ever since, in A rather than B♭.
         // The A section, then the bridge's chain of dominants III7 VI7 II7 V7
         [
@@ -377,7 +348,7 @@ final class ChimePhysics {
             [2, 6, 9, 12, 14, 18],   // B7
             [2, 5, 7, 11, 14, 17],   // E7
         ],
-        // 11 Coltrane: Giant Steps (1960), the sixteen bars, with their two chords to a
+        // 9 Coltrane: Giant Steps (1960), the sixteen bars, with their two chords to a
         // bar as separate changes: three keys a major third apart, each reached by its
         // dominant, then ii–V–I into each. Down a whole tone from B, so A is the first key
         [
@@ -408,7 +379,7 @@ final class ChimePhysics {
             [2, 5, 9, 12, 14, 17],     // Bm7     (C#m7)
             [-5, -1, 2, 5, 7, 11],     // E7      (F#7)
         ],
-        // 12 Wilson: God Only Knows (Brian Wilson and Tony Asher, 1966), intro, verse and
+        // 10 Wilson: God Only Knows (Brian Wilson and Tony Asher, 1966), intro, verse and
         // chorus with every chord over the bass note the band plays; the inversions are
         // the point. Up a fourth so the verse's tonic is A. Reduction inferred from a
         // published analysis; charts differ on verse chords 4, 6 and 8
@@ -430,39 +401,7 @@ final class ChimePhysics {
             [2, 5, 9, 12, 14],         // Bm7         (F#m7)
             [0, 4, 7, 12, 16],         // A           (E)
         ],
-        // 13 Harrison: Something (1969). The verse with its falling line inside the minor
-        // chord, the three-chord riff, and the bridge in its new key, twice, the second
-        // time landing back in the verse. Down a minor third so the verse's tonic is A
-        [
-            [0, 4, 7, 12, 16],         // A           (C), verse
-            [0, 4, 7, 11, 12],         // Amaj7       (Cmaj7)
-            [0, 4, 7, 10, 12],         // A7          (C7)
-            [5, 9, 12, 17, 21],        // D           (F)
-            [2, 6, 9, 12, 14],         // B7          (D7)
-            [-5, -1, 2, 7, 11],        // E           (G)
-            [-3, 0, 4, 9, 12],         // F#m         (Am), the falling line
-            [-3, 0, 4, 8, 9],          // F#m(maj7)   (Am(maj7))
-            [-3, 0, 4, 7, 9],          // F#m7        (Am7)
-            [2, 6, 9, 12, 16],         // B9          (D9)
-            [5, 9, 12, 17, 21],        // D           (F), the riff
-            [3, 7, 10, 15, 19],        // C           (Eb)
-            [-5, -1, 2, 7, 11],        // E           (G)
-            [-3, 1, 4, 9, 13],         // F#          (A), bridge
-            [-4, 1, 4, 8, 13],         // A#m/F       (C#m/G#)
-            [6, 9, 13, 16, 18],        // D#m7        (F#m7)
-            [4, 9, 13, 16, 21],        // F#/C#       (A/E)
-            [2, 6, 9, 14, 18],         // B           (D)
-            [-5, -1, 2, 7, 11],        // E           (G)
-            [-3, 1, 4, 9, 13],         // F#          (A)
-            [-3, 1, 4, 9, 13],         // F#          (A), bridge, second time
-            [-4, 1, 4, 8, 13],         // A#m/F       (C#m/G#)
-            [6, 9, 13, 16, 18],        // D#m7        (F#m7)
-            [4, 9, 13, 16, 21],        // F#/C#       (A/E)
-            [2, 6, 9, 14, 18],         // B           (D)
-            [-5, -1, 2, 7, 11],        // E           (G)
-            [0, 4, 7, 12, 16],         // A           (C), back to the verse
-        ],
-        // 14 Cologne: Keith Jarrett, The Köln Concert (1975), Part I. The first twelve
+        // 11 Cologne: Keith Jarrett, The Köln Concert (1975), Part I. The first twelve
         // minutes vamp on these two chords; the last six sit on A major
         [
             [0, 3, 7, 10, 12],         // Am7, the vamp
@@ -470,22 +409,6 @@ final class ChimePhysics {
             [0, 3, 7, 10, 12],         // Am7
             [-2, 2, 5, 10, 14],        // G
             [0, 4, 7, 12, 16],         // A, the closing theme
-        ],
-        // 15 Mediants: chromatic mediants, the move Gesualdo made a signature (A major
-        // against F♯ major with nothing between), then Schubert, Liszt and Wagner and, much
-        // later, film scores. An idiom, not a work: nine major triads a third apart, each
-        // sharing exactly one note with the last, none in a key with it, round to where it
-        // began: A C A♭ E G E♭ B D F
-        [
-            [0, 4, 7, 12, 16, 19],   // A      (A C♯ E)
-            [3, 7, 10, 15, 19, 22],  // C      up a minor third, E shared
-            [3, 6, 11, 15, 18, 23],  // A♭     down a major third, C shared
-            [2, 7, 11, 14, 19, 23],  // E      down a major third, G♯ shared
-            [2, 5, 10, 14, 17, 22],  // G      up a minor third, B shared
-            [1, 6, 10, 13, 18, 22],  // E♭     down a major third, G shared
-            [2, 6, 9, 14, 18, 21],   // B      down a major third, D♯ shared
-            [5, 9, 12, 17, 21, 24],  // D      up a minor third, F♯ shared
-            [3, 8, 12, 15, 20, 24],  // F      up a minor third, A shared; and F to A, a major third up, closes the loop
         ],
     ]
     static let gustRise = 0.03      // per tick, the gust's climb toward the finger's level (about 0.3 s)
