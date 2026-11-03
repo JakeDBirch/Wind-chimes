@@ -130,9 +130,10 @@ final class ChimePhysics {
     /// params.customScale.
     static let scales: [String: [Double]] = [
         "Pentatonic": [0, 3, 5, 7, 10],
-        // A major seventh chord with its ninth and thirteenth, no fourth, so the chimes
-        // ring as one lush chord however they fall
-        "7th": [0, 2, 4, 7, 9, 11],
+        // A major seventh chord stacked in thirds to the thirteenth, A C# E G# B D# F#,
+        // one note a tube, so the chimes ring as one chord however they fall. Offsets
+        // run past the octave as a chord set's do; later tubes take it an octave up
+        "7th": [0, 4, 7, 11, 14, 18, 21],
         "Major": [0, 2, 4, 5, 7, 9, 11],
         "Dorian": [0, 2, 3, 5, 7, 9, 10],
         "Mixolydian": [0, 2, 4, 5, 7, 9, 10],
