@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>Chimescape</string>
+        <string>Tassels</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -73,8 +73,8 @@
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Chimescape records a short sound from the microphone to use as the voice of the chimes.</string>
+	<string>Tassels records a short sound from the microphone to use as the voice of the chimes.</string>
 	<key>NSMotionUsageDescription</key>
-	<string>Chimescape uses your phone's motion so tilting and shaking it moves the chimes.</string>
+	<string>Tassels uses your phone's motion so tilting and shaking it moves the chimes.</string>
 </dict>
 </plist>

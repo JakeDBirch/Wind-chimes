@@ -1,8 +1,8 @@
-# Chimescape
+# Tassels
 
 A wind chime simulator. It plays the sound of wind chimes, and if you hang your phone up outside, it becomes a real wind chime that moves with the wind. Under the hood it's a top-down 2D pendulum simulation driven by wind, sound and the phone's motion sensors.
 
-Chimescape (formerly Pocket Chimes, then Chimescape) is an iOS app built with [Capacitor](https://capacitorjs.com). The chime itself (physics, motion input and sound) runs natively in Swift so it keeps playing in the background and with the screen locked. The sound is stereo: each chime is heard from where it hangs on the ring, left to right as you see it on screen, and the wind moves across the field. The controls and the top-down view are a web page (`index.html`) shown inside the app. It no longer runs in a desktop or mobile browser.
+Tassels (formerly Pocket Chimes, then Tassels) is an iOS app built with [Capacitor](https://capacitorjs.com). The chime itself (physics, motion input and sound) runs natively in Swift so it keeps playing in the background and with the screen locked. The sound is stereo: each chime is heard from where it hangs on the ring, left to right as you see it on screen, and the wind moves across the field. The controls and the top-down view are a web page (`index.html`) shown inside the app. It no longer runs in a desktop or mobile browser.
 
 ## Controls (gesture branch)
 
@@ -22,7 +22,7 @@ Nothing on screen but the chimes, with a scatter of dust that drifts with the wi
 | **Wind icon** (bottom right) | Opens the wind drawer: **Wind** on or off (off at launch; off, the chimes settle and the engine rests), **Wind loudness** (0 is silent), **Strength** and **Constancy** sliders |
 | **Workshop** (the wrench icon) | How the chimes move and sound, each a slider between two plain words with the shipped setting in the middle: **Striker swing** and **Chime swing** (rigid to free), **Striker distance** and **Chime distance** (close to far), then **Brightness**, **Chime loudness**, **Ring time**, **Space** (dry to open: the ground bounce, a wall or two and a short tail around the chimes) and **Motion** (still to lively: what you hear of the chimes moving as they ring, the slight Doppler of a tube swinging toward you, the set twisting on its cord and turning each tube's sound past you, the reflections sliding), then the Chord Seq scale's harmonic speed (slow to fast), progression (twelve, each a named work's harmony reduced to its chords) and order |
 
-Chimescape takes the audio for itself: it pauses whatever else was playing, and another app starting playback (or a call) stops the chimes. After a call they come back on their own; after music, tap the screen.
+Tassels takes the audio for itself: it pauses whatever else was playing, and another app starting playback (or a call) stops the chimes. After a call they come back on their own; after music, tap the screen.
 
 Every setting is saved as it changes and restored the next time the app opens.
 

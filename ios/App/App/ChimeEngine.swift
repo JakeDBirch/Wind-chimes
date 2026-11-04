@@ -595,7 +595,7 @@ final class ChimeEngine {
                 try session.setCategory(.playback, mode: .default)
                 try session.setActive(true)
             } catch {
-                NSLog("Chimescape: audio session error: \(error)")
+                NSLog("Tassels: audio session error: \(error)")
             }
         }
         attachSourceNode()
@@ -604,7 +604,7 @@ final class ChimeEngine {
             do {
                 try audioEngine.start()
             } catch {
-                NSLog("Chimescape: audio engine failed to start: \(error)")
+                NSLog("Tassels: audio engine failed to start: \(error)")
             }
         }
     }

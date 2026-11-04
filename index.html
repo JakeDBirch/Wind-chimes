@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#e9e3d2">
-<title>Chimescape</title>
+<title>Tassels</title>
 <style>
 /* Theme: light is the default, dark is the option. Every color on the page comes from here;
    the canvas has its own table in draw(). */
@@ -327,7 +327,7 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px;
 </div>
 
 <script>
-// Chimescape (once Pocket Chimes, then Chimescape), gesture edition: nothing on screen but the chimes. Physics and sound run
+// Tassels (once Pocket Chimes, then Tassels), gesture edition: nothing on screen but the chimes. Physics and sound run
 // natively (the ChimeEngine plugin); this page draws the state and turns gestures into
 // settings. Everything is saved as it changes and restored on the next launch.
 var Engine = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.ChimeEngine;
@@ -1024,7 +1024,7 @@ function startRecording() {
   }, function(err) {
     var code = err && err.code;
     status.textContent =
-      code === 'permission' ? 'Microphone access denied. Settings > Chimescape > Microphone.' :
+      code === 'permission' ? 'Microphone access denied. Settings > Tassels > Microphone.' :
       code === 'noInput'    ? 'No microphone available.' :
                               'Could not open the microphone.';
   });
