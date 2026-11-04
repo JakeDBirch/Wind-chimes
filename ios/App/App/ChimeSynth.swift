@@ -159,7 +159,7 @@ final class SynthVoice {
     /// a few steps away spans a small angle, and wider than this the listener's head sat
     /// in the middle of the ring. Constant-power gains, scaled so a centred voice is as
     /// loud in each channel as it was in mono.
-    static let panWidth = 0.3
+    static let panWidth = 0.04
     var pan = 0.0 {
         didSet {
             let th = (max(-1, min(1, pan)) * SynthVoice.panWidth + 1) * .pi / 4
